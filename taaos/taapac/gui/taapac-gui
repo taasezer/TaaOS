@@ -1,0 +1,565 @@
+#!/usr/bin/env python3
+"""
+TaaPac GUI - Graphical Package Manager for TaaOS
+Modern, minimal interface inspired by Arch Linux pacman
+"""
+
+import sys
+import subprocess
+import json
+from pathlib import Path
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QLineEdit, QListWidget, QListWidgetItem, QLabel,
+    QTextEdit, QSplitter, QTabWidget, QProgressBar, QMessageBox,
+    QMenu, QAction, QStatusBar, QToolBar, QComboBox, QCheckBox
+)
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtGui import QIcon, QFont, QPalette, QColor
+
+# TaaOS Color Scheme - Rosso Corsa
+COLORS = {
+    'primary': '#D40000',      # Rosso Corsa
+    'primary_light': '#FF3333',
+    'primary_dark': '#8B0000',
+    'secondary': '#F5F5F0',    # Off-white
+    'background': '#0A0A0A',   # Near-black
+    'surface': '#1A1A1A',
+    'surface_light': '#2B2B2B',
+    'text': '#F5F5F0',
+    'text_dim': '#808080',
+    'success': '#00CC66',
+    'warning': '#FFA500',
+    'error': '#FF0000',
+}
+
+
+class PackageWorker(QThread):
+    """Worker thread for package operations"""
+    progress = pyqtSignal(str)
+    finished = pyqtSignal(bool, str)
+    
+    def __init__(self, operation, packages=None):
+        super().__init__()
+        self.operation = operation
+        self.packages = packages or []
+    
+    def run(self):
+        try:
+            if self.operation == 'sync':
+                self.progress.emit("Synchronizing package databases...")
+                subprocess.run(['sudo', 'taapac', 'sync'], check=True)
+                self.finished.emit(True, "Database synchronized successfully")
+            
+            elif self.operation == 'install':
+                for pkg in self.packages:
+                    self.progress.emit(f"Installing {pkg}...")
+                    subprocess.run(['sudo', 'taapac', 'install', pkg], check=True)
+                self.finished.emit(True, f"Installed {len(self.packages)} package(s)")
+            
+            elif self.operation == 'remove':
+                for pkg in self.packages:
+                    self.progress.emit(f"Removing {pkg}...")
+                    subprocess.run(['sudo', 'taapac', 'remove', pkg], check=True)
+                self.finished.emit(True, f"Removed {len(self.packages)} package(s)")
+            
+            elif self.operation == 'upgrade':
+                self.progress.emit("Upgrading system packages...")
+                subprocess.run(['sudo', 'taapac', 'upgrade'], check=True)
+                self.finished.emit(True, "System upgraded successfully")
+                
+        except subprocess.CalledProcessError as e:
+            self.finished.emit(False, f"Operation failed: {str(e)}")
+        except Exception as e:
+            self.finished.emit(False, f"Error: {str(e)}")
+
+
+class PackageListItem(QWidget):
+    """Custom widget for package list items"""
+    
+    def __init__(self, name, version, description, installed=False):
+        super().__init__()
+        self.name = name
+        self.version = version
+        self.installed = installed
+        
+        layout = QHBoxLayout()
+        layout.setContentsMargins(10, 5, 10, 5)
+        
+        # Package info
+        info_layout = QVBoxLayout()
+        
+        name_label = QLabel(f"<b>{name}</b> <span style='color: {COLORS['text_dim']}'>{version}</span>")
+        name_label.setStyleSheet(f"color: {COLORS['text']};")
+        
+        desc_label = QLabel(description[:100] + "..." if len(description) > 100 else description)
+        desc_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 11px;")
+        
+        info_layout.addWidget(name_label)
+        info_layout.addWidget(desc_label)
+        
+        # Status badge
+        status_label = QLabel("INSTALLED" if installed else "AVAILABLE")
+        status_label.setStyleSheet(f"""
+            background-color: {COLORS['success'] if installed else COLORS['surface_light']};
+            color: {COLORS['background']};
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 10px;
+        """)
+        status_label.setFixedHeight(20)
+        
+        layout.addLayout(info_layout, stretch=1)
+        layout.addWidget(status_label)
+        
+        self.setLayout(layout)
+
+
+class TaaPacGUI(QMainWindow):
+    """Main TaaPac GUI Window"""
+    
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaPac - TaaOS Package Manager")
+        self.setGeometry(100, 100, 1200, 800)
+        
+        self.packages_cache = []
+        self.installed_packages = []
+        
+        self.setup_ui()
+        self.apply_theme()
+        self.load_packages()
+    
+    def setup_ui(self):
+        """Setup the user interface"""
+        
+        # Central widget
+        central = QWidget()
+        self.setCentralWidget(central)
+        
+        main_layout = QVBoxLayout(central)
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Toolbar
+        toolbar = self.create_toolbar()
+        main_layout.addWidget(toolbar)
+        
+        # Search bar
+        search_layout = QHBoxLayout()
+        search_layout.setContentsMargins(20, 10, 20, 10)
+        
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("🔍 Search packages...")
+        self.search_input.textChanged.connect(self.filter_packages)
+        self.search_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {COLORS['surface']};
+                color: {COLORS['text']};
+                border: 2px solid {COLORS['surface_light']};
+                border-radius: 5px;
+                padding: 10px 15px;
+                font-size: 14px;
+            }}
+            QLineEdit:focus {{
+                border-color: {COLORS['primary']};
+            }}
+        """)
+        
+        self.filter_combo = QComboBox()
+        self.filter_combo.addItems(['All Packages', 'Installed', 'Available', 'Updates'])
+        self.filter_combo.currentTextChanged.connect(self.filter_packages)
+        self.filter_combo.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {COLORS['surface']};
+                color: {COLORS['text']};
+                border: 2px solid {COLORS['surface_light']};
+                border-radius: 5px;
+                padding: 8px;
+                min-width: 150px;
+            }}
+        """)
+        
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(self.filter_combo)
+        
+        main_layout.addLayout(search_layout)
+        
+        # Splitter for package list and details
+        splitter = QSplitter(Qt.Horizontal)
+        
+        # Package list
+        self.package_list = QListWidget()
+        self.package_list.itemClicked.connect(self.show_package_details)
+        self.package_list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {COLORS['surface']};
+                color: {COLORS['text']};
+                border: none;
+                border-radius: 5px;
+            }}
+            QListWidget::item {{
+                padding: 5px;
+                border-bottom: 1px solid {COLORS['surface_light']};
+            }}
+            QListWidget::item:selected {{
+                background-color: {COLORS['primary']};
+            }}
+            QListWidget::item:hover {{
+                background-color: {COLORS['surface_light']};
+            }}
+        """)
+        
+        # Details panel
+        details_widget = QWidget()
+        details_layout = QVBoxLayout(details_widget)
+        
+        self.package_name_label = QLabel("Select a package")
+        self.package_name_label.setStyleSheet(f"""
+            color: {COLORS['text']};
+            font-size: 24px;
+            font-weight: bold;
+            padding: 10px;
+        """)
+        
+        self.package_details = QTextEdit()
+        self.package_details.setReadOnly(True)
+        self.package_details.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {COLORS['surface']};
+                color: {COLORS['text']};
+                border: none;
+                border-radius: 5px;
+                padding: 15px;
+            }}
+        """)
+        
+        # Action buttons
+        actions_layout = QHBoxLayout()
+        
+        self.install_btn = QPushButton("Install")
+        self.install_btn.clicked.connect(self.install_selected)
+        self.install_btn.setStyleSheet(self.button_style(COLORS['primary']))
+        
+        self.remove_btn = QPushButton("Remove")
+        self.remove_btn.clicked.connect(self.remove_selected)
+        self.remove_btn.setStyleSheet(self.button_style(COLORS['error']))
+        
+        actions_layout.addWidget(self.install_btn)
+        actions_layout.addWidget(self.remove_btn)
+        actions_layout.addStretch()
+        
+        details_layout.addWidget(self.package_name_label)
+        details_layout.addWidget(self.package_details)
+        details_layout.addLayout(actions_layout)
+        
+        splitter.addWidget(self.package_list)
+        splitter.addWidget(details_widget)
+        splitter.setSizes([400, 600])
+        
+        main_layout.addWidget(splitter)
+        
+        # Progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                background-color: {COLORS['surface']};
+                border: none;
+                border-radius: 5px;
+                text-align: center;
+                color: {COLORS['text']};
+                height: 25px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {COLORS['primary']};
+                border-radius: 5px;
+            }}
+        """)
+        main_layout.addWidget(self.progress_bar)
+        
+        # Status bar
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
+        self.statusBar.setStyleSheet(f"""
+            QStatusBar {{
+                background-color: {COLORS['surface']};
+                color: {COLORS['text']};
+                border-top: 1px solid {COLORS['surface_light']};
+            }}
+        """)
+        self.statusBar.showMessage("Ready")
+    
+    def create_toolbar(self):
+        """Create toolbar with main actions"""
+        toolbar = QToolBar()
+        toolbar.setStyleSheet(f"""
+            QToolBar {{
+                background-color: {COLORS['surface']};
+                border-bottom: 2px solid {COLORS['primary']};
+                padding: 5px;
+                spacing: 5px;
+            }}
+            QToolButton {{
+                background-color: {COLORS['surface_light']};
+                color: {COLORS['text']};
+                border: none;
+                border-radius: 5px;
+                padding: 10px 15px;
+                margin: 2px;
+                font-weight: bold;
+            }}
+            QToolButton:hover {{
+                background-color: {COLORS['primary']};
+            }}
+        """)
+        
+        sync_action = QAction("🔄 Sync", self)
+        sync_action.triggered.connect(self.sync_databases)
+        toolbar.addAction(sync_action)
+        
+        upgrade_action = QAction("⬆️ Upgrade All", self)
+        upgrade_action.triggered.connect(self.upgrade_system)
+        toolbar.addAction(upgrade_action)
+        
+        toolbar.addSeparator()
+        
+        installed_action = QAction("📦 Installed", self)
+        installed_action.triggered.connect(lambda: self.filter_combo.setCurrentText('Installed'))
+        toolbar.addAction(installed_action)
+        
+        toolbar.addSeparator()
+        
+        settings_action = QAction("⚙️ Settings", self)
+        toolbar.addAction(settings_action)
+        
+        about_action = QAction("ℹ️ About", self)
+        about_action.triggered.connect(self.show_about)
+        toolbar.addAction(about_action)
+        
+        toolbar.setMovable(False)
+        return toolbar
+    
+    def button_style(self, color):
+        """Generate button stylesheet"""
+        return f"""
+            QPushButton {{
+                background-color: {color};
+                color: {COLORS['text']};
+                border: none;
+                border-radius: 5px;
+                padding: 10px 20px;
+                font-weight: bold;
+                font-size: 14px;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['primary_light']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['primary_dark']};
+            }}
+            QPushButton:disabled {{
+                background-color: {COLORS['surface_light']};
+                color: {COLORS['text_dim']};
+            }}
+        """
+    
+    def apply_theme(self):
+        """Apply TaaOS dark theme"""
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(COLORS['background']))
+        palette.setColor(QPalette.WindowText, QColor(COLORS['text']))
+        palette.setColor(QPalette.Base, QColor(COLORS['surface']))
+        palette.setColor(QPalette.AlternateBase, QColor(COLORS['surface_light']))
+        palette.setColor(QPalette.Text, QColor(COLORS['text']))
+        palette.setColor(QPalette.Button, QColor(COLORS['surface_light']))
+        palette.setColor(QPalette.ButtonText, QColor(COLORS['text']))
+        palette.setColor(QPalette.Highlight, QColor(COLORS['primary']))
+        palette.setColor(QPalette.HighlightedText, QColor(COLORS['text']))
+        
+        self.setPalette(palette)
+        
+        # Set global font
+        font = QFont("Inter", 10)
+        QApplication.setFont(font)
+    
+    def load_packages(self):
+        """Load package list"""
+        self.statusBar.showMessage("Loading packages...")
+        
+        # Mock packages for demonstration
+        mock_packages = [
+            {"name": "firefox", "version": "121.0", "description": "Fast, safe & private web browser", "installed": True},
+            {"name": "vscodium", "version": "1.85.0", "description": "Free/Libre Open Source version of VS Code", "installed": True},
+            {"name": "docker", "version": "24.0.7", "description": "Container platform", "installed": True},
+            {"name": "rust", "version": "1.75.0", "description": "Systems programming language", "installed": False},
+            {"name": "nodejs", "version": "21.5.0", "description": "JavaScript runtime", "installed": True},
+            {"name": "python", "version": "3.12.1", "description": "High-level programming language", "installed": True},
+            {"name": "gcc", "version": "13.2.0", "description": "GNU Compiler Collection", "installed": True},
+            {"name": "neovim", "version": "0.9.5", "description": "Hyperextensible Vim-based text editor", "installed": False},
+        ]
+        
+        self.packages_cache = mock_packages
+        self.display_packages(mock_packages)
+        
+        self.statusBar.showMessage(f"Loaded {len(mock_packages)} packages")
+    
+    def display_packages(self, packages):
+        """Display packages in list"""
+        self.package_list.clear()
+        
+        for pkg in packages:
+            item = QListWidgetItem(self.package_list)
+            widget = PackageListItem(
+                pkg['name'],
+                pkg['version'],
+                pkg['description'],
+                pkg.get('installed', False)
+            )
+            item.setSizeHint(widget.sizeHint())
+            item.setData(Qt.UserRole, pkg)
+            self.package_list.addItem(item)
+            self.package_list.setItemWidget(item, widget)
+    
+    def filter_packages(self):
+        """Filter packages based on search and filter"""
+        search_text = self.search_input.text().lower()
+        filter_type = self.filter_combo.currentText()
+        
+        filtered = self.packages_cache
+        
+        # Apply filter type
+        if filter_type == 'Installed':
+            filtered = [p for p in filtered if p.get('installed', False)]
+        elif filter_type == 'Available':
+            filtered = [p for p in filtered if not p.get('installed', False)]
+        
+        # Apply search
+        if search_text:
+            filtered = [p for p in filtered if search_text in p['name'].lower() or search_text in p['description'].lower()]
+        
+        self.display_packages(filtered)
+    
+    def show_package_details(self, item):
+        """Show detailed package information"""
+        pkg = item.data(Qt.UserRole)
+        
+        self.package_name_label.setText(f"{pkg['name']} {pkg['version']}")
+        
+        details = f"""
+        <p><b>Name:</b> {pkg['name']}</p>
+        <p><b>Version:</b> {pkg['version']}</p>
+        <p><b>Description:</b> {pkg['description']}</p>
+        <p><b>Status:</b> <span style='color: {COLORS['success'] if pkg.get('installed') else COLORS['warning']};'>
+        {'Installed' if pkg.get('installed') else 'Not Installed'}</span></p>
+        
+        <h3>Package Information</h3>
+        <p>Size: 42.5 MB</p>
+        <p>Architecture: x86_64</p>
+        <p>Repository: taaos-core</p>
+        <p>Build Date: 2025-01-30</p>
+        
+        <h3>Dependencies</h3>
+        <p>glibc, libx11, libxcb</p>
+        """
+        
+        self.package_details.setHtml(details)
+        
+        # Update button states
+        is_installed = pkg.get('installed', False)
+        self.install_btn.setEnabled(not is_installed)
+        self.remove_btn.setEnabled(is_installed)
+    
+    def sync_databases(self):
+        """Synchronize package databases"""
+        self.run_operation('sync')
+    
+    def upgrade_system(self):
+        """Upgrade all packages"""
+        reply = QMessageBox.question(
+            self,
+            "Confirm Upgrade",
+            "Do you want to upgrade all packages?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.run_operation('upgrade')
+    
+    def install_selected(self):
+        """Install selected package"""
+        current_item = self.package_list.currentItem()
+        if current_item:
+            pkg = current_item.data(Qt.UserRole)
+            self.run_operation('install', [pkg['name']])
+    
+    def remove_selected(self):
+        """Remove selected package"""
+        current_item = self.package_list.currentItem()
+        if current_item:
+            pkg = current_item.data(Qt.UserRole)
+            reply = QMessageBox.question(
+                self,
+                "Confirm Removal",
+                f"Do you want to remove {pkg['name']}?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            
+            if reply == QMessageBox.Yes:
+                self.run_operation('remove', [pkg['name']])
+    
+    def run_operation(self, operation, packages=None):
+        """Run package operation in background"""
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setRange(0, 0)  # Indeterminate
+        self.statusBar.showMessage(f"Running {operation}...")
+        
+        self.worker = PackageWorker(operation, packages)
+        self.worker.progress.connect(self.on_progress)
+        self.worker.finished.connect(self.on_operation_finished)
+        self.worker.start()
+    
+    def on_progress(self, message):
+        """Handle progress updates"""
+        self.statusBar.showMessage(message)
+    
+    def on_operation_finished(self, success, message):
+        """Handle operation completion"""
+        self.progress_bar.setVisible(False)
+        self.statusBar.showMessage(message)
+        
+        if success:
+            QMessageBox.information(self, "Success", message)
+            self.load_packages()  # Reload package list
+        else:
+            QMessageBox.critical(self, "Error", message)
+    
+    def show_about(self):
+        """Show about dialog"""
+        QMessageBox.about(
+            self,
+            "About TaaPac",
+            """
+            <h2>TaaPac - TaaOS Package Manager</h2>
+            <p>Version: 1.0.0</p>
+            <p>Modern package manager for TaaOS</p>
+            <p><b>TaaOS</b> - Developer power, Ferrari style 🏎️</p>
+            <p style='color: #D40000;'>Rosso Corsa Theme</p>
+            """
+        )
+
+
+def main():
+    app = QApplication(sys.argv)
+    app.setApplicationName("TaaPac")
+    app.setOrganizationName("TaaOS")
+    
+    window = TaaPacGUI()
+    window.show()
+    
+    sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main()

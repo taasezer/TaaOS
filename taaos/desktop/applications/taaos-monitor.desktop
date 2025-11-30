@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=System Monitor
+Name[tr]=Sistem İzleyici
+Comment=TaaOS System Monitor - CPU, RAM, Processes
+Comment[tr]=TaaOS Sistem İzleyici - CPU, RAM, İşlemler
+Icon=taaos-monitor
+Exec=python3 /usr/share/taaos/desktop/tools/taaos-monitor
+Terminal=false
+Categories=System;Monitor;Qt;
+Keywords=monitor;cpu;memory;processes;performance;
+StartupNotify=true

@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+"""
+TaaOS Mobile Device Manager
+Manage Android/iOS devices via KDE Connect and other protocols
+"""
+
+import sys
+import subprocess
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, QTimer
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class MobileDeviceManager(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Mobile Device Manager")
+        self.setGeometry(100, 100, 1000, 700)
+        
+        self.devices = []
+        self.setup_ui()
+        self.apply_theme()
+        self.scan_devices()
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        # Header
+        header = QLabel("📱 Connected Mobile Devices")
+        header.setStyleSheet(f"font-size: 24px; color: {COLORS['primary']}; font-weight: bold; padding: 20px;")
+        layout.addWidget(header)
+        
+        # Device list
+        self.device_list = QListWidget()
+        self.device_list.itemClicked.connect(self.show_device_details)
+        layout.addWidget(self.device_list)
+        
+        # Actions tabbed
+        tabs = QTabWidget()
+        tabs.addTab(self.create_files_tab(), "📁 Files")
+        tabs.addTab(self.create_messages_tab(), "💬 Messages")
+        tabs.addTab(self.create_notifications_tab(), "🔔 Notifications")
+        tabs.addTab(self.create_apps_tab(), "📦 Apps")
+        layout.addWidget(tabs)
+        
+        # Button bar
+        btn_layout = QHBoxLayout()
+        
+        scan_btn = QPushButton("🔍 Scan Devices")
+        scan_btn.clicked.connect(self.scan_devices)
+        
+        pair_btn = QPushButton("🔗 Pair New Device")
+        pair_btn.clicked.connect(self.pair_device)
+        
+        settings_btn = QPushButton("⚙️ Settings")
+        
+        btn_layout.addWidget(scan_btn)
+        btn_layout.addWidget(pair_btn)
+        btn_layout.addWidget(settings_btn)
+        btn_layout.addStretch()
+        
+        layout.addLayout(btn_layout)
+    
+    def create_files_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        file_tree = QTreeWidget()
+        file_tree.setHeaderLabels(["Name", "Size", "Modified"])
+        layout.addWidget(file_tree)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addWidget(QPushButton("📥 Download"))
+        btn_layout.addWidget(QPushButton("📤 Upload"))
+        btn_layout.addWidget(QPushButton("🗑️ Delete"))
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+        
+        return widget
+    
+    def create_messages_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        messages = QTextEdit()
+        messages.setReadOnly(True)
+        messages.setPlaceholderText("SMS messages will appear here...")
+        layout.addWidget(messages)
+        
+        send_layout = QHBoxLayout()
+        send_layout.addWidget(QLineEdit())
+        send_layout.addWidget(QPushButton("📨 Send SMS"))
+        layout.addLayout(send_layout)
+        
+        return widget
+    
+    def create_notifications_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        notif_list = QListWidget()
+        notif_list.addItem("📩 New email from work@company.com")
+        notif_list.addItem("💬 WhatsApp: 3 new messages")
+        notif_list.addItem("📱 Missed call from +1234567890")
+        layout.addWidget(notif_list)
+        
+        layout.addWidget(QCheckBox("Mirror notifications to desktop"))
+        layout.addWidget(QCheckBox("Sync clipboard"))
+        layout.addWidget(QCheckBox("Share files automatically"))
+        
+        return widget
+    
+    def create_apps_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        apps_list = QListWidget()
+        apps_list.addItem("📦 Instagram v2.45.0")
+        apps_list.addItem("📦 Telegram v10.2.1")
+        apps_list.addItem("📦 Chrome v120.0")
+        layout.addWidget(apps_list)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addWidget(QPushButton("📥 Backup APK"))
+        btn_layout.addWidget(QPushButton("🗑️ Uninstall"))
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+        
+        return widget
+    
+    def scan_devices(self):
+        self.device_list.clear()
+        
+        # Mock devices
+        devices = [
+            "📱 Samsung Galaxy S23 (Android 14)",
+            "📱 iPhone 15 Pro (iOS 17.2)",
+            "📱 Pixel 8 (Android 14)"
+        ]
+        
+        for device in devices:
+            self.device_list.addItem(device)
+        
+        QMessageBox.information(self, "Scan Complete", f"Found {len(devices)} device(s)")
+    
+    def pair_device(self):
+        QMessageBox.information(self, "Pair Device", 
+            "To pair a new device:\n\n"
+            "1. Install KDE Connect on your phone\n"
+            "2. Open the app\n"
+            "3. Click 'Pair new device'\n"
+            "4. Accept the pairing request on your computer"
+        )
+    
+    def show_device_details(self, item):
+        details = f"""
+Device: {item.text()}
+Status: ✅ Connected
+Battery: 85%
+Storage: 45 GB free / 128 GB total
+Network: WiFi (192.168.1.100)
+
+Features:
+• File transfer
+• SMS sync
+• Notification mirroring
+• Clipboard sync
+• Remote input
+• Find my phone
+        """
+        QMessageBox.information(self, "Device Details", details)
+    
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['surface']}; color: {COLORS['text']}; }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{ background-color: #FF3333; }}
+            QListWidget, QTreeWidget {{
+                background-color: {COLORS['surface']};
+                border: 2px solid #2B2B2B;
+                border-radius: 5px;
+            }}
+            QListWidget::item:selected, QTreeWidget::item:selected {{
+                background-color: {COLORS['primary']};
+            }}
+            QTabWidget::pane {{
+                background-color: {COLORS['surface']};
+                border: 2px solid #2B2B2B;
+                border-radius: 5px;
+            }}
+            QTabBar::tab {{
+                background-color: #2B2B2B;
+                color: {COLORS['text']};
+                padding: 10px 20px;
+                border-top-left-radius: 5px;
+                border-top-right-radius: 5px;
+                margin-right: 2px;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {COLORS['primary']};
+            }}
+        """)
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = MobileDeviceManager()
+    window.show()
+    sys.exit(app.exec_())

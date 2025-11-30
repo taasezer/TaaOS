@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""
+TaaOS Gaming Center
+Central hub for all gaming platforms (Steam, Lutris, Heroic, RetroArch)
+"""
+
+import sys
+import subprocess
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon, QPixmap
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class GamingCenter(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Gaming Center")
+        self.setGeometry(100, 100, 1100, 700)
+        
+        self.setup_ui()
+        self.apply_theme()
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        # Header
+        header = QLabel("🎮 TaaOS Gaming Center")
+        header.setStyleSheet(f"font-size: 28px; color: {COLORS['primary']}; font-weight: bold; padding: 20px;")
+        layout.addWidget(header)
+        
+        # Platforms Grid
+        grid = QGridLayout()
+        
+        platforms = [
+            ("Steam", "Manage your Steam library", "steam"),
+            ("Lutris", "Open source gaming platform", "lutris"),
+            ("Heroic", "Epic Games & GOG Launcher", "heroic"),
+            ("RetroArch", "Retro gaming emulation", "retroarch"),
+            ("Wine", "Windows compatibility layer", "wine"),
+            ("ProtonDB", "Check game compatibility", "proton")
+        ]
+        
+        row, col = 0, 0
+        for name, desc, icon in platforms:
+            card = self.create_platform_card(name, desc, icon)
+            grid.addWidget(card, row, col)
+            col += 1
+            if col > 2:
+                col = 0
+                row += 1
+        
+        layout.addLayout(grid)
+        
+        # Tools Section
+        tools_label = QLabel("🛠️ Gaming Tools")
+        tools_label.setStyleSheet(f"font-size: 18px; color: {COLORS['text']}; font-weight: bold; margin-top: 20px;")
+        layout.addWidget(tools_label)
+        
+        tools_layout = QHBoxLayout()
+        tools_layout.addWidget(QPushButton("🚀 GameMode"))
+        tools_layout.addWidget(QPushButton("📊 MangoHud"))
+        tools_layout.addWidget(QPushButton("🎛️ GPU Overclock"))
+        tools_layout.addWidget(QPushButton("💾 Save Manager"))
+        tools_layout.addStretch()
+        layout.addLayout(tools_layout)
+        
+        layout.addStretch()
+    
+    def create_platform_card(self, name, desc, icon_name):
+        frame = QFrame()
+        frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['surface']};
+                border: 2px solid #2B2B2B;
+                border-radius: 10px;
+            }}
+            QFrame:hover {{
+                border-color: {COLORS['primary']};
+            }}
+        """)
+        
+        layout = QVBoxLayout(frame)
+        
+        title = QLabel(name)
+        title.setStyleSheet("font-size: 18px; font-weight: bold; border: none;")
+        
+        description = QLabel(desc)
+        description.setStyleSheet("color: #808080; border: none;")
+        description.setWordWrap(True)
+        
+        btn = QPushButton("Launch")
+        btn.clicked.connect(lambda: self.launch_platform(name))
+        
+        layout.addWidget(title)
+        layout.addWidget(description)
+        layout.addWidget(btn)
+        
+        return frame
+    
+    def launch_platform(self, name):
+        QMessageBox.information(self, "Launch", f"Launching {name}...")
+        # subprocess.Popen([name.lower()])
+    
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['background']}; color: {COLORS['text']}; }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                padding: 8px 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{ background-color: #FF3333; }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = GamingCenter()
+    window.show()
+    sys.exit(app.exec_())

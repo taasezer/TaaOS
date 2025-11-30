@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""
+TaaOS Docker & Container Management GUI
+Manage Docker containers, images, volumes, and networks
+"""
+
+import sys
+import subprocess
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, QTimer
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class DockerManager(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Docker Manager")
+        self.setGeometry(100, 100, 1200, 800)
+        
+        self.setup_ui()
+        self.apply_theme()
+        self.refresh_all()
+        
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.refresh_all)
+        self.timer.start(5000)
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        header = QLabel("🐳 Docker & Container Management")
+        header.setStyleSheet(f"font-size: 24px; color: {COLORS['primary']}; font-weight: bold; padding: 20px;")
+        layout.addWidget(header)
+        
+        tabs = QTabWidget()
+        tabs.addTab(self.create_containers_tab(), "📦 Containers")
+        tabs.addTab(self.create_images_tab(), "💿 Images")
+        tabs.addTab(self.create_volumes_tab(), "💾 Volumes")
+        tabs.addTab(self.create_networks_tab(), "🌐 Networks")
+        layout.addWidget(tabs)
+        
+        self.status_bar = QLabel("Ready")
+        self.status_bar.setStyleSheet(f"color: {COLORS['text']}; padding: 10px;")
+        layout.addWidget(self.status_bar)
+    
+    def create_containers_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        toolbar = QHBoxLayout()
+        for action in ["▶️ Start", "⏸️ Stop", "🔄 Restart", "🗑️ Remove", "📊 Stats", "📜 Logs", "💻 Shell"]:
+            toolbar.addWidget(QPushButton(action))
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+        
+        self.container_table = QTableWidget()
+        self.container_table.setColumnCount(6)
+        self.container_table.setHorizontalHeaderLabels(["Name", "Image", "Status", "Ports", "Created", "Size"])
+        layout.addWidget(self.container_table)
+        return widget
+    
+    def create_images_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        toolbar = QHBoxLayout()
+        for action in ["📥 Pull", "🏗️ Build", "📤 Push", "🗑️ Remove", "🏷️ Tag"]:
+            toolbar.addWidget(QPushButton(action))
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+        
+        self.image_table = QTableWidget()
+        self.image_table.setColumnCount(5)
+        self.image_table.setHorizontalHeaderLabels(["Repository", "Tag", "Image ID", "Created", "Size"])
+        layout.addWidget(self.image_table)
+        return widget
+    
+    def create_volumes_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        toolbar = QHBoxLayout()
+        for action in ["➕ Create", "🗑️ Remove", "🧹 Prune Unused"]:
+            toolbar.addWidget(QPushButton(action))
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+        
+        self.volume_list = QListWidget()
+        layout.addWidget(self.volume_list)
+        return widget
+    
+    def create_networks_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        toolbar = QHBoxLayout()
+        for action in ["➕ Create Network", "🗑️ Remove", "🔍 Inspect"]:
+            toolbar.addWidget(QPushButton(action))
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+        
+        self.network_list = QListWidget()
+        layout.addWidget(self.network_list)
+        return widget
+    
+    def refresh_all(self):
+        self.refresh_containers()
+        self.refresh_images()
+        self.refresh_volumes()
+        self.refresh_networks()
+        self.update_status()
+    
+    def refresh_containers(self):
+        # Mock data
+        self.container_table.setRowCount(3)
+        containers = [
+            ("nginx-web", "nginx:latest", "Running", "80:80", "2 days ago", "1.09 GB"),
+            ("postgres-db", "postgres:15", "Running", "5432:5432", "2 days ago", "314 MB"),
+            ("redis-cache", "redis:7", "Exited", "-", "1 week ago", "117 MB"),
+        ]
+        for i, row in enumerate(containers):
+            for j, val in enumerate(row):
+                self.container_table.setItem(i, j, QTableWidgetItem(str(val)))
+    
+    def refresh_images(self):
+        self.image_table.setRowCount(2)
+        images = [("nginx", "latest", "a1b2c3d4", "3 days ago", "142 MB"), ("postgres", "15", "e5f6g7h8", "1 week ago", "379 MB")]
+        for i, row in enumerate(images):
+            for j, val in enumerate(row):
+                self.image_table.setItem(i, j, QTableWidgetItem(str(val)))
+    
+    def refresh_volumes(self):
+        self.volume_list.clear()
+        self.volume_list.addItems(["db_data", "web_content"])
+    
+    def refresh_networks(self):
+        self.network_list.clear()
+        self.network_list.addItems(["bridge", "host", "none"])
+    
+    def update_status(self):
+        self.status_bar.setText("Docker running • 3 containers")
+
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['surface']}; color: {COLORS['text']}; }}
+            QPushButton {{ background-color: {COLORS['primary']}; color: {COLORS['text']}; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; }}
+            QPushButton:hover {{ background-color: #FF3333; }}
+            QTableWidget, QListWidget {{ background-color: {COLORS['surface']}; border: 2px solid #2B2B2B; border-radius: 5px; }}
+            QTableWidget::item:selected, QListWidget::item:selected {{ background-color: {COLORS['primary']}; }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = DockerManager()
+    window.show()
+    sys.exit(app.exec_())

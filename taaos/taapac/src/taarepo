@@ -1,0 +1,61 @@
+#!/bin/bash
+#
+# TaaOS Repository Manager
+# Manages TaaPac package repositories
+#
+
+REPO_DIR="/var/lib/taapac/repos"
+CACHE_DIR="/var/cache/taapac"
+
+add_repo() {
+    local name=$1
+    local url=$2
+    
+    echo "Adding repository: $name"
+    echo "$url" > "$REPO_DIR/$name.repo"
+    
+    # Update repository database
+    taapac --sync "$name"
+}
+
+remove_repo() {
+    local name=$1
+    
+    echo "Removing repository: $name"
+    rm -f "$REPO_DIR/$name.repo"
+}
+
+list_repos() {
+    echo "Configured repositories:"
+    for repo in "$REPO_DIR"/*.repo; do
+        if [ -f "$repo" ]; then
+            basename "$repo" .repo
+            cat "$repo"
+            echo ""
+        fi
+    done
+}
+
+update_all() {
+    echo "Updating all repositories..."
+    taapac --sync
+}
+
+case "$1" in
+    add)
+        add_repo "$2" "$3"
+        ;;
+    remove)
+        remove_repo "$2"
+        ;;
+    list)
+        list_repos
+        ;;
+    update)
+        update_all
+        ;;
+    *)
+        echo "Usage: $0 {add|remove|list|update} [name] [url]"
+        exit 1
+        ;;
+esac

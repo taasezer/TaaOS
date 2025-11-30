@@ -1,0 +1,11 @@
+# TaaOS Sound Theme
+# Rosso Corsa audio experience
+
+[Sound Theme]
+Name=TaaOS
+Comment=TaaOS System Sounds
+Inherits=freedesktop
+Directories=stereo
+
+[stereo]
+OutputProfile=stereo

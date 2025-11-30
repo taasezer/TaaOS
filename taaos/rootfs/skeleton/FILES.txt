@@ -1,0 +1,14 @@
+# TaaOS Skeleton Files
+# Default files for new user home directories
+
+.bashrc
+.bash_profile
+.zshrc
+.gitconfig
+.vimrc
+.config/
+.config/Code/
+.config/plasma/
+.local/
+.local/share/
+.ssh/

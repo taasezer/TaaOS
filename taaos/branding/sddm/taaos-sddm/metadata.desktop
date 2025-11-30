@@ -1,0 +1,15 @@
+[theme]
+name=TaaOS
+description=TaaOS Rosso Corsa SDDM Theme
+author=Taha Sezer
+copyright=2024
+license=MIT
+type=image
+version=1.0
+
+[General]
+background=background.png
+logo=taaos-logo.png
+primaryColor=#D40000
+backgroundColor=#0A0A0A
+textColor=#F5F5F0

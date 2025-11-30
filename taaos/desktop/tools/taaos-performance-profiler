@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+"""
+TaaOS Performance Profiler
+System-wide performance analysis and bottleneck detection
+"""
+
+import sys
+import subprocess
+import psutil
+import time
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
+from PyQt5.QtGui import QFont
+
+COLORS = {
+    'primary': '#D40000',
+    'background': '#0A0A0A',
+    'surface': '#1A1A1A',
+    'text': '#F5F5F0'
+}
+
+class ProfileWorker(QThread):
+    result_ready = pyqtSignal(dict)
+    
+    def __init__(self, duration=10):
+        super().__init__()
+        self.duration = duration
+        
+    def run(self):
+        results = {
+            'cpu_percent': [],
+            'memory_percent': [],
+            'disk_io': [],
+            'network_io': [],
+            'top_processes': []
+        }
+        
+        for _ in range(self.duration):
+            results['cpu_percent'].append(psutil.cpu_percent(interval=1))
+            results['memory_percent'].append(psutil.virtual_memory().percent)
+            
+            disk_io = psutil.disk_io_counters()
+            results['disk_io'].append({
+                'read': disk_io.read_bytes,
+                'write': disk_io.write_bytes
+            })
+            
+            net_io = psutil.net_io_counters()
+            results['network_io'].append({
+                'sent': net_io.bytes_sent,
+                'recv': net_io.bytes_recv
+            })
+        
+        # Get top CPU consuming processes
+        processes = []
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
+            try:
+                processes.append(proc.info)
+            except:
+                pass
+        
+        results['top_processes'] = sorted(processes, key=lambda x: x['cpu_percent'], reverse=True)[:10]
+        
+        self.result_ready.emit(results)
+
+class PerformanceProfiler(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Performance Profiler")
+        self.setGeometry(100, 100, 900, 700)
+        
+        self.setup_ui()
+        self.apply_theme()
+        
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        # Header
+        header = QLabel("System Performance Profiler")
+        header.setFont(QFont("Sans", 16, QFont.Bold))
+        header.setStyleSheet(f"color: {COLORS['primary']};")
+        layout.addWidget(header)
+        
+        # Control panel
+        control_layout = QHBoxLayout()
+        
+        duration_label = QLabel("Profile Duration (seconds):")
+        control_layout.addWidget(duration_label)
+        
+        self.duration_spin = QSpinBox()
+        self.duration_spin.setRange(5, 300)
+        self.duration_spin.setValue(10)
+        control_layout.addWidget(self.duration_spin)
+        
+        self.start_btn = QPushButton("Start Profiling")
+        self.start_btn.clicked.connect(self.start_profiling)
+        control_layout.addWidget(self.start_btn)
+        
+        control_layout.addStretch()
+        layout.addLayout(control_layout)
+        
+        # Results area
+        self.results_text = QTextEdit()
+        self.results_text.setReadOnly(True)
+        self.results_text.setFont(QFont("Monospace", 10))
+        layout.addWidget(self.results_text)
+        
+        # Progress
+        self.progress = QProgressBar()
+        self.progress.setVisible(False)
+        layout.addWidget(self.progress)
+        
+    def start_profiling(self):
+        self.start_btn.setEnabled(False)
+        self.progress.setVisible(True)
+        self.progress.setRange(0, 0)  # Indeterminate
+        self.results_text.setText("Profiling system performance...\n")
+        
+        self.worker = ProfileWorker(self.duration_spin.value())
+        self.worker.result_ready.connect(self.display_results)
+        self.worker.finished.connect(lambda: self.start_btn.setEnabled(True))
+        self.worker.finished.connect(lambda: self.progress.setVisible(False))
+        self.worker.start()
+        
+    def display_results(self, results):
+        report = "=== PERFORMANCE PROFILE REPORT ===\n\n"
+        
+        # CPU Analysis
+        avg_cpu = sum(results['cpu_percent']) / len(results['cpu_percent'])
+        max_cpu = max(results['cpu_percent'])
+        report += f"CPU Usage:\n"
+        report += f"  Average: {avg_cpu:.2f}%\n"
+        report += f"  Peak: {max_cpu:.2f}%\n"
+        report += f"  Cores: {psutil.cpu_count()}\n\n"
+        
+        # Memory Analysis
+        avg_mem = sum(results['memory_percent']) / len(results['memory_percent'])
+        max_mem = max(results['memory_percent'])
+        mem_info = psutil.virtual_memory()
+        report += f"Memory Usage:\n"
+        report += f"  Average: {avg_mem:.2f}%\n"
+        report += f"  Peak: {max_mem:.2f}%\n"
+        report += f"  Total: {mem_info.total / (1024**3):.2f} GB\n"
+        report += f"  Available: {mem_info.available / (1024**3):.2f} GB\n\n"
+        
+        # Disk I/O
+        disk_read = results['disk_io'][-1]['read'] - results['disk_io'][0]['read']
+        disk_write = results['disk_io'][-1]['write'] - results['disk_io'][0]['write']
+        report += f"Disk I/O:\n"
+        report += f"  Read: {disk_read / (1024**2):.2f} MB\n"
+        report += f"  Write: {disk_write / (1024**2):.2f} MB\n\n"
+        
+        # Network I/O
+        net_sent = results['network_io'][-1]['sent'] - results['network_io'][0]['sent']
+        net_recv = results['network_io'][-1]['recv'] - results['network_io'][0]['recv']
+        report += f"Network I/O:\n"
+        report += f"  Sent: {net_sent / (1024**2):.2f} MB\n"
+        report += f"  Received: {net_recv / (1024**2):.2f} MB\n\n"
+        
+        # Top Processes
+        report += "Top CPU Consuming Processes:\n"
+        for proc in results['top_processes']:
+            report += f"  {proc['name']:<20} PID: {proc['pid']:<8} CPU: {proc['cpu_percent']:.2f}%\n"
+        
+        # Recommendations
+        report += "\n=== RECOMMENDATIONS ===\n"
+        if avg_cpu > 80:
+            report += "- High CPU usage detected. Consider closing unnecessary applications.\n"
+        if avg_mem > 80:
+            report += "- High memory usage detected. Consider upgrading RAM or closing applications.\n"
+        if max_cpu > 95:
+            report += "- CPU throttling may occur. Check for runaway processes.\n"
+        
+        self.results_text.setText(report)
+        
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['background']}; color: {COLORS['text']}; }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{ background-color: #8B0000; }}
+            QPushButton:disabled {{ background-color: #555; }}
+            QTextEdit {{
+                background-color: {COLORS['surface']};
+                border: 1px solid #333;
+                border-radius: 5px;
+                padding: 10px;
+            }}
+            QSpinBox {{
+                background-color: {COLORS['surface']};
+                border: 1px solid #333;
+                border-radius: 5px;
+                padding: 5px;
+            }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = PerformanceProfiler()
+    window.show()
+    sys.exit(app.exec_())

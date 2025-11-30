@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""
+TaaOS Network Analyzer
+Advanced network monitoring, packet analysis, and troubleshooting tool
+"""
+
+import sys
+import subprocess
+import psutil
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QFont
+from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
+
+COLORS = {
+    'primary': '#D40000',
+    'background': '#0A0A0A',
+    'surface': '#1A1A1A',
+    'text': '#F5F5F0'
+}
+
+class NetworkAnalyzer(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Network Analyzer")
+        self.setGeometry(100, 100, 1000, 700)
+        
+        self.rx_data = []
+        self.tx_data = []
+        self.time_data = []
+        self.counter = 0
+        
+        self.setup_ui()
+        self.apply_theme()
+        
+        # Update timer
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_stats)
+        self.timer.start(1000)
+        
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        # Header
+        header = QLabel("Network Traffic Monitor")
+        header.setFont(QFont("Sans", 16, QFont.Bold))
+        header.setStyleSheet(f"color: {COLORS['primary']};")
+        layout.addWidget(header)
+        
+        # Stats panel
+        stats_group = QGroupBox("Network Interfaces")
+        stats_layout = QVBoxLayout()
+        self.stats_text = QTextEdit()
+        self.stats_text.setReadOnly(True)
+        stats_layout.addWidget(self.stats_text)
+        stats_group.setLayout(stats_layout)
+        layout.addWidget(stats_group)
+        
+        # Chart
+        self.chart = QChart()
+        self.chart.setTitle("Bandwidth Usage (KB/s)")
+        self.chart.setAnimationOptions(QChart.SeriesAnimations)
+        
+        self.rx_series = QLineSeries()
+        self.rx_series.setName("Download")
+        self.tx_series = QLineSeries()
+        self.tx_series.setName("Upload")
+        
+        self.chart.addSeries(self.rx_series)
+        self.chart.addSeries(self.tx_series)
+        
+        axis_x = QValueAxis()
+        axis_x.setRange(0, 60)
+        axis_x.setLabelFormat("%d")
+        axis_x.setTitleText("Time (s)")
+        
+        axis_y = QValueAxis()
+        axis_y.setRange(0, 1000)
+        axis_y.setTitleText("KB/s")
+        
+        self.chart.addAxis(axis_x, Qt.AlignBottom)
+        self.chart.addAxis(axis_y, Qt.AlignLeft)
+        
+        self.rx_series.attachAxis(axis_x)
+        self.rx_series.attachAxis(axis_y)
+        self.tx_series.attachAxis(axis_x)
+        self.tx_series.attachAxis(axis_y)
+        
+        chart_view = QChartView(self.chart)
+        chart_view.setRenderHint(chart_view.Antialiasing)
+        layout.addWidget(chart_view)
+        
+        # Tools
+        tools_layout = QHBoxLayout()
+        
+        ping_btn = QPushButton("Ping Test")
+        ping_btn.clicked.connect(self.run_ping)
+        tools_layout.addWidget(ping_btn)
+        
+        traceroute_btn = QPushButton("Traceroute")
+        traceroute_btn.clicked.connect(self.run_traceroute)
+        tools_layout.addWidget(traceroute_btn)
+        
+        dns_btn = QPushButton("DNS Lookup")
+        dns_btn.clicked.connect(self.run_dns)
+        tools_layout.addWidget(dns_btn)
+        
+        layout.addLayout(tools_layout)
+        
+    def update_stats(self):
+        # Get network stats
+        net_io = psutil.net_io_counters()
+        
+        if hasattr(self, 'last_rx'):
+            rx_speed = (net_io.bytes_recv - self.last_rx) / 1024  # KB/s
+            tx_speed = (net_io.bytes_sent - self.last_tx) / 1024
+            
+            self.rx_series.append(self.counter, rx_speed)
+            self.tx_series.append(self.counter, tx_speed)
+            
+            if self.counter > 60:
+                self.rx_series.remove(0)
+                self.tx_series.remove(0)
+        
+        self.last_rx = net_io.bytes_recv
+        self.last_tx = net_io.bytes_sent
+        self.counter += 1
+        
+        # Update interface stats
+        interfaces = psutil.net_if_addrs()
+        stats_text = ""
+        for iface, addrs in interfaces.items():
+            stats_text += f"Interface: {iface}\n"
+            for addr in addrs:
+                stats_text += f"  {addr.family.name}: {addr.address}\n"
+            stats_text += "\n"
+        
+        self.stats_text.setText(stats_text)
+        
+    def run_ping(self):
+        host, ok = QInputDialog.getText(self, "Ping Test", "Enter hostname or IP:")
+        if ok and host:
+            try:
+                result = subprocess.check_output(['ping', '-c', '4', host], text=True)
+                QMessageBox.information(self, "Ping Result", result)
+            except subprocess.CalledProcessError as e:
+                QMessageBox.warning(self, "Ping Failed", str(e))
+                
+    def run_traceroute(self):
+        host, ok = QInputDialog.getText(self, "Traceroute", "Enter hostname or IP:")
+        if ok and host:
+            try:
+                result = subprocess.check_output(['traceroute', host], text=True)
+                QMessageBox.information(self, "Traceroute Result", result)
+            except subprocess.CalledProcessError as e:
+                QMessageBox.warning(self, "Traceroute Failed", str(e))
+                
+    def run_dns(self):
+        host, ok = QInputDialog.getText(self, "DNS Lookup", "Enter hostname:")
+        if ok and host:
+            try:
+                result = subprocess.check_output(['nslookup', host], text=True)
+                QMessageBox.information(self, "DNS Result", result)
+            except subprocess.CalledProcessError as e:
+                QMessageBox.warning(self, "DNS Failed", str(e))
+        
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['background']}; color: {COLORS['text']}; }}
+            QGroupBox {{ 
+                border: 2px solid {COLORS['primary']};
+                border-radius: 5px;
+                margin-top: 10px;
+                font-weight: bold;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{ background-color: #8B0000; }}
+            QTextEdit {{
+                background-color: {COLORS['surface']};
+                border: 1px solid #333;
+                border-radius: 5px;
+                padding: 5px;
+            }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = NetworkAnalyzer()
+    window.show()
+    sys.exit(app.exec_())

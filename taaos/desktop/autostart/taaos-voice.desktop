@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=TaaOS Voice
+Comment=Voice Control Assistant
+Exec=/usr/bin/python3 /usr/lib/taaos/taaos-voice-control.py
+Icon=microphone
+Terminal=false
+Type=Application
+Categories=Utility;Accessibility;
+X-GNOME-Autostart-enabled=true

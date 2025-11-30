@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""
+TaaOS Boot Manager
+GRUB Configuration GUI
+"""
+
+import sys
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class BootManager(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Boot Manager")
+        self.setGeometry(100, 100, 600, 500)
+        
+        self.setup_ui()
+        self.apply_theme()
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        layout.addWidget(QLabel("<h2>Bootloader Settings (GRUB)</h2>"))
+        
+        form = QFormLayout()
+        
+        self.default_os = QComboBox()
+        self.default_os.addItems(["TaaOS Rolling (Linux 6.18.0-rc7)", "Windows Boot Manager", "UEFI Firmware Settings"])
+        form.addRow("Default OS:", self.default_os)
+        
+        self.timeout = QSpinBox()
+        self.timeout.setRange(0, 60)
+        self.timeout.setValue(5)
+        self.timeout.setSuffix(" sec")
+        form.addRow("Timeout:", self.timeout)
+        
+        self.theme_check = QCheckBox("Use TaaOS Theme")
+        self.theme_check.setChecked(True)
+        form.addRow("Theme:", self.theme_check)
+        
+        layout.addLayout(form)
+        
+        # Kernel Parameters
+        layout.addWidget(QLabel("<b>Kernel Parameters:</b>"))
+        self.params = QTextEdit()
+        self.params.setPlainText("quiet splash loglevel=3 nowatchdog")
+        self.params.setMaximumHeight(80)
+        layout.addWidget(self.params)
+        
+        layout.addStretch()
+        
+        save_btn = QPushButton("💾 Save & Update GRUB")
+        save_btn.setFixedHeight(40)
+        layout.addWidget(save_btn)
+
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['surface']}; color: {COLORS['text']}; }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                border-radius: 5px;
+            }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = BootManager()
+    window.show()
+    sys.exit(app.exec_())

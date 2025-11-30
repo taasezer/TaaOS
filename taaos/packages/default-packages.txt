@@ -1,0 +1,192 @@
+# TaaOS Default Package List
+# Packages installed by default on TaaOS
+
+## Base System
+linux-taakernel
+taaos-base
+taapac
+btrfs-progs
+zstd
+base-devel
+
+## Init & Boot
+systemd
+plymouth-taaos
+grub
+
+## Networking
+networkmanager
+network-manager-applet
+openssh
+curl
+wget
+bind-tools
+
+## Filesystem & Storage
+ntfs-3g
+exfatprogs
+dosfstools
+e2fsprogs
+
+## Display & Graphics
+mesa
+lib32-mesa
+vulkan-icd-loader
+lib32-vulkan-icd-loader
+mesa-demos
+xorg-server
+wayland
+xorg-xwayland
+
+## Desktop Environment
+plasma-desktop
+plasma-nm
+plasma-pa
+plasma-systemmonitor
+kscreen
+kde-gtk-config
+breeze-gtk
+konsole
+dolphin
+kate
+ark
+spectacle
+gwenview
+
+## Fonts
+ttf-liberation
+ttf-dejavu
+noto-fonts
+noto-fonts-emoji
+ttf-roboto
+ttf-inter
+ttf-jetbrains-mono
+github-cli
+glab
+make
+cmake
+ninja
+meson
+autoconf
+automake
+pkgconf
+
+## Development - Debugging & Profiling
+gdb
+lldb
+valgrind
+strace
+ltrace
+perf
+heaptrack
+hotspot
+
+## Development - IDEs & Editors
+vscodium
+neovim
+emacs
+
+## Containers & Virtualization
+docker
+docker-compose
+podman
+buildah
+qemu-full
+libvirt
+virt-manager
+virt-viewer
+bridge-utils
+dnsmasq
+ebtables
+
+## Cloud & DevOps
+kubectl
+helm
+terraform
+ansible
+k9s
+
+## Databases & Clients
+postgresql
+postgresql-libs
+redis
+sqlite
+mariadb-clients
+
+## Development - Additional Tools
+httpie
+jq
+yq
+ripgrep
+fd
+bat
+exa
+bottom
+tokei
+hyperfine
+
+## System Utilities
+htop
+btop
+neofetch
+fastfetch
+tmux
+zsh
+oh-my-zsh
+powerlevel10k
+fzf
+direnv
+
+## Compression & Archive
+zip
+unzip
+p7zip
+tar
+xz
+lz4
+
+## Security
+apparmor
+ufw
+fail2ban
+gnupg
+pass
+
+## TaaOS Specific
+# libreoffice-fresh
+# gimp
+# inkscape
+
+# Code Quality & Linting
+python-flake8
+python-pylint
+python-black
+python-mypy
+eslint
+prettier
+rust-analyzer
+clippy
+
+# Version Managers
+pyenv
+nvm
+rustup
+
+# Pre-installed Python Libraries
+python-numpy
+python-pandas
+python-requests
+python-flask
+python-django
+python-pytest
+python-pillow
+python-sqlalchemy
+
+# Pre-installed Node Packages (global)
+# Installed via npm in firstboot
+
+# Pre-installed Rust Crates
+# Installed via cargo in firstboot
+
+# Total packages: ~220
+## Estimated size: ~10 GB

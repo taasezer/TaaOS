@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Upgrade
+Type = Package
+Target = *
+
+[Action]
+Description = Updating TaaOS system cache...
+When = PostTransaction
+Exec = /usr/bin/updatedb

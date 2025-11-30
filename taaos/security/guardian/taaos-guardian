@@ -1,0 +1,390 @@
+#!/usr/bin/env python3
+"""
+TaaOS Guardian - Security Monitoring and Hardening System
+Real-time security monitoring, exploit mitigation, and attack surface reduction
+"""
+
+import os
+import sys
+import subprocess
+import time
+import psutil
+import json
+from pathlib import Path
+from datetime import datetime
+from typing import List, Dict
+import signal
+
+VERSION = "1.0.0"
+CONFIG_FILE = "/etc/taaos/guardian.conf"
+LOG_FILE = "/var/log/taaos-guardian.log"
+
+class SecurityConfig:
+    """Security configuration"""
+    def __init__(self):
+        self.memory_monitor = True
+        self.exploit_detection = True
+        self.apparmor_enforce = True
+        self.auto_updates = True
+        self.process_whitelist = []
+        self.network_monitor = True
+        self.filesystem_monitor = True
+        
+        self.load_config()
+    
+    def load_config(self):
+        """Load configuration from file"""
+        if Path(CONFIG_FILE).exists():
+            try:
+                with open(CONFIG_FILE, 'r') as f:
+                    config = json.load(f)
+                    for key, value in config.items():
+                        if hasattr(self, key):
+                            setattr(self, key, value)
+            except Exception as e:
+                self.log(f"Error loading config: {e}")
+    
+    def log(self, message: str):
+        """Log message"""
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[{timestamp}] {message}")
+
+class MemoryMonitor:
+    """Monitor memory usage and detect anomalies"""
+    def __init__(self, config: SecurityConfig):
+        self.config = config
+        self.baseline = {}
+        self.alert_threshold = 2.0  # 2x normal usage
+    
+    def establish_baseline(self):
+        """Establish memory usage baseline"""
+        self.config.log("Establishing memory baseline...")
+        
+        for proc in psutil.process_iter(['pid', 'name', 'memory_info']):
+            try:
+                name = proc.info['name']
+                mem = proc.info['memory_info'].rss / 1024 / 1024  # MB
+                
+                if name not in self.baseline:
+                    self.baseline[name] = []
+                self.baseline[name].append(mem)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        
+        # Calculate averages
+        for name in self.baseline:
+            if self.baseline[name]:
+                self.baseline[name] = sum(self.baseline[name]) / len(self.baseline[name])
+    
+    def check_anomalies(self) -> List[str]:
+        """Check for memory anomalies"""
+        alerts = []
+        
+        for proc in psutil.process_iter(['pid', 'name', 'memory_info']):
+            try:
+                name = proc.info['name']
+                mem = proc.info['memory_info'].rss / 1024 / 1024  # MB
+                
+                if name in self.baseline:
+                    baseline = self.baseline[name]
+                    if mem > baseline * self.alert_threshold:
+                        alerts.append(
+                            f"Memory anomaly: {name} using {mem:.1f}MB "
+                            f"(baseline: {baseline:.1f}MB)"
+                        )
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        
+        return alerts
+
+class ExploitDetector:
+    """Detect potential exploit attempts"""
+    def __init__(self, config: SecurityConfig):
+        self.config = config
+        self.suspicious_patterns = [
+            "/tmp/",
+            "/dev/shm/",
+            "shellcode",
+            "exploit",
+            "payload"
+        ]
+    
+    def scan_processes(self) -> List[str]:
+        """Scan for suspicious processes"""
+        alerts = []
+        
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'exe']):
+            try:
+                cmdline = ' '.join(proc.info['cmdline'] or [])
+                exe = proc.info['exe'] or ''
+                
+                # Check for suspicious patterns
+                for pattern in self.suspicious_patterns:
+                    if pattern in cmdline.lower() or pattern in exe.lower():
+                        alerts.append(
+                            f"Suspicious process: {proc.info['name']} "
+                            f"(PID: {proc.info['pid']}) - Pattern: {pattern}"
+                        )
+                
+                # Check for processes running from /tmp
+                if exe.startswith('/tmp/') or exe.startswith('/dev/shm/'):
+                    alerts.append(
+                        f"Process running from temp dir: {proc.info['name']} "
+                        f"(PID: {proc.info['pid']}) - Path: {exe}"
+                    )
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        
+        return alerts
+
+class AppArmorManager:
+    """Manage AppArmor profiles"""
+    def __init__(self, config: SecurityConfig):
+        self.config = config
+        self.profiles_dir = Path("/etc/apparmor.d")
+    
+    def enforce_all(self):
+        """Enforce all AppArmor profiles"""
+        if not self.config.apparmor_enforce:
+            return
+        
+        self.config.log("Enforcing AppArmor profiles...")
+        
+        try:
+            # Enable AppArmor service
+            subprocess.run(["systemctl", "enable", "apparmor"], check=False)
+            subprocess.run(["systemctl", "start", "apparmor"], check=False)
+            
+            # Load all profiles
+            for profile in self.profiles_dir.glob("*"):
+                if profile.is_file() and not profile.name.startswith('.'):
+                    try:
+                        subprocess.run(
+                            ["apparmor_parser", "-r", str(profile)],
+                            check=False,
+                            capture_output=True
+                        )
+                    except Exception as e:
+                        self.config.log(f"Error loading profile {profile.name}: {e}")
+        except Exception as e:
+            self.config.log(f"Error enforcing AppArmor: {e}")
+    
+    def check_status(self) -> Dict[str, str]:
+        """Check AppArmor status"""
+        try:
+            result = subprocess.run(
+                ["aa-status"],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            
+            if result.returncode == 0:
+                # Parse output
+                lines = result.stdout.split('\n')
+                status = {}
+                for line in lines:
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        status[key.strip()] = value.strip()
+                return status
+        except FileNotFoundError:
+            self.config.log("AppArmor not installed")
+        
+        return {}
+
+class AttackSurfaceReducer:
+    """Reduce attack surface"""
+    def __init__(self, config: SecurityConfig):
+        self.config = config
+    
+    def apply_hardening(self):
+        """Apply system hardening"""
+        self.config.log("Applying system hardening...")
+        
+        # Kernel parameters
+        sysctl_hardening = {
+            'kernel.dmesg_restrict': '1',
+            'kernel.kptr_restrict': '2',
+            'kernel.unprivileged_bpf_disabled': '1',
+            'net.core.bpf_jit_harden': '2',
+            'net.ipv4.conf.all.rp_filter': '1',
+            'net.ipv4.conf.default.rp_filter': '1',
+            'net.ipv4.tcp_syncookies': '1',
+            'net.ipv6.conf.all.accept_ra': '0',
+            'net.ipv6.conf.default.accept_ra': '0',
+            'fs.protected_hardlinks': '1',
+            'fs.protected_symlinks': '1',
+            'fs.suid_dumpable': '0'
+        }
+        
+        for param, value in sysctl_hardening.items():
+            try:
+                subprocess.run(
+                    ["sysctl", "-w", f"{param}={value}"],
+                    capture_output=True,
+                    check=False
+                )
+            except Exception as e:
+                self.config.log(f"Error setting {param}: {e}")
+        
+        # Disable unnecessary services
+        unnecessary_services = [
+            'bluetooth',  # If not using Bluetooth
+            'cups',       # If not printing
+        ]
+        
+        # Only disable if explicitly configured
+        # for service in unnecessary_services:
+        #     subprocess.run(["systemctl", "disable", service], check=False)
+
+class SecurityUpdater:
+    """Automatic security updates"""
+    def __init__(self, config: SecurityConfig):
+        self.config = config
+    
+    def check_updates(self) -> List[str]:
+        """Check for security updates"""
+        try:
+            result = subprocess.run(
+                ["taapac", "sync"],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            
+            # Parse available updates
+            # This is simplified - real implementation would parse taapac output
+            if "updates available" in result.stdout.lower():
+                return ["Security updates available"]
+        except FileNotFoundError:
+            pass
+        
+        return []
+    
+    def install_updates(self):
+        """Install security updates automatically"""
+        if not self.config.auto_updates:
+            return
+        
+        self.config.log("Installing security updates...")
+        subprocess.run(
+            ["taapac", "install", "--noconfirm", "--security"],
+            check=False
+        )
+
+class TaaOSGuardian:
+    """Main Guardian class"""
+    def __init__(self):
+        self.config = SecurityConfig()
+        self.memory_monitor = MemoryMonitor(self.config)
+        self.exploit_detector = ExploitDetector(self.config)
+        self.apparmor = AppArmorManager(self.config)
+        self.surface_reducer = AttackSurfaceReducer(self.config)
+        self.updater = SecurityUpdater(self.config)
+        self.running = False
+    
+    def start(self):
+        """Start Guardian daemon"""
+        self.config.log("TaaOS Guardian starting...")
+        self.running = True
+        
+        # Initial setup
+        self.apparmor.enforce_all()
+        self.surface_reducer.apply_hardening()
+        self.memory_monitor.establish_baseline()
+        
+        # Setup signal handlers
+        signal.signal(signal.SIGTERM, self.stop)
+        signal.signal(signal.SIGINT, self.stop)
+        
+        # Main monitoring loop
+        while self.running:
+            try:
+                self.monitor_cycle()
+                time.sleep(60)  # Check every minute
+            except Exception as e:
+                self.config.log(f"Error in monitor cycle: {e}")
+    
+    def monitor_cycle(self):
+        """Single monitoring cycle"""
+        alerts = []
+        
+        # Memory monitoring
+        if self.config.memory_monitor:
+            mem_alerts = self.memory_monitor.check_anomalies()
+            alerts.extend(mem_alerts)
+        
+        # Exploit detection
+        if self.config.exploit_detection:
+            exploit_alerts = self.exploit_detector.scan_processes()
+            alerts.extend(exploit_alerts)
+        
+        # Security updates
+        if self.config.auto_updates:
+            update_alerts = self.updater.check_updates()
+            if update_alerts:
+                alerts.extend(update_alerts)
+                self.updater.install_updates()
+        
+        # Log all alerts
+        for alert in alerts:
+            self.config.log(f"ALERT: {alert}")
+    
+    def stop(self, signum=None, frame=None):
+        """Stop Guardian daemon"""
+        self.config.log("TaaOS Guardian stopping...")
+        self.running = False
+        sys.exit(0)
+    
+    def status(self):
+        """Print Guardian status"""
+        print("TaaOS Guardian Status")
+        print("=" * 50)
+        print(f"Version: {VERSION}")
+        print(f"Memory Monitor: {'Enabled' if self.config.memory_monitor else 'Disabled'}")
+        print(f"Exploit Detection: {'Enabled' if self.config.exploit_detection else 'Disabled'}")
+        print(f"Auto Updates: {'Enabled' if self.config.auto_updates else 'Disabled'}")
+        print("\nAppArmor Status:")
+        aa_status = self.apparmor.check_status()
+        for key, value in aa_status.items():
+            print(f"  {key}: {value}")
+
+def main():
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description='TaaOS Guardian - Security Monitoring System'
+    )
+    parser.add_argument('--version', action='version', version=f'TaaOS Guardian {VERSION}')
+    parser.add_argument('command', nargs='?', choices=['start', 'stop', 'status'],
+                       default='status', help='Command to execute')
+    parser.add_argument('--daemon', action='store_true',
+                       help='Run as daemon')
+    
+    args = parser.parse_args()
+    
+    guardian = TaaOSGuardian()
+    
+    if args.command == 'start':
+        if args.daemon:
+            # Fork to background
+            if os.fork() > 0:
+                sys.exit(0)
+        guardian.start()
+    elif args.command == 'status':
+        guardian.status()
+    elif args.command == 'stop':
+        # Send SIGTERM to running daemon
+        try:
+            subprocess.run(["pkill", "-TERM", "taaos-guardian"], check=False)
+            print("Guardian shutdown signal sent")
+        except Exception as e:
+            print(f"Error stopping Guardian: {e}")
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user")
+        sys.exit(130)

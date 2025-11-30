@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+"""
+TaaOS Development Environment Manager
+Manages multiple development environments (Python, Node, Rust, etc.)
+"""
+
+import sys
+import subprocess
+import os
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
+
+COLORS = {
+    'primary': '#D40000',
+    'background': '#0A0A0A',
+    'surface': '#1A1A1A',
+    'text': '#F5F5F0'
+}
+
+class DevEnvManager(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Development Environment Manager")
+        self.setGeometry(100, 100, 1000, 700)
+        
+        self.setup_ui()
+        self.apply_theme()
+        self.load_environments()
+        
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        # Header
+        header = QLabel("Development Environment Manager")
+        header.setFont(QFont("Sans", 16, QFont.Bold))
+        header.setStyleSheet(f"color: {COLORS['primary']};")
+        layout.addWidget(header)
+        
+        # Tabs
+        tabs = QTabWidget()
+        
+        # Python Tab
+        python_tab = self.create_python_tab()
+        tabs.addTab(python_tab, "Python")
+        
+        # Node.js Tab
+        node_tab = self.create_node_tab()
+        tabs.addTab(node_tab, "Node.js")
+        
+        # Rust Tab
+        rust_tab = self.create_rust_tab()
+        tabs.addTab(rust_tab, "Rust")
+        
+        # Docker Tab
+        docker_tab = self.create_docker_tab()
+        tabs.addTab(docker_tab, "Docker")
+        
+        layout.addWidget(tabs)
+        
+    def create_python_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Python versions
+        version_group = QGroupBox("Python Versions")
+        version_layout = QVBoxLayout()
+        
+        self.python_list = QListWidget()
+        version_layout.addWidget(self.python_list)
+        
+        btn_layout = QHBoxLayout()
+        install_btn = QPushButton("Install Version")
+        install_btn.clicked.connect(self.install_python)
+        btn_layout.addWidget(install_btn)
+        
+        set_default_btn = QPushButton("Set as Default")
+        set_default_btn.clicked.connect(self.set_default_python)
+        btn_layout.addWidget(set_default_btn)
+        
+        version_layout.addLayout(btn_layout)
+        version_group.setLayout(version_layout)
+        layout.addWidget(version_group)
+        
+        # Virtual environments
+        venv_group = QGroupBox("Virtual Environments")
+        venv_layout = QVBoxLayout()
+        
+        self.venv_list = QListWidget()
+        venv_layout.addWidget(self.venv_list)
+        
+        venv_btn_layout = QHBoxLayout()
+        create_venv_btn = QPushButton("Create venv")
+        create_venv_btn.clicked.connect(self.create_venv)
+        venv_btn_layout.addWidget(create_venv_btn)
+        
+        activate_btn = QPushButton("Activate")
+        activate_btn.clicked.connect(self.activate_venv)
+        venv_btn_layout.addWidget(activate_btn)
+        
+        delete_venv_btn = QPushButton("Delete")
+        delete_venv_btn.clicked.connect(self.delete_venv)
+        venv_btn_layout.addWidget(delete_venv_btn)
+        
+        venv_layout.addLayout(venv_btn_layout)
+        venv_group.setLayout(venv_layout)
+        layout.addWidget(venv_group)
+        
+        return widget
+        
+    def create_node_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Node versions
+        version_group = QGroupBox("Node.js Versions (via nvm)")
+        version_layout = QVBoxLayout()
+        
+        self.node_list = QListWidget()
+        version_layout.addWidget(self.node_list)
+        
+        btn_layout = QHBoxLayout()
+        install_node_btn = QPushButton("Install Version")
+        install_node_btn.clicked.connect(self.install_node)
+        btn_layout.addWidget(install_node_btn)
+        
+        use_node_btn = QPushButton("Use Version")
+        use_node_btn.clicked.connect(self.use_node)
+        btn_layout.addWidget(use_node_btn)
+        
+        version_layout.addLayout(btn_layout)
+        version_group.setLayout(version_layout)
+        layout.addWidget(version_group)
+        
+        # Global packages
+        pkg_group = QGroupBox("Global Packages")
+        pkg_layout = QVBoxLayout()
+        
+        self.npm_packages = QTextEdit()
+        self.npm_packages.setReadOnly(True)
+        pkg_layout.addWidget(self.npm_packages)
+        
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.clicked.connect(self.refresh_npm_packages)
+        pkg_layout.addWidget(refresh_btn)
+        
+        pkg_group.setLayout(pkg_layout)
+        layout.addWidget(pkg_group)
+        
+        return widget
+        
+    def create_rust_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Rust toolchains
+        toolchain_group = QGroupBox("Rust Toolchains (via rustup)")
+        toolchain_layout = QVBoxLayout()
+        
+        self.rust_list = QListWidget()
+        toolchain_layout.addWidget(self.rust_list)
+        
+        btn_layout = QHBoxLayout()
+        install_rust_btn = QPushButton("Install Toolchain")
+        install_rust_btn.clicked.connect(self.install_rust)
+        btn_layout.addWidget(install_rust_btn)
+        
+        default_rust_btn = QPushButton("Set Default")
+        default_rust_btn.clicked.connect(self.set_default_rust)
+        btn_layout.addWidget(default_rust_btn)
+        
+        toolchain_layout.addLayout(btn_layout)
+        toolchain_group.setLayout(toolchain_layout)
+        layout.addWidget(toolchain_group)
+        
+        # Components
+        comp_group = QGroupBox("Installed Components")
+        comp_layout = QVBoxLayout()
+        
+        self.rust_components = QTextEdit()
+        self.rust_components.setReadOnly(True)
+        comp_layout.addWidget(self.rust_components)
+        
+        refresh_rust_btn = QPushButton("Refresh")
+        refresh_rust_btn.clicked.connect(self.refresh_rust_components)
+        comp_layout.addWidget(refresh_rust_btn)
+        
+        comp_group.setLayout(comp_layout)
+        layout.addWidget(comp_group)
+        
+        return widget
+        
+    def create_docker_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Dev containers
+        container_group = QGroupBox("Development Containers")
+        container_layout = QVBoxLayout()
+        
+        info = QLabel("Quick setup for common development environments")
+        container_layout.addWidget(info)
+        
+        templates = [
+            ("Python 3.11", "python:3.11"),
+            ("Node.js 20", "node:20"),
+            ("Rust Latest", "rust:latest"),
+            ("PostgreSQL 15", "postgres:15"),
+            ("Redis 7", "redis:7"),
+            ("MongoDB 7", "mongo:7")
+        ]
+        
+        for name, image in templates:
+            btn = QPushButton(f"Create {name} Container")
+            btn.clicked.connect(lambda checked, img=image, n=name: self.create_dev_container(img, n))
+            container_layout.addWidget(btn)
+        
+        container_group.setLayout(container_layout)
+        layout.addWidget(container_group)
+        
+        layout.addStretch()
+        
+        return widget
+        
+    def load_environments(self):
+        # Load Python versions
+        try:
+            result = subprocess.check_output(['python3', '--version'], text=True)
+            self.python_list.addItem(result.strip())
+        except:
+            pass
+            
+        # Load Node versions
+        try:
+            result = subprocess.check_output(['node', '--version'], text=True)
+            self.node_list.addItem(result.strip())
+        except:
+            pass
+            
+        # Load Rust toolchains
+        try:
+            result = subprocess.check_output(['rustc', '--version'], text=True)
+            self.rust_list.addItem(result.strip())
+        except:
+            pass
+            
+    def install_python(self):
+        version, ok = QInputDialog.getText(self, "Install Python", "Enter version (e.g., 3.11):")
+        if ok and version:
+            QMessageBox.information(self, "Info", f"Installing Python {version} via pyenv...")
+            subprocess.Popen(['konsole', '-e', 'pyenv', 'install', version])
+            
+    def set_default_python(self):
+        QMessageBox.information(self, "Info", "Use 'pyenv global <version>' to set default")
+        
+    def create_venv(self):
+        name, ok = QInputDialog.getText(self, "Create Virtual Environment", "Environment name:")
+        if ok and name:
+            path = os.path.expanduser(f"~/.venvs/{name}")
+            subprocess.run(['python3', '-m', 'venv', path])
+            QMessageBox.information(self, "Success", f"Created venv at {path}")
+            
+    def activate_venv(self):
+        QMessageBox.information(self, "Info", "Use 'source ~/.venvs/<name>/bin/activate' in terminal")
+        
+    def delete_venv(self):
+        QMessageBox.information(self, "Info", "Delete from ~/.venvs/ directory")
+        
+    def install_node(self):
+        version, ok = QInputDialog.getText(self, "Install Node.js", "Enter version (e.g., 20):")
+        if ok and version:
+            subprocess.Popen(['konsole', '-e', 'nvm', 'install', version])
+            
+    def use_node(self):
+        QMessageBox.information(self, "Info", "Use 'nvm use <version>' in terminal")
+        
+    def refresh_npm_packages(self):
+        try:
+            result = subprocess.check_output(['npm', 'list', '-g', '--depth=0'], text=True)
+            self.npm_packages.setText(result)
+        except:
+            self.npm_packages.setText("Error fetching packages")
+            
+    def install_rust(self):
+        toolchain, ok = QInputDialog.getText(self, "Install Rust Toolchain", "Enter toolchain (stable/beta/nightly):")
+        if ok and toolchain:
+            subprocess.Popen(['konsole', '-e', 'rustup', 'install', toolchain])
+            
+    def set_default_rust(self):
+        QMessageBox.information(self, "Info", "Use 'rustup default <toolchain>' in terminal")
+        
+    def refresh_rust_components(self):
+        try:
+            result = subprocess.check_output(['rustup', 'component', 'list', '--installed'], text=True)
+            self.rust_components.setText(result)
+        except:
+            self.rust_components.setText("Error fetching components")
+            
+    def create_dev_container(self, image, name):
+        container_name = name.lower().replace(" ", "-")
+        subprocess.Popen(['konsole', '-e', 'docker', 'run', '-it', '--name', container_name, image])
+        
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['background']}; color: {COLORS['text']}; }}
+            QTabWidget::pane {{ border: 1px solid #333; }}
+            QTabBar::tab {{
+                background-color: {COLORS['surface']};
+                color: {COLORS['text']};
+                padding: 10px 20px;
+                border: 1px solid #333;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {COLORS['primary']};
+            }}
+            QGroupBox {{
+                border: 2px solid {COLORS['primary']};
+                border-radius: 5px;
+                margin-top: 10px;
+                font-weight: bold;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                padding: 8px 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{ background-color: #8B0000; }}
+            QListWidget, QTextEdit {{
+                background-color: {COLORS['surface']};
+                border: 1px solid #333;
+                border-radius: 5px;
+                padding: 5px;
+            }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = DevEnvManager()
+    window.show()
+    sys.exit(app.exec_())

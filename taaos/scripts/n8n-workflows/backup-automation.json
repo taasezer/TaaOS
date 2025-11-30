@@ -1,0 +1,157 @@
+{
+    "name": "TaaOS Backup Automation",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 24,
+                            "triggerAtHour": 2
+                        }
+                    ]
+                }
+            },
+            "name": "Daily at 2 AM",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "/usr/bin/taaos-snapshot create 'auto-backup-$(date +%Y%m%d)'"
+            },
+            "name": "Create Snapshot",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "btrfs subvolume list /.snapshots | wc -l"
+            },
+            "name": "Count Snapshots",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$json.stdout}}",
+                            "operation": "larger",
+                            "value2": 10
+                        }
+                    ]
+                }
+            },
+            "name": "Too Many Snapshots",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "cd /.snapshots && ls -t | tail -n +11 | xargs -I {} btrfs subvolume delete {}"
+            },
+            "name": "Delete Old Snapshots",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "echo 'Backup completed: $(date)' >> /var/log/taaos/backup.log"
+            },
+            "name": "Log Backup",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Daily at 2 AM": {
+            "main": [
+                [
+                    {
+                        "node": "Create Snapshot",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Snapshot": {
+            "main": [
+                [
+                    {
+                        "node": "Count Snapshots",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Count Snapshots": {
+            "main": [
+                [
+                    {
+                        "node": "Too Many Snapshots",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Too Many Snapshots": {
+            "main": [
+                [
+                    {
+                        "node": "Delete Old Snapshots",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Log Backup",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Delete Old Snapshots": {
+            "main": [
+                [
+                    {
+                        "node": "Log Backup",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

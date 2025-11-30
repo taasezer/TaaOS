@@ -1,0 +1,535 @@
+#!/usr/bin/env python3
+"""
+TaaOS Welcome - First-run welcome application
+Minimal Arch-inspired design with Rosso Corsa theme
+"""
+
+import sys
+import subprocess
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QLabel, QStackedWidget, QCheckBox, QScrollArea, QFrame
+)
+from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
+
+# TaaOS Colors
+COLORS = {
+    'primary': '#D40000',
+    'primary_light': '#FF3333',
+    'secondary': '#F5F5F0',
+    'background': '#0A0A0A',
+    'surface': '#1A1A1A',
+    'surface_light': '#2B2B2B',
+    'text': '#F5F5F0',
+    'text_dim': '#808080',
+}
+
+
+class WelcomePage(QWidget):
+    """Welcome landing page"""
+    
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignCenter)
+        layout.setSpacing(30)
+        
+        # Logo/Title
+        title = QLabel("Welcome to TaaOS")
+        title.setStyleSheet(f"""
+            color: {COLORS['primary']};
+            font-size: 48px;
+            font-weight: bold;
+        """)
+        title.setAlignment(Qt.AlignCenter)
+        
+        subtitle = QLabel("Developer power, Ferrari style 🏎️")
+        subtitle.setStyleSheet(f"""
+            color: {COLORS['text']};
+            font-size: 24px;
+        """)
+        subtitle.setAlignment(Qt.AlignCenter)
+        
+        description = QLabel(
+            "Fast • Powerful • Beautiful\n"
+            "Optimized for developers with <3s boot time"
+        )
+        description.setStyleSheet(f"""
+            color: {COLORS['text_dim']};
+            font-size: 16px;
+        """)
+        description.setAlignment(Qt.AlignCenter)
+        
+        layout.addStretch()
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        layout.addSpacing(20)
+        layout.addWidget(description)
+        layout.addStretch()
+
+
+class FeaturesPage(QWidget):
+    """Features overview page"""
+    
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        layout.setSpacing(20)
+        
+        title = QLabel("TaaOS Features")
+        title.setStyleSheet(f"color: {COLORS['primary']}; font-size: 32px; font-weight: bold;")
+        layout.addWidget(title)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+        
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setSpacing(15)
+        
+        features = [
+            ("⚡", "Blazing Fast", "Boot time < 3 seconds with optimized kernel"),
+            ("📦", "TaaPac Package Manager", "Fast parallel downloads, rolling release"),
+            ("🎨", "Rosso Corsa Theme", "Ferrari-inspired design, 5 alternative themes"),
+            ("🛡️", "TaaOS Guardian", "Real-time security monitoring and hardening"),
+            ("💻", "Developer Tools", "200+ pre-installed: GCC, Rust, Go, Python, Docker"),
+            ("🔧", "Build System", "TaaBuild for easy package creation"),
+            ("📊", "System Monitor", "Real-time CPU, memory, disk, network stats"),
+            ("⚙️", "Customizable", "Deep customization with TaaTheme engine"),
+        ]
+        
+        for icon, title_text, desc in features:
+            feature_widget = self.create_feature_card(icon, title_text, desc)
+            content_layout.addWidget(feature_widget)
+        
+        content_layout.addStretch()
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
+    
+    def create_feature_card(self, icon, title, description):
+        """Create a feature card"""
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['surface']};
+                border-left: 4px solid {COLORS['primary']};
+                border-radius: 5px;
+                padding: 15px;
+            }}
+        """)
+        
+        layout = QHBoxLayout(card)
+        
+        icon_label = QLabel(icon)
+        icon_label.setStyleSheet("font-size: 36px;")
+        icon_label.setFixedWidth(60)
+        
+        text_layout = QVBoxLayout()
+        
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"color: {COLORS['text']}; font-size: 18px; font-weight: bold;")
+        
+        desc_label = QLabel(description)
+        desc_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 14px;")
+        desc_label.setWordWrap(True)
+        
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(desc_label)
+        
+        layout.addWidget(icon_label)
+        layout.addLayout(text_layout)
+        
+        return card
+
+
+class CustomizePage(QWidget):
+    """Customization options page"""
+    
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        
+        title = QLabel("Customize Your Experience")
+        title.setStyleSheet(f"color: {COLORS['primary']}; font-size: 32px; font-weight: bold;")
+        layout.addWidget(title)
+        
+        layout.addSpacing(20)
+        
+        # Theme selection
+        theme_label = QLabel("Select Theme:")
+        theme_label.setStyleSheet(f"color: {COLORS['text']}; font-size: 18px; font-weight: bold;")
+        layout.addWidget(theme_label)
+        
+        themes = [
+            ("Rosso Corsa", "#D40000", "Default Ferrari red theme"),
+            ("Midnight Black", "#0A0A0A", "Pure black elegance"),
+            ("Arctic Blue", "#4A90E2", "Cool blue professional"),
+            ("Graphite Grey", "#2B2B2B", "Neutral modern"),
+            ("Pure White", "#FFFFFF", "Clean minimal"),
+        ]
+        
+        for name, color, desc in themes:
+            theme_btn = self.create_theme_button(name, color, desc)
+            layout.addWidget(theme_btn)
+        
+        layout.addSpacing(20)
+        
+        # Additional options
+        options_label = QLabel("Additional Options:")
+        options_label.setStyleSheet(f"color: {COLORS['text']}; font-size: 18px; font-weight: bold;")
+        layout.addWidget(options_label)
+        
+        options = [
+            "Enable system monitoring on startup",
+            "Show package updates notification",
+            "Enable TaaOS Guardian security monitoring",
+            "Auto-update package database daily",
+            "Use hardware acceleration",
+        ]
+        
+        for option in options:
+            cb = QCheckBox(option)
+            cb.setChecked(True)
+            cb.setStyleSheet(f"""
+                QCheckBox {{
+                    color: {COLORS['text']};
+                    font-size: 14px;
+                    padding: 5px;
+                }}
+                QCheckBox::indicator {{
+                    width: 20px;
+                    height: 20px;
+                    border: 2px solid {COLORS['surface_light']};
+                    border-radius: 3px;
+                    background-color: {COLORS['surface']};
+                }}
+                QCheckBox::indicator:checked {{
+                    background-color: {COLORS['primary']};
+                    border-color: {COLORS['primary']};
+                }}
+            """)
+            layout.addWidget(cb)
+        
+        layout.addStretch()
+    
+    def create_theme_button(self, name, color, description):
+        """Create theme selection button"""
+        btn = QPushButton()
+        btn.setCursor(Qt.PointingHandCursor)
+        
+        btn_layout = QHBoxLayout()
+        
+        color_box = QLabel()
+        color_box.setFixedSize(40, 40)
+        color_box.setStyleSheet(f"""
+            background-color: {color};
+            border-radius: 5px;
+            border: 2px solid {COLORS['surface_light']};
+        """)
+        
+        text_layout = QVBoxLayout()
+        name_label = QLabel(name)
+        name_label.setStyleSheet(f"color: {COLORS['text']}; font-weight: bold; font-size: 16px;")
+        
+        desc_label = QLabel(description)
+        desc_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
+        
+        text_layout.addWidget(name_label)
+        text_layout.addWidget(desc_label)
+        
+        btn_layout.addWidget(color_box)
+        btn_layout.addLayout(text_layout)
+        btn_layout.addStretch()
+        
+        widget = QWidget()
+        widget.setLayout(btn_layout)
+        
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['surface']};
+                border: 2px solid {COLORS['surface_light']};
+                border-radius: 5px;
+                padding: 10px;
+                text-align: left;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['surface_light']};
+                border-color: {COLORS['primary']};
+            }}
+        """)
+        
+        btn.clicked.connect(lambda: self.apply_theme(name))
+        
+        return btn
+    
+    def apply_theme(self, theme_name):
+        """Apply selected theme"""
+        subprocess.run(['taatheme', 'apply', theme_name.lower().replace(' ', '-')])
+
+
+class QuickStartPage(QWidget):
+    """Quick start guide page"""
+    
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        
+        title = QLabel("Quick Start Guide")
+        title.setStyleSheet(f"color: {COLORS['primary']}; font-size: 32px; font-weight: bold;")
+        layout.addWidget(title)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+        
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        
+        guides = [
+            ("1. Update System", "sudo taapac sync && sudo taapac upgrade"),
+            ("2. Install Software", "taapac install firefox vscodium docker"),
+            ("3. Change Theme", "taatheme apply midnight-black"),
+            ("4. Build Custom Package", "cd myproject && taabuild"),
+            ("5. Monitor System", "Launch System Monitor from app menu"),
+            ("6. Security Check", "sudo taaos-guardian status"),
+        ]
+        
+        for step, command in guides:
+            step_widget = self.create_step_card(step, command)
+            content_layout.addWidget(step_widget)
+        
+        content_layout.addStretch()
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
+    
+    def create_step_card(self, step, command):
+        """Create quick start step card"""
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['surface']};
+                border-radius: 5px;
+                padding: 15px;
+                margin: 5px 0px;
+            }}
+        """)
+        
+        layout = QVBoxLayout(card)
+        
+        step_label = QLabel(step)
+        step_label.setStyleSheet(f"color: {COLORS['primary']}; font-size: 18px; font-weight: bold;")
+        
+        command_label = QLabel(f"<code>{command}</code>")
+        command_label.setStyleSheet(f"""
+            color: {COLORS['text']};
+            background-color: {COLORS['background']};
+            padding: 10px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        """)
+        command_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        
+        layout.addWidget(step_label)
+        layout.addWidget(command_label)
+        
+        return card
+
+
+class TaaOSWelcome(QMainWindow):
+    """Main welcome window"""
+    
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Welcome to TaaOS")
+        self.setGeometry(100, 100, 900, 700)
+        
+        self.current_page = 0
+        self.pages = []
+        
+        self.setup_ui()
+        self.apply_theme()
+    
+    def setup_ui(self):
+        """Setup user interface"""
+        central = QWidget()
+        self.setCentralWidget(central)
+        
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Header
+        header = QWidget()
+        header.setStyleSheet(f"""
+            background-color: {COLORS['surface']};
+            border-bottom: 3px solid {COLORS['primary']};
+        """)
+        header.setFixedHeight(80)
+        
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(30, 0, 30, 0)
+        
+        logo_label = QLabel("TaaOS")
+        logo_label.setStyleSheet(f"""
+            color: {COLORS['primary']};
+            font-size: 32px;
+            font-weight: bold;
+        """)
+        
+        version_label = QLabel("v1.0.0")
+        version_label.setStyleSheet(f"""
+            color: {COLORS['text_dim']};
+            font-size: 14px;
+        """)
+        
+        header_layout.addWidget(logo_label)
+        header_layout.addWidget(version_label)
+        header_layout.addStretch()
+        
+        layout.addWidget(header)
+        
+        # Pages
+        self.stacked = QStackedWidget()
+        
+        self.pages = [
+            WelcomePage(),
+            FeaturesPage(),
+            CustomizePage(),
+            QuickStartPage(),
+        ]
+        
+        for page in self.pages:
+            page.setStyleSheet(f"background-color: {COLORS['background']}; padding: 40px;")
+            self.stacked.addWidget(page)
+        
+        layout.addWidget(self.stacked)
+        
+        # Navigation
+        nav = QWidget()
+        nav.setStyleSheet(f"""
+            background-color: {COLORS['surface']};
+            border-top: 1px solid {COLORS['surface_light']};
+        """)
+        nav.setFixedHeight(80)
+        
+        nav_layout = QHBoxLayout(nav)
+        nav_layout.setContentsMargins(30, 0, 30, 0)
+        
+        # Page indicator
+        self.page_indicator = QLabel(f"Page 1 of {len(self.pages)}")
+        self.page_indicator.setStyleSheet(f"color: {COLORS['text_dim']};")
+        
+        # Don't show again checkbox
+        self.dont_show_cb = QCheckBox("Don't show this again")
+        self.dont_show_cb.setStyleSheet(f"""
+            QCheckBox {{
+                color: {COLORS['text']};
+            }}
+        """)
+        
+        # Navigation buttons
+        self.prev_btn = QPushButton("← Previous")
+        self.prev_btn.clicked.connect(self.previous_page)
+        self.prev_btn.setEnabled(False)
+        
+        self.next_btn = QPushButton("Next →")
+        self.next_btn.clicked.connect(self.next_page)
+        
+        self.finish_btn = QPushButton("Get Started!")
+        self.finish_btn.clicked.connect(self.finish)
+        self.finish_btn.setVisible(False)
+        
+        for btn in [self.prev_btn, self.next_btn, self.finish_btn]:
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {COLORS['primary']};
+                    color: {COLORS['text']};
+                    border: none;
+                    border-radius: 5px;
+                    padding: 12px 30px;
+                    font-weight: bold;
+                    font-size: 14px;
+                }}
+                QPushButton:hover {{
+                    background-color: {COLORS['primary_light']};
+                }}
+                QPushButton:disabled {{
+                    background-color: {COLORS['surface_light']};
+                    color: {COLORS['text_dim']};
+                }}
+            """)
+        
+        nav_layout.addWidget(self.page_indicator)
+        nav_layout.addStretch()
+        nav_layout.addWidget(self.dont_show_cb)
+        nav_layout.addSpacing(20)
+        nav_layout.addWidget(self.prev_btn)
+        nav_layout.addWidget(self.next_btn)
+        nav_layout.addWidget(self.finish_btn)
+        
+        layout.addWidget(nav)
+    
+    def apply_theme(self):
+        """Apply dark theme"""
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(COLORS['background']))
+        palette.setColor(QPalette.WindowText, QColor(COLORS['text']))
+        self.setPalette(palette)
+        
+        font = QFont("Inter", 10)
+        QApplication.setFont(font)
+    
+    def next_page(self):
+        """Go to next page"""
+        if self.current_page < len(self.pages) - 1:
+            self.current_page += 1
+            self.stacked.setCurrentIndex(self.current_page)
+            self.update_navigation()
+    
+    def previous_page(self):
+        """Go to previous page"""
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.stacked.setCurrentIndex(self.current_page)
+            self.update_navigation()
+    
+    def update_navigation(self):
+        """Update navigation buttons"""
+        self.page_indicator.setText(f"Page {self.current_page + 1} of {len(self.pages)}")
+        
+        self.prev_btn.setEnabled(self.current_page > 0)
+        
+        is_last_page = self.current_page == len(self.pages) - 1
+        self.next_btn.setVisible(not is_last_page)
+        self.finish_btn.setVisible(is_last_page)
+    
+    def finish(self):
+        """Finish welcome tour"""
+        if self.dont_show_cb.isChecked():
+            # Create config file to not show again
+            import os
+            config_dir = os.path.expanduser("~/.config/taaos")
+            os.makedirs(config_dir, exist_ok=True)
+            
+            with open(os.path.join(config_dir, "welcome-shown"), "w") as f:
+                f.write("1")
+        
+        self.close()
+
+
+def main():
+    app = QApplication(sys.argv)
+    app.setApplicationName("TaaOS Welcome")
+    app.setOrganizationName("TaaOS")
+    
+    window = TaaOSWelcome()
+    window.show()
+    
+    sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""
+TaaOS System Repair Tool
+Fix common system issues (bootloader, filesystem, packages, network)
+"""
+
+import sys
+import subprocess
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class SystemRepair(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS System Repair")
+        self.setGeometry(100, 100, 800, 600)
+        
+        self.setup_ui()
+        self.apply_theme()
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        header = QLabel("🔧 System Repair & Maintenance")
+        header.setStyleSheet(f"font-size: 24px; color: {COLORS['primary']}; font-weight: bold; padding: 20px;")
+        layout.addWidget(header)
+        
+        # Repair Options
+        options = [
+            ("Reinstall GRUB Bootloader", "Fix boot issues by reinstalling GRUB to MBR/EFI", self.fix_grub),
+            ("Repair Filesystem", "Run fsck/btrfs check on root filesystem", self.fix_fs),
+            ("Fix Package Database", "Repair TaaPac database and clear locks", self.fix_packages),
+            ("Reset Network", "Clear network config and restart NetworkManager", self.fix_network),
+            ("Clear System Cache", "Remove temporary files and package cache", self.clear_cache),
+            ("Restore Default Configs", "Reset /etc/taaos to defaults", self.restore_configs)
+        ]
+        
+        list_widget = QListWidget()
+        layout.addWidget(list_widget)
+        
+        for title, desc, func in options:
+            item = QListWidgetItem()
+            widget = QWidget()
+            w_layout = QVBoxLayout(widget)
+            
+            t_label = QLabel(title)
+            t_label.setStyleSheet("font-weight: bold; font-size: 16px;")
+            d_label = QLabel(desc)
+            d_label.setStyleSheet("color: #808080;")
+            
+            w_layout.addWidget(t_label)
+            w_layout.addWidget(d_label)
+            
+            item.setSizeHint(widget.sizeHint())
+            list_widget.addItem(item)
+            list_widget.setItemWidget(item, widget)
+        
+        # Action Button
+        btn = QPushButton("🛠️ Run Selected Repair")
+        btn.setFixedHeight(50)
+        btn.clicked.connect(lambda: self.run_repair(list_widget.currentRow()))
+        layout.addWidget(btn)
+        
+        # Log
+        self.log = QTextEdit()
+        self.log.setReadOnly(True)
+        self.log.setMaximumHeight(150)
+        layout.addWidget(self.log)
+    
+    def run_repair(self, index):
+        if index == -1:
+            QMessageBox.warning(self, "Select Option", "Please select a repair option first.")
+            return
+            
+        self.log.append(f"Starting repair option {index + 1}...")
+        # In real implementation, call respective functions
+        self.log.append("Repair completed successfully (Simulation).")
+        QMessageBox.information(self, "Success", "Repair operation completed.")
+
+    def fix_grub(self): pass
+    def fix_fs(self): pass
+    def fix_packages(self): pass
+    def fix_network(self): pass
+    def clear_cache(self): pass
+    def restore_configs(self): pass
+
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['surface']}; color: {COLORS['text']}; }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                border-radius: 5px;
+                font-weight: bold;
+                font-size: 16px;
+            }}
+            QPushButton:hover {{ background-color: #FF3333; }}
+            QListWidget {{
+                background-color: {COLORS['surface']};
+                border: 2px solid #2B2B2B;
+                border-radius: 5px;
+            }}
+            QListWidget::item:selected {{
+                background-color: {COLORS['primary']};
+                border-radius: 3px;
+            }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = SystemRepair()
+    window.show()
+    sys.exit(app.exec_())

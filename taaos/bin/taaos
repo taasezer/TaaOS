@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""
+TaaOS AI - Natural Language Interface
+Talk to your OS like a human
+"""
+
+import sys
+import json
+import requests
+from typing import Dict, Optional
+
+class TaaOSAI:
+    """Natural language AI interface for TaaOS"""
+    
+    def __init__(self):
+        self.neural_engine = "http://localhost:9999"
+        self.ollama_url = "http://localhost:11434/api/generate"
+        
+        # Natural language command mappings
+        self.intent_patterns = {
+            'help': ['help', 'yardım', 'nasıl', 'how', 'what'],
+            'generate': ['oluştur', 'yap', 'create', 'generate', 'make', 'build'],
+            'review': ['incele', 'kontrol', 'review', 'check', 'analyze'],
+            'test': ['test', 'deneme', 'testing'],
+            'explain': ['açıkla', 'explain', 'nedir', 'what is'],
+            'optimize': ['optimize', 'iyileştir', 'improve', 'hızlandır'],
+            'fix': ['düzelt', 'fix', 'repair', 'solve'],
+            'translate': ['çevir', 'translate', 'convert'],
+            'document': ['dokümante', 'document', 'açıklama yaz']
+        }
+    
+    def show_help(self, command: Optional[str] = None):
+        """Show detailed help"""
+        
+        help_text = """
+╔══════════════════════════════════════════════════════════════════╗
+║                    TaaOS AI Assistant                            ║
+║              Yapay Zeka Destekli İşletim Sistemi                 ║
+╚══════════════════════════════════════════════════════════════════╝
+
+🗣️  DOĞAL DİL KULLANIMI:
+   Komutları Türkçe veya İngilizce, doğal dil ile yazabilirsiniz!
+   
+   Örnekler:
+   • taaos "bir REST API oluştur"
+   • taaos "bu kodu incele: myfile.py"
+   • taaos "sistemdeki hataları analiz et"
+   • taaos "Python ile web scraper yap"
+
+📋 KOMUTLAR:
+
+1️⃣  KOD OLUŞTURMA
+   taaos generate <açıklama> [dil]
+   taaos "bir <açıklama> yap"
+   
+   Örnekler:
+   • taaos generate "authentication sistemi" python
+   • taaos "FastAPI ile REST API yap"
+   • taaos "React ile login sayfası oluştur"
+   
+   Ne yapar: Doğal dilden kod üretir
+
+2️⃣  KOD İNCELEME
+   taaos review <dosya> [dil]
+   taaos "şu kodu incele: <dosya>"
+   
+   Örnekler:
+   • taaos review app.py
+   • taaos "main.rs dosyasını kontrol et"
+   
+   Ne yapar: Güvenlik, performans, best practice kontrolü
+
+3️⃣  TEST OLUŞTURMA
+   taaos test <dosya> [dil]
+   taaos "şunun testini yaz: <dosya>"
+   
+   Örnekler:
+   • taaos test utils.py
+   • taaos "api.js için test yaz"
+   
+   Ne yapar: Otomatik unit test oluşturur
+
+4️⃣  HATA AÇIKLAMA
+   taaos explain <hata>
+   taaos "şu hatayı açıkla: <hata>"
+   
+   Örnekler:
+   • taaos explain "NameError: name 'x' is not defined"
+   • taaos "bu ne demek: TypeError"
+   
+   Ne yapar: Hatayı açıklar ve çözüm önerir
+
+5️⃣  SORGU OPTİMİZASYONU
+   taaos optimize-query <sorgu> [veritabanı]
+   taaos "şu sorguyu optimize et: <sorgu>"
+   
+   Örnekler:
+   • taaos optimize-query "SELECT * FROM users" postgresql
+   • taaos "bu SQL'i hızlandır: SELECT..."
+   
+   Ne yapar: Veritabanı sorgularını optimize eder
+
+6️⃣  DOKÜMANTASYON
+   taaos document <dosya> [dil]
+   taaos "şunun dokümantasyonunu yaz: <dosya>"
+   
+   Örnekler:
+   • taaos document functions.py
+   • taaos "utils.js için açıklama yaz"
+   
+   Ne yapar: Kod için dokümantasyon oluşturur
+
+7️⃣  KOD ÇEVİRİSİ
+   taaos translate <dosya> <kaynak_dil> <hedef_dil>
+   taaos "şunu <hedef_dil>'e çevir: <dosya>"
+   
+   Örnekler:
+   • taaos translate script.py python javascript
+   • taaos "bu Python kodunu Rust'a çevir: app.py"
+   
+   Ne yapar: Kodu başka dile çevirir
+
+8️⃣  LOG ANALİZİ
+   taaos analyze-logs <log_dosyası>
+   taaos "şu logları analiz et: <dosya>"
+   
+   Örnekler:
+   • taaos analyze-logs /var/log/syslog
+   • taaos "sistem loglarını incele"
+   
+   Ne yapar: Log dosyalarını analiz eder
+
+9️⃣  DUYGU ANALİZİ
+   taaos sentiment <metin>
+   taaos "şunun duygusunu analiz et: <metin>"
+   
+   Örnekler:
+   • taaos sentiment "Bu harika bir ürün!"
+   • taaos "bu yorumun tonu nedir: ..."
+   
+   Ne yapar: Metin duygu analizi yapar
+
+🔟  MİMARİ ÖNERİSİ
+   taaos architecture <gereksinimler>
+   taaos "şunun için mimari öner: <gereksinimler>"
+   
+   Örnekler:
+   • taaos architecture "e-ticaret platformu"
+   • taaos "blog sitesi için tech stack öner"
+   
+   Ne yapar: Sistem mimarisi önerir
+
+💡 İPUÇLARI:
+   • Komutları Türkçe veya İngilizce yazabilirsiniz
+   • Doğal dil kullanabilirsiniz: "bir web scraper yap"
+   • -h veya --help ile detaylı yardım alın
+   • Tüm AI özellikleri yerel olarak çalışır (gizlilik)
+
+📚 ÖRNEKLER:
+   taaos "Python ile web scraper oluştur"
+   taaos "bu kodu incele ve optimize et: app.py"
+   taaos "sistemdeki son hataları analiz et"
+   taaos "FastAPI ile authentication API'si yap"
+
+🌐 DAHA FAZLA:
+   Dokümantasyon: /usr/share/doc/taaos/ai-guide.md
+   Örnekler: /usr/share/doc/taaos/ai-examples.md
+   
+═══════════════════════════════════════════════════════════════════
+"""
+        print(help_text)
+    
+    def parse_natural_language(self, text: str) -> Dict:
+        """Parse natural language command"""
+        text_lower = text.lower()
+        
+        # Detect intent
+        intent = 'general'
+        for intent_type, patterns in self.intent_patterns.items():
+            if any(pattern in text_lower for pattern in patterns):
+                intent = intent_type
+                break
+        
+        return {
+            'intent': intent,
+            'text': text,
+            'language': 'tr' if any(c in text for c in 'çğıöşü') else 'en'
+        }
+    
+    def execute_natural_command(self, text: str):
+        """Execute natural language command"""
+        parsed = self.parse_natural_language(text)
+        
+        # Send to Neural Engine for processing
+        try:
+            response = requests.post(
+                self.neural_engine,
+                json={
+                    'type': 'voice_command',
+                    'command': text
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                print("\n" + "="*60)
+                print("🤖 TaaOS AI:")
+                print("="*60)
+                print(result.get('response', 'No response'))
+                
+                # Execute command if suggested
+                if result.get('execute') and result.get('command'):
+                    print("\n" + "-"*60)
+                    print("💻 Önerilen Komut:")
+                    print("-"*60)
+                    print(result['command'])
+                    
+                    confirm = input("\nBu komutu çalıştırmak ister misiniz? (e/h): ")
+                    if confirm.lower() in ['e', 'y', 'yes', 'evet']:
+                        import subprocess
+                        subprocess.run(result['command'], shell=True)
+            else:
+                print(f"❌ Hata: Neural Engine'e bağlanılamadı")
+        
+        except Exception as e:
+            print(f"❌ Hata: {e}")
+            print("\n💡 İpucu: Neural Engine'in çalıştığından emin olun:")
+            print("   sudo systemctl status taaos-neural-engine")
+
+def main():
+    ai = TaaOSAI()
+    
+    # No arguments or help
+    if len(sys.argv) == 1 or sys.argv[1] in ['-h', '--help', 'help', 'yardım']:
+        ai.show_help()
+        return
+    
+    # Join all arguments as natural language
+    command = ' '.join(sys.argv[1:])
+    
+    # Execute
+    ai.execute_natural_command(command)
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,291 @@
+{
+    "name": "TaaOS System Monitor",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 5
+                        }
+                    ]
+                }
+            },
+            "name": "Every 5 Minutes",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "df -h / | tail -1 | awk '{print $5}' | sed 's/%//'"
+            },
+            "name": "Check Disk Usage",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                450,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "command": "free | grep Mem | awk '{print ($3/$2) * 100.0}'"
+            },
+            "name": "Check Memory Usage",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "top -bn1 | grep 'Cpu(s)' | sed 's/.*, *\\([0-9.]*\\)%* id.*/\\1/' | awk '{print 100 - $1}'"
+            },
+            "name": "Check CPU Usage",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                450,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$json.stdout}}",
+                            "operation": "larger",
+                            "value2": 90
+                        }
+                    ]
+                }
+            },
+            "name": "Disk > 90%",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                650,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$json.stdout}}",
+                            "operation": "larger",
+                            "value2": 85
+                        }
+                    ]
+                }
+            },
+            "name": "Memory > 85%",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$json.stdout}}",
+                            "operation": "larger",
+                            "value2": 80
+                        }
+                    ]
+                }
+            },
+            "name": "CPU > 80%",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                650,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "command": "/usr/bin/taaos-cleanup"
+            },
+            "name": "Run Cleanup",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                850,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "command": "systemctl restart taaos-brain"
+            },
+            "name": "Restart Brain",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "renice -n 10 -p $(pgrep -f 'python|node')"
+            },
+            "name": "Renice Processes",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                850,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "message": "=TaaOS Alert: {{$node['Disk > 90%'].json.type}} - Value: {{$json.stdout}}%",
+                "additionalFields": {}
+            },
+            "name": "Send Notification",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Every 5 Minutes": {
+            "main": [
+                [
+                    {
+                        "node": "Check Disk Usage",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check Memory Usage",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check CPU Usage",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Disk Usage": {
+            "main": [
+                [
+                    {
+                        "node": "Disk > 90%",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Memory Usage": {
+            "main": [
+                [
+                    {
+                        "node": "Memory > 85%",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check CPU Usage": {
+            "main": [
+                [
+                    {
+                        "node": "CPU > 80%",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Disk > 90%": {
+            "main": [
+                [
+                    {
+                        "node": "Run Cleanup",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Memory > 85%": {
+            "main": [
+                [
+                    {
+                        "node": "Restart Brain",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "CPU > 80%": {
+            "main": [
+                [
+                    {
+                        "node": "Renice Processes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Run Cleanup": {
+            "main": [
+                [
+                    {
+                        "node": "Send Notification",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Restart Brain": {
+            "main": [
+                [
+                    {
+                        "node": "Send Notification",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Renice Processes": {
+            "main": [
+                [
+                    {
+                        "node": "Send Notification",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

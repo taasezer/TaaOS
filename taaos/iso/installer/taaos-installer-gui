@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""
+TaaOS Installer GUI
+Graphical System Installer
+"""
+
+import sys
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, QTimer
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class Installer(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Install TaaOS")
+        self.setGeometry(100, 100, 1000, 700)
+        
+        self.setup_ui()
+        self.apply_theme()
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        # Header
+        header = QLabel("Install TaaOS")
+        header.setAlignment(Qt.AlignCenter)
+        header.setStyleSheet(f"font-size: 32px; font-weight: bold; color: {COLORS['primary']}; margin: 20px;")
+        layout.addWidget(header)
+        
+        # Wizard Pages
+        self.stack = QStackedWidget()
+        
+        self.stack.addWidget(self.create_welcome_page())
+        self.stack.addWidget(self.create_location_page())
+        self.stack.addWidget(self.create_keyboard_page())
+        self.stack.addWidget(self.create_partitions_page())
+        self.stack.addWidget(self.create_users_page())
+        self.stack.addWidget(self.create_summary_page())
+        self.stack.addWidget(self.create_install_page())
+        
+        layout.addWidget(self.stack)
+        
+        # Navigation
+        nav_layout = QHBoxLayout()
+        self.back_btn = QPushButton("Back")
+        self.back_btn.clicked.connect(self.go_back)
+        self.next_btn = QPushButton("Next")
+        self.next_btn.clicked.connect(self.go_next)
+        
+        nav_layout.addWidget(self.back_btn)
+        nav_layout.addStretch()
+        nav_layout.addWidget(self.next_btn)
+        
+        layout.addLayout(nav_layout)
+        
+        self.update_buttons()
+
+    def create_welcome_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.addWidget(QLabel("Welcome to the TaaOS Installer.\n\nThis wizard will guide you through the installation process."))
+        layout.addStretch()
+        return page
+
+    def create_location_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.addWidget(QLabel("Select your location:"))
+        layout.addWidget(QComboBox()) # Map placeholder
+        layout.addStretch()
+        return page
+
+    def create_keyboard_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.addWidget(QLabel("Keyboard Layout:"))
+        layout.addWidget(QListWidget())
+        layout.addWidget(QLineEdit(placeholderText="Test keyboard here..."))
+        layout.addStretch()
+        return page
+
+    def create_partitions_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.addWidget(QLabel("Disk Partitioning:"))
+        
+        btn_group = QButtonGroup(page)
+        r1 = QRadioButton("Erase disk and install TaaOS")
+        r2 = QRadioButton("Manual partitioning")
+        r1.setChecked(True)
+        btn_group.addButton(r1)
+        btn_group.addButton(r2)
+        
+        layout.addWidget(r1)
+        layout.addWidget(r2)
+        layout.addWidget(QLabel("Select Drive:"))
+        layout.addWidget(QComboBox())
+        layout.addStretch()
+        return page
+
+    def create_users_page(self):
+        page = QWidget()
+        layout = QFormLayout(page)
+        layout.addRow("Full Name:", QLineEdit())
+        layout.addRow("Username:", QLineEdit())
+        layout.addRow("Password:", QLineEdit())
+        layout.addRow("Confirm Password:", QLineEdit())
+        layout.addRow("Hostname:", QLineEdit())
+        return page
+
+    def create_summary_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.addWidget(QLabel("Summary of changes:"))
+        layout.addWidget(QTextEdit("Location: New York\nKeyboard: English (US)\nPartition: Erase /dev/sda\nUser: taaos"))
+        layout.addStretch()
+        return page
+
+    def create_install_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.addWidget(QLabel("Installing TaaOS..."))
+        self.progress = QProgressBar()
+        layout.addWidget(self.progress)
+        self.log = QTextEdit()
+        layout.addWidget(self.log)
+        return page
+
+    def go_next(self):
+        curr = self.stack.currentIndex()
+        if curr < self.stack.count() - 1:
+            self.stack.setCurrentIndex(curr + 1)
+            self.update_buttons()
+            
+            if self.stack.currentIndex() == self.stack.count() - 1:
+                self.start_install()
+
+    def go_back(self):
+        curr = self.stack.currentIndex()
+        if curr > 0:
+            self.stack.setCurrentIndex(curr - 1)
+            self.update_buttons()
+
+    def update_buttons(self):
+        idx = self.stack.currentIndex()
+        self.back_btn.setEnabled(idx > 0)
+        if idx == self.stack.count() - 2:
+            self.next_btn.setText("Install")
+        elif idx == self.stack.count() - 1:
+            self.next_btn.setEnabled(False)
+            self.back_btn.setEnabled(False)
+        else:
+            self.next_btn.setText("Next")
+
+    def start_install(self):
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_progress)
+        self.timer.start(100)
+        self.progress_val = 0
+
+    def update_progress(self):
+        self.progress_val += 1
+        self.progress.setValue(self.progress_val)
+        if self.progress_val >= 100:
+            self.timer.stop()
+            self.log.append("Installation Complete!")
+            QMessageBox.information(self, "Done", "Installation Complete! Please reboot.")
+
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['surface']}; color: {COLORS['text']}; }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+            }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = Installer()
+    window.show()
+    sys.exit(app.exec_())

@@ -1,0 +1,45 @@
+# AppArmor profile for Firefox
+# Restricts Firefox to necessary system resources only
+
+#include <tunables/global>
+
+/usr/lib/firefox/firefox {
+  #include <abstractions/base>
+  #include <abstractions/audio>
+  #include <abstractions/dbus-session-strict>
+  #include <abstractions/fonts>
+  #include <abstractions/nameservice>
+  #include <abstractions/openssl>
+  #include <abstractions/ssl_certs>
+  #include <abstractions/X>
+
+  # Firefox binary
+  /usr/lib/firefox/firefox mr,
+  /usr/lib/firefox/** mr,
+
+  # User data
+  owner @{HOME}/.mozilla/** rw,
+  owner @{HOME}/Downloads/** rw,
+
+  # Temporary files
+  /tmp/** rw,
+  owner /run/user/*/pulse/ rw,
+
+  # System files (read-only)
+  /etc/mime.types r,
+  /etc/mailcap r,
+  /usr/share/applications/** r,
+  /usr/share/mime/** r,
+
+  # Deny dangerous capabilities
+  deny /proc/sys/kernel/** rw,
+  deny /sys/** w,
+  deny @{HOME}/.ssh/** rw,
+  deny @{HOME}/.gnupg/** rw,
+
+  # Network access
+  network inet stream,
+  network inet6 stream,
+  network inet dgram,
+  network inet6 dgram,
+}

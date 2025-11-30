@@ -1,0 +1,397 @@
+#!/usr/bin/env python3
+"""
+TaaPac - TaaOS Package Manager
+Fast, parallel package manager for TaaOS
+Based on pacman principles with performance enhancements
+"""
+
+import os
+import sys
+import json
+import hashlib
+import subprocess
+import concurrent.futures
+import urllib.request
+import argparse
+from pathlib import Path
+from typing import List, Dict, Set
+import tarfile
+import tempfile
+
+VERSION = "1.0.0"
+CONFIG_FILE = "/etc/taapac/taapac.conf"
+DB_PATH = "/var/lib/taapac/local"
+CACHE_PATH = "/var/cache/taapac/pkg"
+KEYRING_PATH = "/etc/taapac/gnupg"
+
+class TaaPacConfig:
+    """TaaPac configuration"""
+    def __init__(self):
+        self.mirrors = []
+        self.parallel_downloads = 8
+        self.cache_dir = CACHE_PATH
+        self.db_path = DB_PATH
+        self.sig_level = "Required"
+        self.load_config()
+    
+    def load_config(self):
+        """Load configuration from file"""
+        if not os.path.exists(CONFIG_FILE):
+            self.mirrors = ["https://mirror.taaos.org/$repo/$arch"]
+            return
+        
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('#') or not line:
+                        continue
+                    if line.startswith('Server ='):
+                        self.mirrors.append(line.split('=', 1)[1].strip())
+                    elif line.startswith('ParallelDownloads ='):
+                        self.parallel_downloads = int(line.split('=', 1)[1].strip())
+                    elif line.startswith('SigLevel ='):
+                        self.sig_level = line.split('=', 1)[1].strip()
+        except Exception as e:
+            print(f"Warning: Error loading config: {e}")
+
+class Package:
+    """Package representation"""
+    def __init__(self, name: str, version: str, desc: str = "", deps: List[str] = None):
+        self.name = name
+        self.version = version
+        self.desc = desc
+        self.deps = deps or []
+        self.url = ""
+        self.sha256 = ""
+    
+    def __str__(self):
+        return f"{self.name} {self.version}"
+    
+    def __repr__(self):
+        return f"Package({self.name}, {self.version})"
+
+class PackageDatabase:
+    """Package database management"""
+    def __init__(self, db_path: str):
+        self.db_path = Path(db_path)
+        self.packages: Dict[str, Package] = {}
+        self.db_path.mkdir(parents=True, exist_ok=True)
+    
+    def add_package(self, pkg: Package):
+        """Add package to database"""
+        self.packages[pkg.name] = pkg
+        pkg_dir = self.db_path / pkg.name / pkg.version
+        pkg_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Write package metadata
+        metadata = {
+            'name': pkg.name,
+            'version': pkg.version,
+            'desc': pkg.desc,
+            'deps': pkg.deps,
+            'url': pkg.url,
+            'sha256': pkg.sha256
+        }
+        with open(pkg_dir / 'metadata.json', 'w') as f:
+            json.dump(metadata, f, indent=2)
+    
+    def remove_package(self, name: str):
+        """Remove package from database"""
+        if name in self.packages:
+            del self.packages[name]
+            pkg_dir = self.db_path / name
+            if pkg_dir.exists():
+                import shutil
+                shutil.rmtree(pkg_dir)
+    
+    def get_package(self, name: str) -> Package:
+        """Get package by name"""
+        return self.packages.get(name)
+    
+    def load():
+        """Load installed packages"""        pkg_dirs = self.db_path.glob('*/*/metadata.json')
+        for meta_file in pkg_dirs:
+            try:
+                with open(meta_file, 'r') as f:
+                    data = json.load(f)
+                    pkg = Package(
+                        data['name'],
+                        data['version'],
+                        data.get('desc', ''),
+                        data.get('deps', [])
+                    )
+                    pkg.url = data.get('url', '')
+                    pkg.sha256 = data.get('sha256', '')
+                    self.packages[pkg.name] = pkg
+            except Exception as e:
+                print(f"Warning: Error loading {meta_file}: {e}")
+
+class DependencyResolver:
+    """Resolve packa dependencies"""
+    def __init__(self, db: PackageDatabase):
+        self.db = db
+    
+    def resolve(self, packages: List[str]) -> List[Package]:
+        """Resolve dependencies for given packages"""
+        resolved: Set[str] = set()
+        to_resolve = packages.copy()
+        result = []
+        
+        while to_resolve:
+            pkg_name = to_resolve.pop(0)
+            if pkg_name in resolved:
+                continue
+            
+            pkg = self.db.get_package(pkg_name)
+            if not pkg:
+                print(f"Warning: Package {pkg_name} not found in database")
+                continue
+            
+            resolved.add(pkg_name)
+            result.append(pkg)
+            
+            # Add dependencies to resolution queue
+            for dep in pkg.deps:
+                if dep not in resolved:
+                    to_resolve.append(dep)
+        
+        return result
+
+class Downloader:
+    """Parallel package downloader"""
+    def __init__(self, config: TaaPacConfig):
+        self.config = config
+        self.cache_dir = Path(config.cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    def download_package(self, pkg: Package) -> Path:
+        """Download a single package"""
+        filename = f"{pkg.name}-{pkg.version}.tar.zst"
+        cache_file = self.cache_dir / filename
+        
+        # Check if already cached
+        if cache_file.exists():
+            if self.verify_checksum(cache_file, pkg.sha256):
+                print(f"[CACHED] {pkg.name}")
+                return cache_file
+        
+        # Download from mirror
+        for mirror in self.config.mirrors:
+            url = f"{mirror}/{filename}"
+            try:
+                print(f"[DOWNLOADING] {pkg.name} from {mirror}")
+                urllib.request.urlretrieve(url, cache_file)
+                
+                # Verify checksum
+                if self.verify_checksum(cache_file, pkg.sha256):
+                    return cache_file
+                else:
+                    print(f"[ERROR] Checksum mismatch for {pkg.name}")
+                    cache_file.unlink()
+            except Exception as e:
+                print(f"[ERROR] Failed to download {pkg.name} from {mirror}: {e}")
+                continue
+        
+        raise Exception(f"Failed to download {pkg.name} from any mirror")
+    
+    def verify_checksum(self, file_path: Path, expected_sha256: str) -> bool:
+        """Verify file checksum"""
+        if not expected_sha256:
+            return True  # No checksum to verify
+        
+        sha256 = hashlib.sha256()
+        with open(file_path, 'rb') as f:
+            for chunk in iter(lambda: f.read(8192), b''):
+                sha256.update(chunk)
+        
+        return sha256.hexdigest() == expected_sha256
+    
+    def download_parallel(self, packages: List[Package]) -> List[Path]:
+        """Download multiple packages in parallel"""
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.config.parallel_downloads
+        ) as executor:
+            futures = [executor.submit(self.download_package, pkg) for pkg in packages]
+            results = []
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    results.append(future.result())
+                except Exception as e:
+                    print(f"Download error: {e}")
+            return results
+
+class Installer:
+    """Package installer"""
+    @staticmethod
+    def install_package(pkg_path: Path, root: str = "/") -> bool:
+        """Install package to system"""
+        try:
+            print(f"[INSTALLING] {pkg_path.name}")
+            
+            # Extract package
+            with tarfile.open(pkg_path, 'r') as tar:
+                tar.extractall(root, filter='data')
+            
+            return True
+        except Exception as e:
+            print(f"[ERROR] Failed to install {pkg_path.name}: {e}")
+            return False
+    
+    @staticmethod
+    def remove_package(pkg: Package, root: str = "/") -> bool:
+        """Remove package from system"""
+        try:
+            print(f"[REMOVING] {pkg.name}")
+            # This would need to track installed files per package
+            # For simplicity, not implemented in this basic version
+            return True
+        except Exception as e:
+            print(f"[ERROR] Failed to remove {pkg.name}: {e}")
+            return False
+
+class TaaPac:
+    """Main TaaPac class"""
+    def __init__(self):
+        self.config = TaaPacConfig()
+        self.db = PackageDatabase(self.config.db_path)
+        self.resolver = DependencyResolver(self.db)
+        self.downloader = Downloader(self.config)
+    
+    def sync(self):
+        """Synchronize package databases"""
+        print(":: Synchronizing package databases...")
+        # TODO: Download and parse repository databases
+        print(":: Databases synchronized")
+    
+    def install(self, packages: List[str], no_confirm: bool = False):
+        """Install packages"""
+        print(f":: Resolving dependencies for {', '.join(packages)}...")
+        
+        # Resolve dependencies
+        to_install = self.resolver.resolve(packages)
+        
+        if not to_install:
+            print(":: Nothing to do")
+            return
+        
+        print(f"\nPackages to install ({len(to_install)}):")
+        for pkg in to_install:
+            print(f"  {pkg}")
+        
+        if not no_confirm:
+            response = input("\nProceed with installation? [Y/n] ")
+            if response.lower() not in ['y', 'yes', '']:
+                print("Aborted")
+                return
+        
+        # Download packages
+        print("\n:: Downloading packages...")
+        pkg_files = self.downloader.download_parallel(to_install)
+        
+        # Install packages
+        print("\n:: Installing packages...")
+        for pkg_file in pkg_files:
+            Installer.install_package(pkg_file)
+        
+        # Update database
+        for pkg in to_install:
+            self.db.add_package(pkg)
+        
+        print("\n:: Installation complete!")
+    
+    def remove(self, packages: List[str], no_confirm: bool = False):
+        """Remove packages"""
+        print(f":: Removing {', '.join(packages)}...")
+        
+        to_remove = [self.db.get_package(name) for name in packages]
+        to_remove = [pkg for pkg in to_remove if pkg]
+        
+        if not to_remove:
+            print(":: No packages to remove")
+            return
+        
+        print(f"\nPackages to remove ({len(to_remove)}):")
+        for pkg in to_remove:
+            print(f"  {pkg}")
+        
+        if not no_confirm:
+            response = input("\nProceed with removal? [Y/n] ")
+            if response.lower() not in ['y', 'yes', '']:
+                print("Aborted")
+                return
+        
+        for pkg in to_remove:
+            Installer.remove_package(pkg)
+            self.db.remove_package(pkg.name)
+        
+        print("\n:: Removal complete!")
+    
+    def search(self, query: str):
+        """Search for packages"""
+        print(f":: Searching for '{query}'...")
+        # TODO: Implement repository search
+        print(":: Search complete")
+    
+    def list_installed(self):
+        """List installed packages"""
+        print(":: Installed packages:")
+        for name, pkg in sorted(self.db.packages.items()):
+            print(f"  {pkg}")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='TaaPac - TaaOS Package Manager',
+        epilog='For more information, see the taapac(8) manual page.'
+    )
+    parser.add_argument('--version', action='version', version=f'TaaPac {VERSION}')
+    parser.add_argument('--noconfirm', action='store_true', help='Skip confirmation prompts')
+    
+    subparsers = parser.add_subparsers(dest='command', help='Commands')
+    
+    # Sync
+    subparsers.add_parser('sync', aliases=['S'], help='Synchronize databases')
+    
+    # Install
+    install_parser = subparsers.add_parser('install', aliases=['I'], help='Install packages')
+    install_parser.add_argument('packages', nargs='+', help='Packages to install')
+    
+    # Remove
+    remove_parser = subparsers.add_parser('remove', aliases=['R'], help='Remove packages')
+    remove_parser.add_argument('packages', nargs='+', help='Packages to remove')
+    
+    # Search
+    search_parser = subparsers.add_parser('search', aliases=['s'], help='Search packages')
+    search_parser.add_argument('query', help='Search query')
+    
+    # List
+    subparsers.add_parser('list', aliases=['Q'], help='List installed packages')
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        return
+    
+    taapac = TaaPac()
+    
+    if args.command in ['sync', 'S']:
+        taapac.sync()
+    elif args.command in ['install', 'I']:
+        taapac.install(args.packages, args.noconfirm)
+    elif args.command in ['remove', 'R']:
+        taapac.remove(args.packages, args.noconfirm)
+    elif args.command in ['search', 's']:
+        taapac.search(args.query)
+    elif args.command in ['list', 'Q']:
+        taapac.list_installed()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user")
+        sys.exit(130)
+    except Exception as e:
+        print(f"\nError: {e}", file=sys.stderr)
+        sys.exit(1)

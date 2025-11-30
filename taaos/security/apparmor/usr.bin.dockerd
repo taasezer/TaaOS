@@ -1,0 +1,44 @@
+# AppArmor profile for Docker daemon
+# Restricts Docker to necessary operations
+
+#include <tunables/global>
+
+/usr/bin/dockerd {
+  #include <abstractions/base>
+
+  capability chown,
+  capability dac_override,
+  capability dac_read_search,
+  capability fowner,
+  capability fsetid,
+  capability kill,
+  capability net_admin,
+  capability net_bind_service,
+  capability net_raw,
+  capability setgid,
+  capability setuid,
+  capability sys_admin,
+  capability sys_chroot,
+  capability sys_ptrace,
+  capability sys_resource,
+
+  # Docker binary
+  /usr/bin/dockerd mr,
+  /usr/bin/docker-proxy mr,
+  /usr/bin/runc mr,
+
+  # Docker data
+  /var/lib/docker/** rw,
+  /var/run/docker.sock rw,
+  /run/docker/** rw,
+
+  # System access
+  /proc/** r,
+  /sys/** r,
+  /dev/** rw,
+
+  # Network
+  network inet stream,
+  network inet6 stream,
+  network unix stream,
+}

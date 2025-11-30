@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""
+TaaOS Firewall Manager
+GUI for UFW
+"""
+
+import sys
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class FirewallManager(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Firewall")
+        self.setGeometry(100, 100, 800, 600)
+        
+        self.setup_ui()
+        self.apply_theme()
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        # Status Switch
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(QLabel("<h2>Firewall Status:</h2>"))
+        
+        self.switch = QCheckBox("Enabled")
+        self.switch.setChecked(True)
+        self.switch.setStyleSheet(f"""
+            QCheckBox::indicator {{ width: 40px; height: 20px; border-radius: 10px; }}
+            QCheckBox::indicator:checked {{ background-color: {COLORS['primary']}; }}
+            QCheckBox::indicator:unchecked {{ background-color: #444; }}
+        """)
+        status_layout.addWidget(self.switch)
+        status_layout.addStretch()
+        layout.addLayout(status_layout)
+        
+        # Rules Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["To", "Action", "From", "Comment"])
+        
+        rules = [
+            ("80/tcp", "ALLOW", "Anywhere", "Web Server"),
+            ("443/tcp", "ALLOW", "Anywhere", "SSL Web Server"),
+            ("22/tcp", "ALLOW", "192.168.1.0/24", "SSH Local"),
+            ("3000/tcp", "ALLOW", "Anywhere", "Node.js Dev")
+        ]
+        
+        self.table.setRowCount(len(rules))
+        for i, (to, action, fro, cmt) in enumerate(rules):
+            self.table.setItem(i, 0, QTableWidgetItem(to))
+            self.table.setItem(i, 1, QTableWidgetItem(action))
+            self.table.setItem(i, 2, QTableWidgetItem(fro))
+            self.table.setItem(i, 3, QTableWidgetItem(cmt))
+            
+        layout.addWidget(self.table)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addWidget(QPushButton("➕ Add Rule"))
+        btn_layout.addWidget(QPushButton("🗑️ Delete Rule"))
+        layout.addLayout(btn_layout)
+
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['surface']}; color: {COLORS['text']}; }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                padding: 8px 15px;
+                border-radius: 5px;
+            }}
+            QTableWidget {{
+                border: 2px solid #2B2B2B;
+                gridline-color: #2B2B2B;
+            }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = FirewallManager()
+    window.show()
+    sys.exit(app.exec_())

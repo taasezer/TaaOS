@@ -1,0 +1,337 @@
+#!/usr/bin/env python3
+"""
+TaaBuild - TaaOS Package Build System
+Faster alternative to PKGBUILD with modern syntax
+"""
+
+import os
+import sys
+import subprocess
+import hashlib
+import json
+import tempfile
+import shutil
+import tarfile
+from pathlib import Path
+from typing import List, Dict
+
+VERSION = "1.0.0"
+
+class TaaBuildScript:
+    """TaaBuild script parser and executor"""
+    def __init__(self, script_path: str):
+        self.script_path = Path(script_path)
+        self.build_dir = Path.cwd() / "build"
+        self.pkg_dir = Path.cwd() / "pkg"
+        
+        # Package metadata
+        self.name = ""
+        self.version = ""
+        self.release = "1"
+        self.desc = ""
+        self.url = ""
+        self.license = []
+        self.depends = []
+        self.makedepends = []
+        self.sources = []
+        self.checksums = []
+        
+        # Build options
+        self.arch = ["x86_64"]
+        self.options = {
+            "strip": True,
+            "docs": True,
+            "debug": False,
+            "optimize": "O3",
+            "jobs": os.cpu_count()
+        }
+        
+        self.load_script()
+    
+    def load_script(self):
+        """Load and parse TaaBuild script"""
+        if not self.script_path.exists():
+            raise FileNotFoundError(f"TaaBuild file not found: {self.script_path}")
+        
+        with open(self.script_path, 'r') as f:
+            script_content = f.read()
+        
+        # Parse TaaBuild format
+        # Format is JSON-like for simplicity in this implementation
+        try:
+            data = json.loads(script_content)
+            self.name = data.get('name', '')
+            self.version = data.get('version', '')
+            self.release = str(data.get('release', '1'))
+            self.desc = data.get('desc', '')
+            self.url = data.get('url', '')
+            self.license = data.get('license', [])
+            self.depends = data.get('depends', [])
+            self.makedepends = data.get('makedepends', [])
+            self.sources = data.get('sources', [])
+            self.checksums = data.get('checksums', [])
+            
+            if 'options' in data:
+                self.options.update(data['options'])
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid TaaBuild format: {e}")
+        
+        # Validate required fields
+        if not self.name or not self.version:
+            raise ValueError("TaaBuild must specify 'name' and 'version'")
+    
+    def download_sources(self):
+        """Download source files"""
+        print(":: Downloading sources...")
+        
+        src_dir = Path.cwd() / "src"
+        src_dir.mkdir(exist_ok=True)
+        
+        for i, source in enumerate(self.sources):
+            if source.startswith('http://') or source.startswith('https://'):
+                # Download from URL
+                filename = source.split('/')[-1]
+                dest = src_dir / filename
+                
+                if dest.exists():
+                    print(f"  [CACHED] {filename}")
+                else:
+                    print(f"  [DOWNLOADING] {filename}")
+                    import urllib.request
+                    urllib.request.urlretrieve(source, dest)
+                
+                # Verify checksum if provided
+                if i < len(self.checksums) and self.checksums[i]:
+                    self.verify_checksum(dest, self.checksums[i])
+            else:
+                # Local file
+                src_file = self.script_path.parent / source
+                if not src_file.exists():
+                    raise FileNotFoundError(f"Source file not found: {source}")
+                
+                dest = src_dir / source
+                if dest != src_file:
+                    shutil.copy2(src_file, dest)
+    
+    def verify_checksum(self, file_path: Path, expected: str):
+        """Verify file checksum (SHA256)"""
+        sha256 = hashlib.sha256()
+        with open(file_path, 'rb') as f:
+            for chunk in iter(lambda: f.read(8192), b''):
+                sha256.update(chunk)
+        
+        actual = sha256.hexdigest()
+        if actual != expected:
+            raise ValueError(
+                f"Checksum mismatch for {file_path.name}\n"
+                f"Expected: {expected}\n"
+                f"Got:      {actual}"
+            )
+        print(f"  [VERIFIED] {file_path.name}")
+    
+    def extract_sources(self):
+        """Extract source archives"""
+        print(":: Extracting sources...")
+        
+        src_dir = Path.cwd() / "src"
+        self.build_dir.mkdir(exist_ok=True)
+        
+        for source in self.sources:
+            filename = source.split('/')[-1] if '/' in source else source
+            src_file = src_dir / filename
+            
+            if not src_file.exists():
+                continue
+            
+            # Check if it's an archive
+            if tarfile.is_tarfile(src_file):
+                print(f"  [EXTRACTING] {filename}")
+                with tarfile.open(src_file) as tar:
+                    tar.extractall(self.build_dir)
+            elif src_file.suffix == '.zip':
+                print(f"  [EXTRACTING] {filename}")
+                import zipfile
+                with zipfile.ZipFile(src_file, 'r') as zip_ref:
+                    zip_ref.extractall(self.build_dir)
+            else:
+                # Copy non-archive files
+                shutil.copy2(src_file, self.build_dir / filename)
+    
+    def build(self):
+        """Build package"""
+        print(":: Building package...")
+        
+        # Find build script in TaaBuild data
+        # In a real implementation, this would execute shell commands
+        # from the TaaBuild file
+        
+        print(f"  Building {self.name} {self.version}-{self.release}")
+        print(f"  Using {self.options['jobs']} parallel jobs")
+        print(f"  Optimization: -{self.options['optimize']}")
+        
+        # Example build steps (would be customized per package)
+        os.chdir(self.build_dir)
+        
+        # Common build patterns
+        if (self.build_dir / "configure").exists():
+            self.run_command(["./configure", f"--prefix=/usr"])
+            self.run_command(["make", f"-j{self.options['jobs']}"])
+        elif (self.build_dir / "CMakeLists.txt").exists():
+            cmake_build = self.build_dir / "cmake-build"
+            cmake_build.mkdir(exist_ok=True)
+            os.chdir(cmake_build)
+            self.run_command([
+                "cmake", "..",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DCMAKE_INSTALL_PREFIX=/usr"
+            ])
+            self.run_command(["make", f"-j{self.options['jobs']}"])
+        elif (self.build_dir / "Cargo.toml").exists():
+            self.run_command(["cargo", "build", "--release"])
+        elif (self.build_dir / "setup.py").exists():
+            self.run_command(["python", "setup.py", "build"])
+        else:
+            print("  [WARNING] No recognized build system found")
+    
+    def package(self):
+        """Create package"""
+        print(":: Creating package...")
+        
+        self.pkg_dir.mkdir(exist_ok=True)
+        
+        # Install to package directory
+        os.chdir(self.build_dir)
+        
+        if (self.build_dir / "Makefile").exists():
+            self.run_command(["make", f"DESTDIR={self.pkg_dir}", "install"])
+        elif (self.build_dir / "cmake-build" / "Makefile").exists():
+            os.chdir(self.build_dir / "cmake-build")
+            self.run_command(["make", f"DESTDIR={self.pkg_dir}", "install"])
+        elif (self.build_dir / "target" / "release").exists():
+            # Rust binary
+            bin_dir = self.pkg_dir / "usr" / "bin"
+            bin_dir.mkdir(parents=True, exist_ok=True)
+            for binary in (self.build_dir / "target" / "release").glob("*"):
+                if binary.is_file() and os.access(binary, os.X_OK):
+                    shutil.copy2(binary, bin_dir)
+        elif (self.build_dir / "setup.py").exists():
+            self.run_command(["python", "setup.py", "install", f"--root={self.pkg_dir}"])
+        
+        # Strip binaries if enabled
+        if self.options.get('strip', True):
+            self.strip_binaries()
+        
+        # Create package metadata
+        self.create_metadata()
+        
+        # Create package archive
+        pkg_name = f"{self.name}-{self.version}-{self.release}-{self.arch[0]}.tar.zst"
+        pkg_path = Path.cwd() / pkg_name
+        
+        print(f"  Creating {pkg_name}...")
+        self.create_archive(self.pkg_dir, pkg_path)
+        
+        print(f"\n:: Package created: {pkg_path}")
+        return pkg_path
+    
+    def strip_binaries(self):
+        """Strip debug symbols from binaries"""
+        print("  Stripping binaries...")
+        
+        for root, dirs, files in os.walk(self.pkg_dir):
+            for file in files:
+                filepath = Path(root) / file
+                if filepath.is_file() and os.access(filepath, os.X_OK):
+                    # Try to strip (ignore errors for non-ELF files)
+                    try:
+                        subprocess.run(
+                            ["strip", str(filepath)],
+                            stderr=subprocess.DEVNULL,
+                            check=False
+                        )
+                    except:
+                        pass
+    
+    def create_metadata(self):
+        """Create package metadata file"""
+        metadata = {
+            'name': self.name,
+            'version': self.version,
+            'release': self.release,
+            'desc': self.desc,
+            'url': self.url,
+            'license': self.license,
+            'depends': self.depends,
+            'arch': self.arch
+        }
+        
+        meta_file = self.pkg_dir / ".PKGINFO"
+        with open(meta_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
+    
+    def create_archive(self, source_dir: Path, output_path: Path):
+        """Create zstd-compressed tar archive"""
+        # Create tar
+        tar_path = output_path.with_suffix('.tar')
+        with tarfile.open(tar_path, 'w') as tar:
+            tar.add(source_dir, arcname='.')
+        
+        # Compress with zstd
+        subprocess.run(
+            ["zstd", "-19", "-T0", "--rm", str(tar_path), "-o", str(output_path)],
+            check=True
+        )
+    
+    def run_command(self, cmd: List[str]):
+        """Run a shell command"""
+        print(f"  Running: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=False)
+        if result.returncode != 0:
+            raise RuntimeError(f"Command failed with exit code {result.returncode}")
+    
+    def clean(self):
+        """Clean build directories"""
+        print(":: Cleaning build directories...")
+        
+        for dir_path in [self.build_dir, self.pkg_dir, Path("src")]:
+            if dir_path.exists():
+                shutil.rmtree(dir_path)
+        
+        print("  Clean complete")
+
+def main():
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description='TaaBuild - TaaOS Package Build System'
+    )
+    parser.add_argument('--version', action='version', version=f'TaaBuild {VERSION}')
+    parser.add_argument('-c', '--clean', action='store_true', help='Clean build directories')
+    parser.add_argument('-f', '--force', action='store_true', help='Force rebuild')
+    parser.add_argument('script', nargs='?', default='taabuild.json',
+                       help='TaaBuild script (default: taabuild.json)')
+    
+    args = parser.parse_args()
+    
+    try:
+        builder = TaaBuildScript(args.script)
+        
+        if args.clean:
+            builder.clean()
+            return
+        
+        # Build package
+        builder.download_sources()
+        builder.extract_sources()
+        builder.build()
+        pkg_path = builder.package()
+        
+        print(f"\n:: Build complete!")
+        print(f"   Package: {pkg_path}")
+        
+    except Exception as e:
+        print(f"\nError: {e}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()

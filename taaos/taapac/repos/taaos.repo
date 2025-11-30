@@ -1,0 +1,24 @@
+# TaaOS Repository Configuration
+# Official TaaOS package repositories
+
+[taaos-core]
+Server = https://repo.taaos.org/core/$arch
+SigLevel = Required DatabaseOptional
+
+[taaos-extra]
+Server = https://repo.taaos.org/extra/$arch
+SigLevel = Required DatabaseOptional
+
+[taaos-community]
+Server = https://repo.taaos.org/community/$arch
+SigLevel = Optional
+
+[taaos-ai]
+Server = https://repo.taaos.org/ai/$arch
+SigLevel = Required
+# AI/ML packages and models
+
+[taaos-dev]
+Server = https://repo.taaos.org/dev/$arch
+SigLevel = Optional
+# Development tools and libraries

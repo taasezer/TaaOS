@@ -1,0 +1,12 @@
+[Unit]
+Description=TaaOS Neural Engine (AI Core)
+After=network.target ollama.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/lib/taaos/taaos-neural-engine.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""
+TaaOS AI Assistant GUI
+A modern, Rosso Corsa themed interface for the local TaaOS AI.
+Supports chat, code generation, and system control suggestions.
+"""
+
+import sys
+import subprocess
+import threading
+import json
+import requests
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, pyqtSignal, QThread, QSize
+from PyQt5.QtGui import QIcon, QFont, QTextCursor
+
+COLORS = {
+    'primary': '#D40000',
+    'primary_dark': '#8B0000',
+    'background': '#0A0A0A',
+    'surface': '#1A1A1A',
+    'text': '#F5F5F0',
+    'user_msg': '#2B2B2B',
+    'ai_msg': '#1A1A1A'
+}
+
+class AIWorker(QThread):
+    response_ready = pyqtSignal(str)
+    finished = pyqtSignal()
+
+    def __init__(self, prompt, context=""):
+        super().__init__()
+        self.prompt = prompt
+        self.context = context
+
+    def run(self):
+        try:
+            # Call Ollama API
+            url = "http://localhost:11434/api/generate"
+            data = {
+                "model": "taaos-expert",
+                "prompt": f"Context: {self.context}\n\nUser: {self.prompt}\n\nAssistant:",
+                "stream": False
+            }
+            response = requests.post(url, json=data)
+            if response.status_code == 200:
+                result = response.json().get('response', '')
+                self.response_ready.emit(result)
+            else:
+                self.response_ready.emit(f"Error: AI Service unavailable (Status {response.status_code})")
+        except Exception as e:
+            self.response_ready.emit(f"Error: Could not connect to TaaOS AI Service. Is Ollama running?\nDetails: {e}")
+        finally:
+            self.finished.emit()
+
+class TaaOSAI(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS AI Assistant")
+        self.setGeometry(100, 100, 500, 700)
+        
+        self.setup_ui()
+        self.apply_theme()
+        
+        # Initial greeting
+        self.add_message("ai", "Hello! I am TaaOS AI. I can help you with system commands, coding, or general questions. How can I assist you today?")
+
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Header
+        header = QFrame()
+        header.setStyleSheet(f"background-color: {COLORS['surface']}; border-bottom: 2px solid {COLORS['primary']};")
+        header.setFixedHeight(60)
+        h_layout = QHBoxLayout(header)
+        
+        title = QLabel("🤖 TaaOS Intelligence")
+        title.setStyleSheet(f"font-size: 18px; font-weight: bold; color: {COLORS['text']};")
+        h_layout.addWidget(title)
+        h_layout.addStretch()
+        
+        status = QLabel("● Online")
+        status.setStyleSheet("color: #00CC66; font-weight: bold;")
+        h_layout.addWidget(status)
+        
+        layout.addWidget(header)
+
+        # Chat Area
+        self.chat_area = QScrollArea()
+        self.chat_area.setWidgetResizable(True)
+        self.chat_widget = QWidget()
+        self.chat_layout = QVBoxLayout(self.chat_widget)
+        self.chat_layout.addStretch()
+        self.chat_area.setWidget(self.chat_widget)
+        layout.addWidget(self.chat_area)
+
+        # Input Area
+        input_frame = QFrame()
+        input_frame.setStyleSheet(f"background-color: {COLORS['surface']};")
+        input_frame.setFixedHeight(80)
+        i_layout = QHBoxLayout(input_frame)
+        
+        self.input_field = QLineEdit()
+        self.input_field.setPlaceholderText("Ask TaaOS AI anything...")
+        self.input_field.returnPressed.connect(self.send_message)
+        
+        send_btn = QPushButton("➤")
+        send_btn.setFixedSize(50, 40)
+        send_btn.clicked.connect(self.send_message)
+        
+        i_layout.addWidget(self.input_field)
+        i_layout.addWidget(send_btn)
+        
+        layout.addWidget(input_frame)
+
+    def add_message(self, sender, text):
+        msg_frame = QFrame()
+        msg_layout = QVBoxLayout(msg_frame)
+        msg_layout.setContentsMargins(15, 10, 15, 10)
+        
+        label = QLabel(text)
+        label.setWordWrap(True)
+        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        
+        if sender == "user":
+            msg_frame.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {COLORS['user_msg']};
+                    border-radius: 15px;
+                    border-bottom-right-radius: 2px;
+                    margin-left: 50px;
+                }}
+            """)
+            label.setAlignment(Qt.AlignRight)
+        else:
+            msg_frame.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {COLORS['ai_msg']};
+                    border: 1px solid #333;
+                    border-radius: 15px;
+                    border-bottom-left-radius: 2px;
+                    margin-right: 50px;
+                }}
+            """)
+            label.setAlignment(Qt.AlignLeft)
+            
+            # Format code blocks if present (simple detection)
+            if "```" in text:
+                label.setFont(QFont("JetBrains Mono", 10))
+
+        msg_layout.addWidget(label)
+        self.chat_layout.addWidget(msg_frame)
+        
+        # Scroll to bottom
+        QTimer.singleShot(100, lambda: self.chat_area.verticalScrollBar().setValue(self.chat_area.verticalScrollBar().maximum()))
+
+    def send_message(self):
+        text = self.input_field.text().strip()
+        if not text:
+            return
+            
+        self.add_message("user", text)
+        self.input_field.clear()
+        self.input_field.setDisabled(True)
+        
+        # Start AI Worker
+        self.worker = AIWorker(text)
+        self.worker.response_ready.connect(lambda r: self.add_message("ai", r))
+        self.worker.finished.connect(lambda: self.input_field.setDisabled(False))
+        self.worker.finished.connect(lambda: self.input_field.setFocus())
+        self.worker.start()
+
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QScrollArea {{ border: none; background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['background']}; color: {COLORS['text']}; }}
+            QLineEdit {{
+                background-color: #2B2B2B;
+                border: 2px solid #333;
+                border-radius: 20px;
+                padding: 10px 20px;
+                color: {COLORS['text']};
+                font-size: 14px;
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {COLORS['primary']};
+            }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                border-radius: 20px;
+                font-weight: bold;
+                font-size: 18px;
+            }}
+            QPushButton:hover {{ background-color: {COLORS['primary_dark']}; }}
+        """)
+
+if __name__ == '__main__':
+    from PyQt5.QtCore import QTimer
+    app = QApplication(sys.argv)
+    window = TaaOSAI()
+    window.show()
+    sys.exit(app.exec_())

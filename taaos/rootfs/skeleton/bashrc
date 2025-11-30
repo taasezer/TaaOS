@@ -1,0 +1,28 @@
+# ~/.bashrc
+
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
+# TaaOS default prompt
+PS1='\[\033[01;31m\]\u@taaos\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+# Aliases
+alias ls='ls --color=auto'
+alias ll='ls -la'
+alias grep='grep --color=auto'
+alias update='sudo taapac update'
+alias install='sudo taapac install'
+
+# TaaOS environment
+export EDITOR=nano
+export VISUAL=code
+export PAGER=less
+
+# History
+HISTSIZE=10000
+HISTFILESIZE=20000
+HISTCONTROL=ignoredups:erasedups
+
+# Welcome message
+echo "Welcome to TaaOS - The Developer's OS"
+echo "Type 'taaos-welcome' for system information"

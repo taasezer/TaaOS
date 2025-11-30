@@ -1,0 +1,37 @@
+# TaaOS Theme: Midnight Black
+# Pure black theme for OLED displays
+
+[Colors]
+Primary=#000000
+PrimaryDark=#000000
+PrimaryLight=#333333
+Background=#0D0D0D
+Surface=#1A1A1A
+SurfaceVariant=#2B2B2B
+Text=#FFFFFF
+TextSecondary=#CCCCCC
+Border=#222222
+Accent=#FFFFFF
+
+[Plasma]
+ColorScheme=MidnightBlack
+WindowDecoration=Breeze
+IconTheme=TaaOS-Icons
+CursorTheme=TaaOS-Cursors
+
+[GTK]
+Theme=Breeze-Dark
+IconTheme=TaaOS-Icons
+Font=Sans 10
+
+[Terminal]
+Background=#000000
+Foreground=#FFFFFF
+Color0=#000000
+Color1=#FF0000
+Color2=#00FF00
+Color3=#FFFF00
+Color4=#0000FF
+Color5=#FF00FF
+Color6=#00FFFF
+Color7=#FFFFFF

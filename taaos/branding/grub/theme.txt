@@ -1,0 +1,102 @@
+# GRUB2 TaaOS Theme Configuration
+
+# General settings
+title-text: "TaaOS"
+desktop-image: "background.png"
+desktop-color: "#0A0A0A"
+terminal-font: "Terminus Regular 16"
+terminal-box: "terminal_box_*.png"
+
+# Boot menu
++ boot_menu {
+  left = 20%
+  top = 30%
+  width = 60%
+  height = 50%
+  item_font = "JetBrains Mono Regular 16"
+  item_color = "#F5F5F0"
+  selected_item_color = "#FFFFFF"
+  selected_item_pixmap_style = "select_*.png"
+  item_height = 32
+  item_padding = 8
+  item_spacing = 4
+  icon_width = 32
+  icon_height = 32
+}
+
+# Title text
++ label {
+  left = 50%
+  top = 10%
+  align = "center"
+  id = "__timeout__"
+  text = "TaaOS Boot Menu"
+  color = "#D40000"  # Rosso Corsa
+  font = "JetBrains Mono Bold 24"
+}
+
+# Timeout text
++ label {
+  left = 50%
+  top = 90%
+  align = "center"
+  id = "timeout_label"
+  text = "Boot in %d seconds"
+  color = "#F5F5F0"
+  font = "JetBrains Mono Regular 14"
+}
+
+# Progress bar (optional)
++ progress_bar {
+  left = 30%
+  top = 85%
+  width = 40%
+  height = 16
+  id = "progress_bar"
+  fg_color = "#D40000"  # Rosso Corsa
+  bg_color = "#2B2B2B"
+  border_color = "#F5F5F0"
+  text = ""
+  font = "JetBrains Mono Regular 12"
+  text_color = "#F5F5F0"
+}
+
+# TaaOS version info
++ label {
+  left = 2%
+  top = 95%
+  align = "left"
+  text = "TaaOS Rolling Release"
+  color = "#808080"
+  font = "JetBrains Mono Regular 12"
+}
+
+# Kernel info
++ label {
+  left = 98%
+  top = 95%
+  align = "right"
+  text = "TaaKernel"
+  color = "#808080"
+  font = "JetBrains Mono Regular 12"
+}
+
+# Color scheme for menu items
++ circular_progress {
+  left = 50%
+  top = 50%
+  width = 64
+  height = 64
+  center_bitmap = "progress_center.png"
+  tick_bitmap = "progress_tick.png"
+  num_ticks = 64
+  start_angle = -90
+  ticks_disappear = "false"
+  id = "progress_indicator"
+}
+
+# TaaOS specific styling
+# Primary: Rosso Corsa (#D40000)
+# Secondary: Off-white (#F5F5F0)
+# Background: Black (#0A0A0A)
+# Accent: Anthracite (#2B2B2B)

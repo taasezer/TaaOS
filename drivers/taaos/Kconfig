@@ -1,0 +1,9 @@
+config TAAOS
+	tristate "TaaOS Kernel Integration"
+	depends on PROC_FS
+	help
+	  This option enables TaaOS-specific kernel features including
+	  Neural Engine hooks, AI subsystem integration, and system
+	  monitoring capabilities.
+	  
+	  If unsure, say Y.

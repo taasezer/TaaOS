@@ -1,0 +1,217 @@
+TaaOS Root Filesystem Structure
+================================
+
+Based on FHS (Filesystem Hierarchy Standard) with TaaOS optimizations.
+
+## Directory Structure
+
+/
+├── boot/               # Boot files (kernel, initramfs, bootloader)
+│   ├── vmlinuz-*       # Kernel image
+│   ├── initramfs-*     # Initial ramdisk
+│   └── grub/           # GRUB bootloader
+│
+├── dev/                # Device files (managed by devtmpfs)
+│
+├── etc/                # System configuration
+│   ├── taaos/          # TaaOS-specific configuration
+│   │   ├── theme.conf  # Current theme settings
+│   │   ├── release     # TaaOS version information
+│   │   └── mirrorlist  # Package repository mirrors
+│   ├── taapac/         # Package manager configuration
+│   │   ├── taapac.conf
+│   │   └── makepkg.conf
+│   ├── apparmor.d/     # AppArmor profiles
+│   ├── profile.d/      # Shell profile scripts
+│   └── skel/           # Default user home skeleton
+│
+├── home/               # User home directories
+│   └── [username]/
+│
+├── mnt/                # Temporary mount points
+│
+├── opt/                # Optional software
+│   └── taaos/          # TaaOS-specific applications
+│       ├── taatheme/   # Theme engine
+│       └── guardian/   # Security guardian
+│
+├── proc/               # Process information (virtual FS)
+│
+├── root/               # Root user home
+│
+├── run/                # Runtime data (tmpfs)
+│   ├── taapac/         # Package manager runtime
+│   └── user/           # User runtime directories
+│
+├── srv/                # Service data
+│   └── taaos/
+│       └── repo/       # Local package repository
+│
+├── sys/                # System information (virtual FS)
+│
+├── tmp/                # Temporary files (tmpfs)
+│
+├── usr/                # User programs and data
+│   ├── bin/            # User binaries
+│   │   ├── taapac      # Package manager
+│   │   ├── taabuild    # Build system
+│   │   └── taatheme    # Theme manager
+│   ├── include/        # C header files
+│   ├── lib/            # Libraries
+│   │   └── taaos/      # TaaOS libraries
+│   ├── lib64/          # 64-bit libraries
+│   ├── local/          # Local installations
+│   │   ├── bin/
+│   │   ├── lib/
+│   │   ├── share/
+│   │   └── src/
+│   ├── sbin/           # System binaries
+│   ├── share/          # Shared data
+│   │   ├── applications/  # Desktop entries
+│   │   ├── icons/      # Icon themes
+│   │   │   └── taaos/  # TaaOS icon set
+│   │   ├── themes/     # Desktop themes
+│   │   │   ├── Rosso-Corsa/
+│   │   │   ├── Midnight-Black/
+│   │   │   └── Arctic-Blue/
+│   │   ├── wallpapers/ # System wallpapers
+│   │   │   └── taaos/
+│   │   ├── fonts/      # System fonts
+│   │   ├── doc/        # Documentation
+│   │   ├── man/        # Manual pages
+│   │   └── taaos/      # TaaOS branding
+│   │       ├── logo.svg
+│   │       ├── plymouth/
+│   │       └── grub/
+│   └── src/            # Source code (for building)
+│
+└── var/                # Variable data
+    ├── cache/          # Application caches
+    │   └── taapac/     # Package cache
+    ├── lib/            # State information
+    │   ├── taapac/     # Package database
+    │   └── taaos/      # TaaOS system state
+    ├── log/            # Log files
+    │   └── taapac.log
+    ├── spool/          # Spool directories
+    └── tmp/            # Persistent tmp (survives reboot)
+
+## Btrfs Subvolume Layout
+
+When using btrfs (default), the following subvolumes are created:
+
+@root           -> /           (root filesystem)
+@home           -> /home       (user data)
+@var            -> /var        (variable data)
+@snapshots      -> /.snapshots (system snapshots)
+@swap           -> /swap       (swapfile location)
+
+Benefits:
+- Independent snapshots of each subvolume
+- Different mount options per subvolume
+- Easy rollback of system updates
+- Efficient space usage with CoW
+
+## Mount Options
+
+### Root (btrfs)
+- compress=zstd:1        # Level 1 compression for speed
+- noatime                # Don't update access times (performance)
+- space_cache=v2         # Improved free space cache
+- ssd                    # SSD optimizations
+- discard=async          # Async TRIM for SSD
+
+### Home
+- compress=zstd:3        # Higher compression for user data
+- noatime
+- space_cache=v2
+- ssd
+- discard=async
+
+### Var
+- compress=zstd:1
+- noatime
+- space_cache=v2
+- ssd
+- discard=async
+
+## Special Directories
+
+### /etc/skel
+Template for new user home directories:
+- .zshrc (Oh-My-Zsh + Powerlevel10k configured)
+- .config/
+  - Code/User/settings.json (VSCodium config)
+  - git/config (Git defaults)
+  - plasma-org.kde.plasma.desktop-appletsrc (KDE layout)
+- .local/share/
+  - konsole/ (Terminal color scheme)
+
+### /opt/taaos
+TaaOS-specific applications:
+- taatheme/: Theme engine
+  - bin/taatheme
+  - lib/libtheme.so
+  - themes/ (theme definitions)
+- guardian/: Security guardian
+  - bin/taa-guardian
+  - profiles/ (security profiles)
+
+### /usr/share/taaos
+Branding and visual identity:
+- logo.svg (TaaOS logo)
+- plymouth/ (boot splash theme)
+- grub/ (bootloader theme)
+- backgrounds/ (default wallpapers)
+
+## Permissions
+
+Key directories and their permissions:
+
+/           0755 root:root
+/boot       0755 root:root
+/etc        0755 root:root
+/home       0755 root:root
+/opt        0755 root:root
+/root       0750 root:root
+/srv        0755 root:root
+/tmp        1777 root:root (sticky bit)
+/usr        0755 root:root
+/var        0755 root:root
+
+## Minimal Package Set
+
+Base system packages required:
+- linux (TaaKernel)
+- taaos-base (meta package)
+- taapac (package manager)
+- systemd or taa-init (init system)
+- btrfs-progs
+- zsh
+- coreutils, util-linux, procps-ng
+- network-manager
+- mesa (graphics drivers)
+- plasma-desktop or gnome-shell
+
+Developer packages (default):
+- base-devel
+- git, github-cli, gitlab-cli
+- gcc, clang
+- rust, go, nodejs, python
+- docker, podman
+- vscodium
+- cmake, ninja, meson
+
+## Size Estimates
+
+Minimal install: ~2 GB
+With desktop: ~4 GB
+Full developer: ~8 GB
+
+## Optimization Notes
+
+1. Aggressive use of tmpfs for /tmp and /run (saves SSD writes)
+2. Separate /var subvolume (logs don't clutter root snapshots)
+3. zstd compression (good ratio, fast, low CPU)
+4. noatime mount (significant performance boost)
+5. Async discard (better SSD performance than sync)

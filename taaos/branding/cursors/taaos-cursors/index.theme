@@ -1,0 +1,34 @@
+[Icon Theme]
+Name=TaaOS Cursor Theme
+Comment=Rosso Corsa cursor theme for TaaOS
+
+[Cursors]
+default=left_ptr
+pointer=hand2
+wait=watch
+text=xterm
+cross=crosshair
+move=fleur
+size_all=fleur
+size_fdiag=size_fdiag
+size_bdiag=size_bdiag
+size_hor=size_hor
+size_ver=size_ver
+split_h=split_v
+split_v=split_h
+hand=hand2
+help=question_arrow
+progress=left_ptr_watch
+not-allowed=circle
+
+# Cursor Colors
+AccentColor=#D40000
+PrimaryColor=#F5F5F0
+SecondaryColor=#0A0A0A
+
+# Cursor Sizes
+SizeSmall=24
+SizeMedium=32
+SizeLarge=48
+SizeHuge=64
+Default=SizeMedium

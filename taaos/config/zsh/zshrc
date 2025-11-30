@@ -1,0 +1,113 @@
+# TaaOS Zsh Configuration
+# Optimized for speed, functionality, and aesthetics
+
+# Path
+export PATH=$HOME/bin:/usr/local/bin:$PATH
+export PATH=$PATH:$HOME/.local/bin
+
+# History
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt APPEND_HISTORY
+setopt INC_APPEND_HISTORY
+setopt SHARE_HISTORY
+
+# Completion
+autoload -Uz compinit
+compinit
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+
+# Plugins (if using Oh-My-Zsh)
+plugins=(git docker python rust sudo systemd archlinux)
+
+# Source Oh-My-Zsh
+if [ -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
+    source $HOME/.oh-my-zsh/oh-my-zsh.sh
+fi
+
+# Source Powerlevel10k
+if [ -f "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k/powerlevel10k.zsh-theme" ]; then
+    source "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k/powerlevel10k.zsh-theme"
+fi
+
+# TaaOS Advanced Aliases & Functions
+
+# Package Management
+alias update='sudo taapac update'
+alias install='sudo taapac install'
+alias remove='sudo taapac remove'
+alias search='taapac search'
+alias cleanup='sudo taaos-cleanup'
+
+# System Management
+alias sys='systemctl'
+alias logs='journalctl -f'
+alias errors='journalctl -p 3 -xb'
+alias fixnet='sudo systemctl restart NetworkManager'
+alias mem='free -h'
+alias disk='df -h'
+
+# Development
+alias g='git'
+alias ga='git add'
+alias gc='git commit -m'
+alias gp='git push'
+alias gl='git pull'
+alias gst='git status'
+alias gd='git diff'
+alias code='code .'
+
+alias d='docker'
+alias dc='docker-compose'
+alias dps='docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"'
+alias dstop='docker stop $(docker ps -a -q)'
+
+# Navigation
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias ll='ls -la --color=auto'
+alias l='ls -l --color=auto'
+alias ls='ls --color=auto'
+
+# TaaOS Tools
+alias guardian='sudo taaos-guardian'
+alias monitor='taaos-monitor'
+alias repair='sudo taaos-system-repair'
+alias ai='taaos-ai'
+
+# Safety
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# Functions
+mkcd() {
+    mkdir -p "$1" && cd "$1"
+}
+
+extract() {
+    if [ -f $1 ] ; then
+        case $1 in
+            *.tar.bz2)   tar xjf $1     ;;
+            *.tar.gz)    tar xzf $1     ;;
+            *.bz2)       bunzip2 $1     ;;
+            *.rar)       unrar e $1     ;;
+            *.gz)        gunzip $1      ;;
+            *.tar)       tar xf $1      ;;
+            *.tbz2)      tar xjf $1     ;;
+            *.tgz)       tar xzf $1     ;;
+            *.zip)       unzip $1       ;;
+            *.Z)         uncompress $1  ;;
+            *.7z)        7z x $1        ;;
+            *)           echo "'$1' cannot be extracted via extract()" ;;
+        esac
+    else
+        echo "'$1' is not a valid file"
+    fi
+}
+
+# Welcome Message
+neofetch

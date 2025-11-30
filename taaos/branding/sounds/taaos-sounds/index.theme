@@ -1,0 +1,82 @@
+# TaaOS Sound Theme
+# Event sounds for desktop notifications
+
+[Sound Theme]
+Name=TaaOS Sounds
+Comment=Rosso Corsa sound theme
+Inherits=freedesktop
+
+[Categories]
+Directories=stereo
+
+[stereo]
+OutputProfile=stereo
+
+# Sound Events
+[bell]
+File=bell.ogg
+Description=System bell
+
+[desktop-login]
+File=login.ogg
+Description=Desktop login sound
+
+[desktop-logout]
+File=logout.ogg
+Description=Desktop logout sound
+
+[message-new]
+File=message.ogg
+Description=New message received
+
+[message-sent]
+File=sent.ogg
+Description=Message sent
+
+[trash-empty]
+File=trash-empty.ogg
+Description=Trash emptied
+
+[package-installed]
+File=package-success.ogg
+Description=Package installed successfully
+
+[package-error]
+File=package-error.ogg
+Description=Package installation error
+
+[security-alert]
+File=security-alert.ogg
+Description=Security alert from TaaOS Guardian
+
+[system-ready]
+File=system-ready.ogg
+Description=System ready sound
+
+[suspend]
+File=suspend.ogg
+Description=System suspend
+
+[resume]
+File=resume.ogg
+Description=System resume
+
+[volume-change]
+File=volume.ogg
+Description=Volume changed
+
+[battery-low]
+File=battery-low.ogg
+Description=Battery low warning
+
+[battery-critical]
+File=battery-critical.ogg
+Description=Battery critical alert
+
+[network-connected]
+File=network-connected.ogg
+Description=Network connected
+
+[network-disconnected]
+File=network-disconnected.ogg
+Description=Network disconnected

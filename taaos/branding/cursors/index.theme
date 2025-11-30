@@ -1,0 +1,10 @@
+[Icon Theme]
+Name=TaaOS-Cursors
+Comment=TaaOS Rosso Corsa Cursor Theme
+
+[X-GNOME-Metatheme]
+GtkTheme=Breeze-Dark
+MetacityTheme=Breeze-Dark
+IconTheme=TaaOS-Icons
+CursorTheme=TaaOS-Cursors
+CursorSize=24

@@ -1,0 +1,125 @@
+#!/bin/bash
+#
+# TaaOS System Benchmarking Suite
+# Comprehensive performance testing
+#
+
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║          TaaOS System Benchmark Suite                   ║"
+echo "╚══════════════════════════════════════════════════════════╝"
+echo ""
+
+RESULTS_DIR="/tmp/taaos-benchmark-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$RESULTS_DIR"
+
+echo "Results will be saved to: $RESULTS_DIR"
+echo ""
+
+# CPU Benchmark
+echo "[1/7] CPU Performance Test"
+echo "  Testing integer operations..."
+sysbench cpu --cpu-max-prime=20000 run | tee "$RESULTS_DIR/cpu-integer.txt"
+
+echo "  Testing floating point..."
+sysbench cpu --cpu-max-prime=20000 --cpu-number=all run | tee "$RESULTS_DIR/cpu-float.txt"
+
+# Memory Benchmark
+echo ""
+echo "[2/7] Memory Performance Test"
+echo "  Testing memory bandwidth..."
+sysbench memory --memory-block-size=1M --memory-total-size=10G run | tee "$RESULTS_DIR/memory.txt"
+
+# Disk I/O Benchmark
+echo ""
+echo "[3/7] Disk I/O Performance Test"
+echo "  Sequential write..."
+dd if=/dev/zero of=/tmp/test-write bs=1M count=1024 conv=fdatasync 2>&1 | tee "$RESULTS_DIR/disk-write.txt"
+
+echo "  Sequential read..."
+dd if=/tmp/test-write of=/dev/null bs=1M 2>&1 | tee "$RESULTS_DIR/disk-read.txt"
+
+echo "  Random I/O..."
+fio --name=randread --ioengine=libaio --iodepth=16 --rw=randread --bs=4k --direct=1 --size=512M --numjobs=4 --runtime=30 --group_reporting | tee "$RESULTS_DIR/disk-random.txt"
+
+rm -f /tmp/test-write
+
+# Network Benchmark
+echo ""
+echo "[4/7] Network Performance Test"
+echo "  Testing network stack..."
+iperf3 -c localhost -t 10 | tee "$RESULTS_DIR/network.txt" || echo "  ⚠ iperf3 not available"
+
+# Compilation Benchmark
+echo ""
+echo "[5/7] Compilation Performance Test"
+if command -v gcc &> /dev/null; then
+    echo "  Compiling test program..."
+    cat > /tmp/test.c << EOF
+#include <stdio.h>
+int main() {
+    for(int i=0; i<1000000; i++) {
+        printf("Test %d\n", i);
+    }
+    return 0;
+}
+EOF
+    
+    START=$(date +%s.%N)
+    gcc -O3 /tmp/test.c -o /tmp/test
+    END=$(date +%s.%N)
+    
+    COMPILE_TIME=$(echo "$END - $START" | bc)
+    echo "  Compilation time: ${COMPILE_TIME}s" | tee "$RESULTS_DIR/compilation.txt"
+    rm /tmp/test.c /tmp/test
+fi
+
+# Graphics Benchmark  
+echo ""
+echo "[6/7] Graphics Performance Test"
+if command -v glxgears &> /dev/null; then
+    echo "  Running OpenGL test (10 seconds)..."
+    timeout 10 glxgears 2>&1 | tee "$RESULTS_DIR/graphics.txt"
+fi
+
+# Boot Time
+echo ""
+echo "[7/7] Boot Time Analysis"
+systemd-analyze | tee "$RESULTS_DIR/boot-time.txt"
+systemd-analyze blame | head -20 | tee "$RESULTS_DIR/boot-services.txt"
+
+# Generate Summary
+echo ""
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║              Benchmark Results Summary                   ║"
+echo "╚══════════════════════════════════════════════════════════╝"
+echo ""
+
+cat > "$RESULTS_DIR/summary.txt" << EOF
+TaaOS Benchmark Results
+Generated: $(date)
+System: $(uname -a)
+CPU: $(lscpu | grep "Model name" | cut -d':' -f2 | xargs)
+RAM: $(free -h | awk '/^Mem:/ {print $2}')
+Kernel: $(uname -r)
+
+Performance Scores:
+-------------------
+CPU: See cpu-*.txt
+Memory: See memory.txt  
+Disk: See disk-*.txt
+Network: See network.txt
+Compilation: See compilation.txt
+Graphics: See graphics.txt
+Boot Time: See boot-time.txt
+
+All detailed results saved to: $RESULTS_DIR
+EOF
+
+cat "$RESULTS_DIR/summary.txt"
+
+echo ""
+echo "✓ Benchmark complete!"
+echo "  Results: $RESULTS_DIR"
+echo ""
+echo "Compare with other systems:"
+echo "  https://benchmarks.taaos.org/submit"

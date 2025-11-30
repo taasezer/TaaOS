@@ -1,0 +1,12 @@
+[Unit]
+Description=TaaOS System Watchdog (Self-Healing)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/lib/taaos/taaos-watchdog.py
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

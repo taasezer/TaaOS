@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=KonqPopupMenu/Plugin
+MimeType=all/all;
+Actions=ExplainWithAI;SummarizeWithAI;
+
+[Desktop Action ExplainWithAI]
+Name=Explain with TaaOS AI
+Name[tr]=TaaOS AI ile Açıkla
+Icon=taaos-ai
+Exec=taaos-ai-gui --explain "%f"
+
+[Desktop Action SummarizeWithAI]
+Name=Summarize with TaaOS AI
+Name[tr]=TaaOS AI ile Özetle
+Icon=taaos-ai
+Exec=taaos-ai-gui --summarize "%f"

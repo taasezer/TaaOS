@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+"""
+TaaOS Disk Manager - Complete disk and partition management
+GParted-like functionality with TaaOS theme
+"""
+
+import sys
+import subprocess
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QPainter, QColor
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class DiskManager(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Disk Manager")
+        self.setGeometry(100, 100, 1200, 800)
+        
+        self.setup_ui()
+        self.apply_theme()
+        self.refresh_disks()
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        # Toolbar
+        toolbar = QToolBar()
+        toolbar.addAction("🔄 Refresh", self.refresh_disks)
+        toolbar.addAction("➕ Create Partition", self.create_partition)
+        toolbar.addAction("✏️ Resize", self.resize_partition)
+        toolbar.addAction("🗑️ Delete", self.delete_partition)
+        toolbar.addAction("💾 Format", self.format_partition)
+        toolbar.addAction("🔧 Advanced", self.show_advanced)
+        layout.addWidget(toolbar)
+        
+        # Disk selector
+        disk_layout = QHBoxLayout()
+        disk_layout.addWidget(QLabel("Disk:"))
+        
+        self.disk_combo = QComboBox()
+        self.disk_combo.currentTextChanged.connect(self.load_disk_info)
+        disk_layout.addWidget(self.disk_combo)
+        disk_layout.addStretch()
+        
+        layout.addLayout(disk_layout)
+        
+        # Partition list
+        self.partition_table = QTableWidget()
+        self.partition_table.setColumnCount(6)
+        self.partition_table.setHorizontalHeaderLabels([
+            "Device", "Type", "Size", "Used", "Filesystem", "Mount Point"
+        ])
+        layout.addWidget(self.partition_table)
+        
+        # Visual disk representation
+        self.disk_visual = DiskVisualWidget()
+        layout.addWidget(self.disk_visual)
+        
+        # Info panel
+        self.info_text = QTextEdit()
+        self.info_text.setReadOnly(True)
+        self.info_text.setMaximumHeight(150)
+        layout.addWidget(self.info_text)
+        
+        # Action buttons
+        btn_layout = QHBoxLayout()
+        
+        apply_btn = QPushButton("Apply Changes")
+        apply_btn.clicked.connect(self.apply_changes)
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.cancel_changes)
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(apply_btn)
+        btn_layout.addWidget(cancel_btn)
+        
+        layout.addLayout(btn_layout)
+    
+    def refresh_disks(self):
+        """Refresh disk list"""
+        self.disk_combo.clear()
+        
+        # Get list of disks
+        try:
+            result = subprocess.run(['lsblk', '-d', '-n', '-o', 'NAME'], 
+                                  capture_output=True, text=True)
+            disks = result.stdout.strip().split('\n')
+            self.disk_combo.addItems([f"/dev/{disk}" for disk in disks if disk])
+        except:
+            self.disk_combo.addItem("/dev/sda")
+    
+    def load_disk_info(self, disk):
+        """Load partition information for selected disk"""
+        self.partition_table.setRowCount(0)
+        
+        # Mock data - in real implementation would use parted/fdisk
+        partitions = [
+            ("/dev/sda1", "EFI", "512 MB", "100 MB", "vfat", "/boot"),
+            ("/dev/sda2", "Linux", "50 GB", "25 GB", "btrfs", "/"),
+            ("/dev/sda3", "Linux", "100 GB", "30 GB", "btrfs", "/home"),
+        ]
+        
+        for i, (dev, ptype, size, used, fs, mount) in enumerate(partitions):
+            self.partition_table.insertRow(i)
+            self.partition_table.setItem(i, 0, QTableWidgetItem(dev))
+            self.partition_table.setItem(i, 1, QTableWidgetItem(ptype))
+            self.partition_table.setItem(i, 2, QTableWidgetItem(size))
+            self.partition_table.setItem(i, 3, QTableWidgetItem(used))
+            self.partition_table.setItem(i, 4, QTableWidgetItem(fs))
+            self.partition_table.setItem(i, 5, QTableWidgetItem(mount))
+        
+        self.info_text.setPlainText(f"Disk: {disk}\nTotal Size: 150 GB\nPartition Table: GPT\n")
+        self.disk_visual.update_partitions(partitions)
+    
+    def create_partition(self):
+        dialog = CreatePartitionDialog(self)
+        dialog.exec_()
+    
+    def resize_partition(self):
+        QMessageBox.information(self, "Resize", "Resize partition functionality")
+    
+    def delete_partition(self):
+        reply = QMessageBox.question(self, "Delete Partition", 
+                                    "Are you sure you want to delete this partition?")
+        if reply == QMessageBox.Yes:
+            QMessageBox.information(self, "Deleted", "Partition deleted (demo)")
+    
+    def format_partition(self):
+        dialog = FormatDialog(self)
+        dialog.exec_()
+    
+    def show_advanced(self):
+        QMessageBox.information(self, "Advanced", "Advanced disk operations")
+    
+    def apply_changes(self):
+        QMessageBox.information(self, "Apply", "Changes applied (requires root)")
+    
+    def cancel_changes(self):
+        self.refresh_disks()
+    
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['surface']}; color: {COLORS['text']}; }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+            }}
+            QPushButton:hover {{ background-color: #FF3333; }}
+            QTableWidget {{
+                background-color: {COLORS['surface']};
+                gridline-color: #2B2B2B;
+            }}
+        """)
+
+
+class DiskVisualWidget(QWidget):
+    """Visual representation of disk partitions"""
+    
+    def __init__(self):
+        super().__init__()
+        self.partitions = []
+        self.setMinimumHeight(100)
+    
+    def update_partitions(self, partitions):
+        self.partitions = partitions
+        self.update()
+    
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        width = self.width() - 20
+        height = self.height() - 20
+        
+        # Draw disk
+        colors = [QColor('#D40000'), QColor('#4A90E2'), QColor('#00CC66')]
+        
+        x = 10
+        for i, partition in enumerate(self.partitions):
+            part_width = width // len(self.partitions)
+            
+            painter.fillRect(x, 10, part_width - 5, height, colors[i % len(colors)])
+            painter.setPen(QColor('#F5F5F0'))
+            painter.drawText(x + 5, 30, partition[0])  # Device name
+            painter.drawText(x + 5, 50, partition[2])  # Size
+            
+            x += part_width
+
+
+class CreatePartitionDialog(QDialog):
+    """Dialog for creating new partition"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Create Partition")
+        self.setModal(True)
+        
+        layout = QFormLayout(self)
+        
+        self.size_input = QSpinBox()
+        self.size_input.setRange(1, 100000)
+        self.size_input.setSuffix(" MB")
+        
+        self.fs_combo = QComboBox()
+        self.fs_combo.addItems(["btrfs", "ext4", "xfs", "f2fs", "vfat", "swap"])
+        
+        self.label_input = QLineEdit()
+        
+        layout.addRow("Size:", self.size_input)
+        layout.addRow("Filesystem:", self.fs_combo)
+        layout.addRow("Label:", self.label_input)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+
+
+class FormatDialog(QDialog):
+    """Dialog for formatting partition"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Format Partition")
+        self.setModal(True)
+        
+        layout = QFormLayout(self)
+        
+        self.fs_combo = QComboBox()
+        self.fs_combo.addItems(["btrfs", "ext4", "xfs", "f2fs", "vfat"])
+        
+        self.label_input = QLineEdit()
+        
+        self.quick_check = QCheckBox("Quick format")
+        self.quick_check.setChecked(True)
+        
+        layout.addRow("Filesystem:", self.fs_combo)
+        layout.addRow("Label:", self.label_input)
+        layout.addRow("", self.quick_check)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = DiskManager()
+    window.show()
+    sys.exit(app.exec_())

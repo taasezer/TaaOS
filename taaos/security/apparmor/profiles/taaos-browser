@@ -1,0 +1,36 @@
+# TaaOS AppArmor Profile for Web Browsers (Hardened)
+
+include <tunables/global>
+
+profile taaos-browser /usr/lib/firefox/firefox {
+  include <abstractions/base>
+  include <abstractions/audio>
+  include <abstractions/cups-client>
+  include <abstractions/dbus-strict>
+  include <abstractions/dconf>
+  include <abstractions/fonts>
+  include <abstractions/gnome>
+  include <abstractions/nameservice>
+  include <abstractions/openssl>
+  include <abstractions/python>
+
+  # Network access
+  network inet stream,
+  network inet6 stream,
+
+  # Deny dangerous capabilities
+  deny capability sys_ptrace,
+  deny capability sys_admin,
+  deny capability sys_module,
+
+  # File access limits
+  @{HOME}/Downloads/ r,
+  @{HOME}/Downloads/** rw,
+  @{HOME}/.mozilla/ r,
+  @{HOME}/.mozilla/** rw,
+  
+  # Deny access to sensitive system files
+  deny /etc/shadow r,
+  deny /etc/passwd r,
+  deny /root/ r,
+}

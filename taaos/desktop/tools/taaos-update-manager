@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""
+TaaOS Update Manager
+System update GUI
+"""
+
+import sys
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class UpdateManager(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Update Manager")
+        self.setGeometry(100, 100, 800, 600)
+        
+        self.setup_ui()
+        self.apply_theme()
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        # Status
+        status_box = QFrame()
+        status_box.setStyleSheet(f"background-color: {COLORS['surface']}; border-radius: 10px; padding: 20px;")
+        s_layout = QHBoxLayout(status_box)
+        
+        icon = QLabel("🔄")
+        icon.setStyleSheet("font-size: 48px;")
+        
+        text_layout = QVBoxLayout()
+        title = QLabel("Your system is up to date")
+        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        subtitle = QLabel("Last checked: Just now")
+        text_layout.addWidget(title)
+        text_layout.addWidget(subtitle)
+        
+        check_btn = QPushButton("Check for Updates")
+        check_btn.clicked.connect(self.check_updates)
+        
+        s_layout.addWidget(icon)
+        s_layout.addLayout(text_layout)
+        s_layout.addStretch()
+        s_layout.addWidget(check_btn)
+        
+        layout.addWidget(status_box)
+        
+        # Updates List
+        self.list_widget = QListWidget()
+        layout.addWidget(QLabel("Available Updates:"))
+        layout.addWidget(self.list_widget)
+        
+        # Action Bar
+        action_layout = QHBoxLayout()
+        self.update_btn = QPushButton("Update All")
+        self.update_btn.setEnabled(False)
+        action_layout.addStretch()
+        action_layout.addWidget(self.update_btn)
+        
+        layout.addLayout(action_layout)
+
+    def check_updates(self):
+        self.list_widget.clear()
+        # Mock updates
+        updates = [
+            ("linux-taaos", "6.18.0-rc7", "6.18.0-rc8", "Kernel update"),
+            ("firefox", "120.0", "120.0.1", "Security fix"),
+            ("taapac", "1.0.0", "1.1.0", "Performance improvements")
+        ]
+        
+        for pkg, old, new, desc in updates:
+            item = QListWidgetItem()
+            widget = QWidget()
+            l = QHBoxLayout(widget)
+            l.addWidget(QLabel(f"<b>{pkg}</b>"))
+            l.addWidget(QLabel(f"{old} → {new}"))
+            l.addWidget(QLabel(desc))
+            item.setSizeHint(widget.sizeHint())
+            self.list_widget.addItem(item)
+            self.list_widget.setItemWidget(item, widget)
+            
+        self.update_btn.setEnabled(True)
+
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['surface']}; color: {COLORS['text']}; }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+            }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = UpdateManager()
+    window.show()
+    sys.exit(app.exec_())

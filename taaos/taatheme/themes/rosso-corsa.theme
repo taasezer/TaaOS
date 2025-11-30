@@ -1,0 +1,48 @@
+# TaaOS Theme: Rosso Corsa (Default)
+# Ferrari-inspired red and black theme
+
+[Colors]
+Primary=#D40000
+PrimaryDark=#8B0000
+PrimaryLight=#FF4444
+Background=#0A0A0A
+Surface=#1A1A1A
+SurfaceVariant=#2B2B2B
+Text=#F5F5F0
+TextSecondary=#CCCCCC
+Border=#333333
+Accent=#D40000
+
+[Plasma]
+ColorScheme=RossoCorsa
+WindowDecoration=Breeze
+IconTheme=TaaOS-Icons
+CursorTheme=TaaOS-Cursors
+
+[GTK]
+Theme=Breeze-Dark
+IconTheme=TaaOS-Icons
+Font=Sans 10
+
+[Terminal]
+Background=#0A0A0A
+Foreground=#F5F5F0
+Color0=#0A0A0A
+Color1=#D40000
+Color2=#00CC66
+Color3=#FFB700
+Color4=#0088FF
+Color5=#CC00FF
+Color6=#00CCCC
+Color7=#F5F5F0
+Color8=#666666
+Color9=#FF4444
+Color10=#44FF88
+Color11=#FFDD44
+Color12=#4499FF
+Color13=#FF44FF
+Color14=#44FFFF
+Color15=#FFFFFF
+
+[VSCode]
+Theme=TaaOS Rosso Corsa

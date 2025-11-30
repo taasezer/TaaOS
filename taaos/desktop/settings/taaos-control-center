@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""
+TaaOS Control Center
+Unified system settings panel
+"""
+
+import sys
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QIcon
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class ControlCenter(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Control Center")
+        self.setGeometry(100, 100, 1200, 800)
+        
+        self.setup_ui()
+        self.apply_theme()
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QHBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Sidebar
+        sidebar = QListWidget()
+        sidebar.setFixedWidth(250)
+        sidebar.setIconSize(QSize(32, 32))
+        
+        modules = [
+            ("Appearance", "taaos-theme"),
+            ("Display", "video-display"),
+            ("Network", "network-wired"),
+            ("Bluetooth", "network-bluetooth"),
+            ("Sound", "audio-volume-high"),
+            ("Power", "power-profile-balanced"),
+            ("Users", "system-users"),
+            ("Date & Time", "preferences-system-time"),
+            ("Region & Language", "preferences-desktop-locale"),
+            ("Accessibility", "preferences-desktop-accessibility"),
+            ("Default Applications", "preferences-desktop-default-applications"),
+            ("About TaaOS", "taaos-logo")
+        ]
+        
+        for name, icon in modules:
+            item = QListWidgetItem(name)
+            # item.setIcon(QIcon.fromTheme(icon)) # In real app
+            sidebar.addItem(item)
+            
+        layout.addWidget(sidebar)
+        
+        # Content Area
+        self.stack = QStackedWidget()
+        
+        # Add pages
+        self.stack.addWidget(self.create_appearance_page())
+        self.stack.addWidget(self.create_display_page())
+        self.stack.addWidget(self.create_network_page())
+        # ... add other pages as placeholders
+        for _ in range(len(modules) - 3):
+            self.stack.addWidget(QLabel("Module loading..."))
+            
+        layout.addWidget(self.stack)
+        
+        sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
+        sidebar.setCurrentRow(0)
+    
+    def create_appearance_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        
+        layout.addWidget(QLabel("<h2>Appearance</h2>"))
+        
+        # Theme Selector
+        layout.addWidget(QLabel("<b>System Theme</b>"))
+        theme_combo = QComboBox()
+        theme_combo.addItems(["Rosso Corsa (Default)", "Midnight Black", "Arctic Blue", "Graphite Grey"])
+        layout.addWidget(theme_combo)
+        
+        # Wallpaper
+        layout.addWidget(QLabel("<b>Wallpaper</b>"))
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        wall_content = QWidget()
+        wall_layout = QHBoxLayout(wall_content)
+        
+        for i in range(4):
+            btn = QPushButton(f"Wall {i+1}")
+            btn.setFixedSize(160, 90)
+            wall_layout.addWidget(btn)
+            
+        scroll.setWidget(wall_content)
+        layout.addWidget(scroll)
+        
+        layout.addStretch()
+        return page
+
+    def create_display_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.addWidget(QLabel("<h2>Display Settings</h2>"))
+        
+        form = QFormLayout()
+        form.addRow("Resolution:", QComboBox())
+        form.addRow("Refresh Rate:", QComboBox())
+        form.addRow("Scale:", QSlider(Qt.Horizontal))
+        form.addRow("Orientation:", QComboBox())
+        
+        layout.addLayout(form)
+        layout.addStretch()
+        return page
+
+    def create_network_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.addWidget(QLabel("<h2>Network</h2>"))
+        layout.addWidget(QPushButton("Open Advanced Network Manager"))
+        layout.addStretch()
+        return page
+
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['surface']}; color: {COLORS['text']}; }}
+            QListWidget {{
+                background-color: {COLORS['background']};
+                border: none;
+                border-right: 1px solid #2B2B2B;
+            }}
+            QListWidget::item {{
+                padding: 15px;
+                border-left: 3px solid transparent;
+            }}
+            QListWidget::item:selected {{
+                background-color: {COLORS['surface']};
+                border-left: 3px solid {COLORS['primary']};
+                color: {COLORS['primary']};
+            }}
+            QLabel {{ color: {COLORS['text']}; }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = ControlCenter()
+    window.show()
+    sys.exit(app.exec_())

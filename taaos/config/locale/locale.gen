@@ -1,0 +1,5 @@
+# TaaOS Locale Configuration
+
+# Enable US English and Turkish
+en_US.UTF-8 UTF-8
+tr_TR.UTF-8 UTF-8

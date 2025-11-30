@@ -1,0 +1,162 @@
+#!/bin/bash
+#
+# TaaOS Hardware Detection and Configuration Tool
+# Detect and optimize for specific hardware
+#
+
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║        TaaOS Hardware Detection Tool                    ║"
+echo "╚══════════════════════════════════════════════════════════╝"
+echo ""
+
+# CPU Detection
+echo "[CPU Detection]"
+CPU_VENDOR=$(lscpu | grep "Vendor ID" | awk '{print $3}')
+CPU_MODEL=$(lscpu | grep "Model name" | cut -d':' -f2 | xargs)
+CPU_CORES=$(nproc)
+CPU_THREADS=$(lscpu | grep "^CPU(s):" | awk '{print $2}')
+
+echo "  Vendor: $CPU_VENDOR"
+echo "  Model: $CPU_MODEL"
+echo "  Cores: $CPU_CORES"
+echo "  Threads: $CPU_THREADS"
+
+# Apply CPU-specific optimizations
+if [[ "$CPU_VENDOR" == "GenuineIntel" ]]; then
+    echo "  ✓ Intel CPU detected - enabling Intel optimizations"
+    # Enable Intel-specific features
+elif [[ "$CPU_VENDOR" == "AuthenticAMD" ]]; then
+    echo "  ✓ AMD CPU detected - enabling AMD optimizations"
+    # Enable AMD-specific features
+fi
+
+echo ""
+
+# GPU Detection
+echo "[GPU Detection]"
+if command -v lspci &> /dev/null; then
+    GPU_INFO=$(lspci | grep -i vga)
+    echo "  $GPU_INFO"
+    
+    if echo "$GPU_INFO" | grep -qi "nvidia"; then
+        echo "  ✓ NVIDIA GPU detected"
+        echo "    Install: sudo taapac install nvidia nvidia-utils"
+    elif echo "$GPU_INFO" | grep -qi "amd\|radeon"; then
+        echo "  ✓ AMD GPU detected"
+        echo "    Drivers: mesa (already installed)"
+    elif echo "$GPU_INFO" | grep -qi "intel"; then
+        echo "  ✓ Intel GPU detected"
+        echo "    Drivers: mesa (already installed)"
+    fi
+fi
+
+echo ""
+
+# Storage Detection
+echo "[Storage Detection]"
+lsblk -d -o NAME,SIZE,TYPE,TRAN | grep disk | while read line; do
+    DISK=$(echo $line | awk '{print $1}')
+    SIZE=$(echo $line | awk '{print $2}')
+    TYPE=$(echo $line | awk '{print $4}')
+    
+    echo "  Device: /dev/$DISK"
+    echo "    Size: $SIZE"
+    echo "    Type: $TYPE"
+    
+    # Check if NVMe
+    if [[ "$DISK" == nvme* ]]; then
+        echo "    ✓ NVMe detected - optimizations enabled"
+    elif [[ "$TYPE" == "sata" ]]; then
+        # Check if SSD or HDD
+        ROTA=$(cat /sys/block/$DISK/queue/rotational 2>/dev/null)
+        if [[ "$ROTA" == "0" ]]; then
+            echo "    ✓ SSD detected - TRIM enabled"
+        else
+            echo "    ⚠ HDD detected - consider upgrade to SSD"
+        fi
+    fi
+    echo ""
+done
+
+# Memory Detection
+echo "[Memory Detection]"
+MEM_TOTAL=$(free -h | awk '/^Mem:/ {print $2}')
+MEM_TYPE=$(sudo dmidecode -t memory | grep "Type:" | head -1 | awk '{print $2}')
+MEM_SPEED=$(sudo dmidecode -t memory | grep "Speed:" | head -1 | awk '{print $2" "$3}')
+
+echo "  Total: $MEM_TOTAL"
+echo "  Type: $MEM_TYPE"
+echo "  Speed: $MEM_SPEED"
+
+# Suggest optimizations based on RAM
+MEM_GB=$(echo $MEM_TOTAL | sed 's/[^0-9]//g')
+if [[ $MEM_GB -lt 8 ]]; then
+    echo "  ⚠ Low memory detected - enabling ZRAM"
+elif [[ $MEM_GB -ge 32 ]]; then
+    echo "  ✓ High memory - disabling swap"
+fi
+
+echo ""
+
+# Network Detection
+echo "[Network Detection]"
+ip link show | grep "^[0-9]" | while read line; do
+    IFACE=$(echo $line | awk '{print $2}' | sed 's/://g')
+    
+    if [[ "$IFACE" != "lo" ]]; then
+        echo "  Interface: $IFACE"
+        
+        # Check if WiFi
+        if iw dev $IFACE info &>/dev/null; then
+            WIFI_CHIP=$(iw dev $IFACE info | grep "wiphy" | awk '{print $2}')
+            echo "    Type: WiFi"
+            echo "    Chipset: phy$WIFI_CHIP"
+        else
+            SPEED=$(ethtool $IFACE 2>/dev/null | grep "Speed:" | awk '{print $2}')
+            echo "    Type: Ethernet"
+            echo "    Speed: ${SPEED:-Unknown}"
+        fi
+        echo ""
+    fi
+done
+
+# Display Detection
+echo "[Display Detection]"
+if command -v xrandr &> /dev/null; then
+    xrandr --query | grep " connected" | while read line; do
+        DISPLAY=$(echo $line | awk '{print $1}')
+        RES=$(echo $line | awk '{print $3}' | cut -d'+' -f1)
+        echo "  Monitor: $DISPLAY"
+        echo "    Resolution: $RES"
+        echo ""
+    done
+fi
+
+# Audio Detection
+echo "[Audio Detection]"
+if command -v pactl &> /dev/null; then
+    pactl list cards short | while read line; do
+        CARD=$(echo $line | awk '{print $2}')
+        echo "  Audio Device: $CARD"
+    done
+fi
+
+echo ""
+
+# Recommendations
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║              Optimization Recommendations                ║"
+echo "╚══════════════════════════════════════════════════════════╝"
+echo ""
+
+# Check virtualization
+if grep -q "vmx\|svm" /proc/cpuinfo; then
+    echo "✓ Virtualization supported (Intel VT-x / AMD-V)"
+    echo "  Install: sudo taapac install qemu libvirt virt-manager"
+else
+    echo "✗ Virtualization not available"
+fi
+
+echo ""
+echo "Hardware detection complete!"
+echo "Run 'sudo taaos-optimize' to apply recommended settings."

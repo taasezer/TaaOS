@@ -1,0 +1,59 @@
+[user]
+	name = TaaOS Developer
+	email = dev@taaos.local
+	signingkey = 
+
+[init]
+	defaultBranch = main
+
+[core]
+	editor = code --wait
+	autocrlf = input
+	filemode = true
+	
+[color]
+	ui = auto
+	branch = auto
+	diff = auto
+	status = auto
+	
+[color "branch"]
+	current = yellow reverse
+	local = yellow
+	remote = green
+	
+[color "diff"]
+	meta = yellow bold
+	frag = magenta bold
+	old = red bold
+	new = green bold
+	
+[color "status"]
+	added = yellow
+	changed = green
+	untracked = cyan
+	
+[alias]
+	st = status
+	co = checkout
+	br = branch
+	ci = commit
+	unstage = reset HEAD --
+	last = log -1 HEAD
+	visual = log --graph --oneline --decorate --all
+	
+[push]
+	default = simple
+	followTags = true
+	
+[pull]
+	rebase = false
+	
+[merge]
+	ff = false
+	
+[diff]
+	tool = vscode
+	
+[difftool "vscode"]
+	cmd = code --wait --diff $LOCAL $REMOTE

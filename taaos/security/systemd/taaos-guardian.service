@@ -1,0 +1,21 @@
+[Unit]
+Description=TaaOS Guardian Security Monitor
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/taaos-guardian start
+ExecStop=/usr/bin/taaos-guardian stop
+Restart=on-failure
+RestartSec=5s
+User=root
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/taaos /var/lib/taaos
+
+[Install]
+WantedBy=multi-user.target

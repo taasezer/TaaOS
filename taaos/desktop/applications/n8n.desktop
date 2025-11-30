@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=n8n Automation
+Comment=Workflow Automation Tool
+Exec=xdg-open http://localhost:5678
+Icon=n8n
+Terminal=false
+Type=Application
+Categories=Development;System;

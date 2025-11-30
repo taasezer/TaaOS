@@ -1,0 +1,89 @@
+#!/bin/bash
+#
+# TaaOS System Information Tool
+# Display comprehensive system information
+#
+
+# Colors
+RED='\033[1;31m'
+WHITE='\033[1;37m'
+GRAY='\033[0;37m'
+NC='\033[0m'
+
+clear
+
+echo -e "${RED}"
+cat << "EOF"
+ _____             ___  ____  
+|_   _|_ _  __ _  / _ \/ ___| 
+  | |/ _` |/ _` || | | \___ \ 
+  | | (_| | (_| || |_| |___) |
+  |_|\__,_|\__,_| \___/|____/ 
+EOF
+echo -e "${NC}"
+
+echo -e "${WHITE}TaaOS System Information${NC}"
+echo "═══════════════════════════════════════"
+echo ""
+
+# OS Information
+echo -e "${RED}System:${NC}"
+echo "  OS: TaaOS $(cat /etc/taaos-release 2>/dev/null || echo 'Rolling')"
+echo "  Kernel: $(uname -r)"
+echo "  Architecture: $(uname -m)"
+echo "  Hostname: $(hostname)"
+echo "  Uptime: $(uptime -p)"
+echo ""
+
+# Hardware
+echo -e "${RED}Hardware:${NC}"
+echo "  CPU: $(lscpu | grep 'Model name' | cut -d':' -f2 | xargs)"
+echo "  Cores: $(nproc) cores"
+echo "  RAM: $(free -h | awk '/^Mem:/ {print $2}')"
+echo "  Disk: $(df -h / | tail -1 | awk '{print $2}')"
+echo ""
+
+# Desktop Environment
+echo -e "${RED}Desktop:${NC}"
+echo "  DE: $(echo $XDG_CURRENT_DESKTOP)"
+echo "  Session: $(echo $XDG_SESSION_TYPE)"
+echo "  Display Server: $(echo $WAYLAND_DISPLAY 2>/dev/null || echo 'X11')"
+echo ""
+
+# Package Stats
+echo -e "${RED}Packages:${N C}"
+INSTALLED=$(taapac list 2>/dev/null | wc -l)
+echo "  Installed: ${INSTALLED} packages"
+echo ""
+
+# Theme
+echo -e "${RED}Theme:${NC}"
+THEME=$(taatheme current 2>/dev/null || echo 'Rosso Corsa')
+echo "  Current: ${THEME}"
+echo ""
+
+# Network
+echo -e "${RED}Network:${NC}"
+IP=$(ip -4 addr show | grep inet | grep -v 127.0.0.1 | awk '{print $2}' | cut -d'/' -f1 | head -1)
+echo "  IP Address: ${IP}"
+echo "  Gateway: $(ip route | grep default | awk '{print $3}')"
+echo ""
+
+# Performance
+echo -e "${RED}Performance:${NC}"
+CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+MEM_USAGE=$(free | grep Mem | awk '{print ($3/$2) * 100.0}')
+echo "  CPU Usage: ${CPU_USAGE}%"
+echo "  Memory Usage: ${MEM_USAGE}%"
+echo ""
+
+# Security
+echo -e "${RED}Security:${NC}"
+GUARDIAN=$(systemctl is-active taaos-guardian 2>/dev/null || echo 'inactive')
+FIREWALL=$(sudo ufw status 2>/dev/null | grep Status | awk '{print $2}' || echo 'unknown')
+echo "  TaaOS Guardian: ${GUARDIAN}"
+echo "  Firewall: ${FIREWALL}"
+echo ""
+
+echo "═══════════════════════════════════════"
+echo -e "${GRAY}TaaOS - Developer power, Ferrari style 🏎️${NC}"

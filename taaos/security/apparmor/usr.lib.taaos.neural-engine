@@ -1,0 +1,40 @@
+# AppArmor profile for TaaOS Neural Engine
+# Restricts AI subsystem to necessary resources
+
+#include <tunables/global>
+
+/usr/lib/taaos/taaos-neural-engine.py {
+  #include <abstractions/base>
+  #include <abstractions/python>
+
+  # Python interpreter
+  /usr/bin/python3* mr,
+
+  # TaaOS binaries
+  /usr/lib/taaos/** mr,
+  /usr/bin/ollama mr,
+
+  # Configuration
+  /etc/taaos/** r,
+  owner @{HOME}/.taaos/** rw,
+
+  # AI models
+  /var/lib/ollama/** rw,
+  /usr/share/ollama/** r,
+
+  # Temporary files
+  /tmp/** rw,
+  /var/tmp/** rw,
+
+  # System monitoring
+  /proc/** r,
+  /sys/** r,
+
+  # Network (for AI API)
+  network inet stream,
+  network inet6 stream,
+  network unix stream,
+
+  # Socket communication
+  /run/taaos/** rw,
+}

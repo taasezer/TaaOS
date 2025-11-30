@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""
+TaaOS System Monitor - Real-time system statistics
+Minimal Arch-style interface with detailed metrics
+"""
+
+import sys
+import psutil
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtGui import QPainter, QColor, QPen
+from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
+
+COLORS = {'primary': '#D40000', 'background': '#0A0A0A', 'surface': '#1A1A1A', 'text': '#F5F5F0'}
+
+class SystemMonitor(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS System Monitor")
+        self.setGeometry(100, 100, 1000, 700)
+        
+        # Tab widget
+        tabs = QTabWidget()
+        tabs.addTab(self.create_overview_tab(), "Overview")
+        tabs.addTab(self.create_processes_tab(), "Processes")
+        tabs.addTab(self.create_network_tab(), "Network")
+        
+        self.setCentralWidget(tabs)
+        
+        # Update timer
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_stats)
+        self.timer.start(1000)
+        
+        self.apply_theme()
+    
+    def create_overview_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # CPU
+        cpu_label = QLabel(f"CPU: {psutil.cpu_percent()}%")
+        cpu_label.setStyleSheet(f"color: {COLORS['primary']}; font-size: 18px; font-weight: bold;")
+        
+        self.cpu_bar = QProgressBar()
+        self.cpu_bar.setValue(int(psutil.cpu_percent()))
+        
+        # Memory
+        mem = psutil.virtual_memory()
+        mem_label = QLabel(f"RAM: {mem.percent}%")
+        mem_label.setStyleSheet(f"color: {COLORS['primary']}; font-size: 18px; font-weight: bold;")
+        
+        self.mem_bar = QProgressBar()
+        self.mem_bar.setValue(int(mem.percent))
+        
+        # Disk
+        disk = psutil.disk_usage('/')
+        disk_label = QLabel(f"Disk: {disk.percent}%")
+        disk_label.setStyleSheet(f"color: {COLORS['primary']}; font-size: 18px; font-weight: bold;")
+        
+        self.disk_bar = QProgressBar()
+        self.disk_bar.setValue(int(disk.percent))
+        
+        layout.addWidget(cpu_label)
+        layout.addWidget(self.cpu_bar)
+        layout.addWidget(mem_label)
+        layout.addWidget(self.mem_bar)
+        layout.addWidget(disk_label)
+        layout.addWidget(self.disk_bar)
+        layout.addStretch()
+        
+        return widget
+    
+    def create_processes_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        self.process_table = QTableWidget()
+        self.process_table.setColumnCount(4)
+        self.process_table.setHorizontalHeaderLabels(["PID", "Name", "CPU%", "Memory%"])
+        
+        layout.addWidget(self.process_table)
+        
+        return widget
+    
+    def create_network_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        net = psutil.net_io_counters()
+        
+        self.net_sent_label = QLabel(f"Sent: {net.bytes_sent / 1024 / 1024:.2f} MB")
+        self.net_recv_label = QLabel(f"Received: {net.bytes_recv / 1024 / 1024:.2f} MB")
+        
+        layout.addWidget(self.net_sent_label)
+        layout.addWidget(self.net_recv_label)
+        layout.addStretch()
+        
+        return widget
+    
+    def update_stats(self):
+        # Update CPU
+        self.cpu_bar.setValue(int(psutil.cpu_percent(interval=0.1)))
+        
+        # Update Memory
+        mem = psutil.virtual_memory()
+        self.mem_bar.setValue(int(mem.percent))
+        
+        # Update processes
+        processes = []
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+            try:
+                processes.append(proc.info)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        
+        processes.sort(key=lambda x: x.get('cpu_percent', 0), reverse=True)
+        
+        self.process_table.setRowCount(min(20, len(processes)))
+        for i, proc in enumerate(processes[:20]):
+            self.process_table.setItem(i, 0, QTableWidgetItem(str(proc.get('pid', ''))))
+            self.process_table.setItem(i, 1, QTableWidgetItem(proc.get('name', '')))
+            self.process_table.setItem(i, 2, QTableWidgetItem(f"{proc.get('cpu_percent', 0):.1f}"))
+            self.process_table.setItem(i, 3, QTableWidgetItem(f"{proc.get('memory_percent', 0):.1f}"))
+    
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['surface']}; color: {COLORS['text']}; }}
+            QProgressBar {{
+                background-color: {COLORS['surface']};
+                border: none;
+                border-radius: 5px;
+                text-align: center;
+                color: {COLORS['text']};
+                height: 25px;
+            }}
+            QProgressBar::chunk {{ background-color: {COLORS['primary']}; border-radius: 5px; }}
+            QTableWidget {{
+                background-color: {COLORS['surface']};
+                color: {COLORS['text']};
+                gridline-color: #2B2B2B;
+            }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = SystemMonitor()
+    window.show()
+    sys.exit(app.exec_())

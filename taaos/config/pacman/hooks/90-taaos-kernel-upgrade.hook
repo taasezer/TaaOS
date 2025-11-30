@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Upgrade
+Type = Package
+Target = linux-taakernel
+
+[Action]
+Description = Creating btrfs snapshot before kernel upgrade...
+When = PreTransaction
+Exec = /usr/bin/taaos-snapshot create "pre-kernel-upgrade-$(date +%Y%m%d-%H%M%S)"

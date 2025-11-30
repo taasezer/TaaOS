@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+# TaaOS Init Script
+# Custom init for TaaOS live environment
+#
+
+set -e
+
+# Mount essential filesystems
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev
+mount -t tmpfs tmpfs /tmp
+
+# Create necessary directories
+mkdir -p /dev/pts /dev/shm
+mount -t devpts devpts /dev/pts
+mount -t tmpfs tmpfs /dev/shm
+
+# Load kernel modules
+modprobe taaos_core
+modprobe loop
+modprobe squashfs
+modprobe overlay
+
+# Setup overlay filesystem for live system
+mkdir -p /run/taaos/{lower,upper,work,root}
+
+# Mount squashfs
+mount -t squashfs /run/initramfs/live/filesystem.squashfs /run/taaos/lower
+
+# Create overlay
+mount -t overlay overlay \
+    -o lowerdir=/run/taaos/lower,upperdir=/run/taaos/upper,workdir=/run/taaos/work \
+    /run/taaos/root
+
+# Copy essential files
+cp -a /run/taaos/lower/* /run/taaos/root/ 2>/dev/null || true
+
+# Setup hostname
+echo "taaos-live" > /run/taaos/root/etc/hostname
+
+# Start TaaOS services
+echo "Starting TaaOS Neural Engine..."
+systemctl start taaos-neural-engine
+
+echo "Starting TaaOS Brain..."
+systemctl start taaos-brain
+
+# Switch root
+exec switch_root /run/taaos/root /sbin/init

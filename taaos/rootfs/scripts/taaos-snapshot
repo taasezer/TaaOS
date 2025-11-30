@@ -1,0 +1,93 @@
+#!/bin/bash
+#
+# TaaOS Snapshot Manager
+# Automatic btrfs snapshot creation and management
+#
+
+SNAPSHOT_DIR="/.snapshots"
+MAX_SNAPSHOTS=10
+
+create_snapshot() {
+    local timestamp=$(date +%Y%m%d-%H%M%S)
+    local snapshot_name="snapshot-${timestamp}"
+    
+    echo "Creating snapshot: ${snapshot_name}"
+    
+    # Create snapshot of root subvolume
+    btrfs subvolume snapshot / "${SNAPSHOT_DIR}/${snapshot_name}"
+    
+    # Clean old snapshots
+    cleanup_old_snapshots
+}
+
+cleanup_old_snapshots() {
+    local count=$(ls -1 "${SNAPSHOT_DIR}" | wc -l)
+    
+    if [ $count -gt $MAX_SNAPSHOTS ]; then
+        local to_delete=$((count - MAX_SNAPSHOTS))
+        echo "Cleaning up ${to_delete} old snapshots..."
+        
+        ls -1t "${SNAPSHOT_DIR}" | tail -n $to_delete | while read snapshot; do
+            echo "Deleting: ${snapshot}"
+            btrfs subvolume delete "${SNAPSHOT_DIR}/${snapshot}"
+        done
+    fi
+}
+
+list_snapshots() {
+    echo "Available snapshots:"
+    ls -lht "${SNAPSHOT_DIR}"
+}
+
+restore_snapshot() {
+    local snapshot=$1
+    
+    if [ -z "$snapshot" ]; then
+        echo "Usage: $0 restore <snapshot-name>"
+        exit 1
+    fi
+    
+    if [ ! -d "${SNAPSHOT_DIR}/${snapshot}" ]; then
+        echo "Error: Snapshot not found: ${snapshot}"
+        exit 1
+    fi
+    
+    echo "WARNING: This will replace your current system with snapshot: ${snapshot}"
+    read -p "Are you sure? (yes/no): " confirm
+    
+    if [ "$confirm" = "yes" ]; then
+        # Move current root to backup
+        mv /@ /@.old
+        
+        # Create new root from snapshot
+        btrfs subvolume snapshot "${SNAPSHOT_DIR}/${snapshot}" /@
+        
+        echo "Snapshot restored. Please reboot."
+    fi
+}
+
+case "$1" in
+    create)
+        create_snapshot
+        ;;
+    list)
+        list_snapshots
+        ;;
+    restore)
+        restore_snapshot "$2"
+        ;;
+    cleanup)
+        cleanup_old_snapshots
+        ;;
+    *)
+        echo "TaaOS Snapshot Manager"
+        echo "Usage: $0 {create|list|restore|cleanup}"
+        echo ""
+        echo "Commands:"
+        echo "  create         - Create a new snapshot"
+        echo "  list           - List all snapshots"
+        echo "  restore <name> - Restore from snapshot"
+        echo "  cleanup        - Remove old snapshots"
+        exit 1
+        ;;
+esac

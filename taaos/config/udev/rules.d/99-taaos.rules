@@ -1,0 +1,29 @@
+# TaaOS Udev Rules
+# Custom hardware detection and configuration
+
+# SSD TRIM optimization
+ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="bfq"
+
+# NVMe optimization
+ACTION=="add|change", KERNEL=="nvme[0-9]n[0-9]", ATTR{queue/scheduler}="none"
+
+# USB device permissions for developers
+SUBSYSTEM=="usb", MODE="0666", GROUP="users"
+
+# Docker device permissions
+KERNEL=="docker[0-9]*", MODE="0666", GROUP="docker"
+
+# AI/ML device access (NVIDIA GPU)
+KERNEL=="nvidia*", MODE="0666", GROUP="video"
+
+# Audio device low-latency
+KERNEL=="card*", SUBSYSTEM=="sound", ACTION=="add", ATTR{power/control}="on"
+
+# Network device optimization
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="eth*|en*", RUN+="/usr/bin/ethtool -K %k tso off gso off"
+
+# Bluetooth auto-power
+ACTION=="add", SUBSYSTEM=="bluetooth", RUN+="/usr/bin/bluetoothctl power on"
+
+# TaaOS Neural Engine device
+SUBSYSTEM=="misc", KERNEL=="taaos", MODE="0666", GROUP="taaos"

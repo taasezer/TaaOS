@@ -1,0 +1,436 @@
+#!/usr/bin/env python3
+"""
+TaaTheme Engine - System-wide color theme manager for TaaOS
+Synchronizes themes across desktop, terminal, boot screen, and applications
+"""
+
+import os
+import sys
+import json
+import subprocess
+from pathlib import Path
+from typing import Dict, List
+import shutil
+
+VERSION = "1.0.0"
+THEME_DIR = Path("/usr/share/taaos/themes")
+CONFIG_DIR = Path.home() / ".config" / "taatheme"
+CURRENT_THEME_FILE = CONFIG_DIR / "current.json"
+
+class ColorTheme:
+    """Color theme definition"""
+    def __init__(self, name: str):
+        self.name = name
+        self.primary = "#D40000"      # Rosso Corsa
+        self.primary_light = "#FF3333"
+        self.primary_dark = "#8B0000"
+        self.secondary = "#F5F5F0"    # Off-white
+        self.secondary_light = "#FAFAF5"
+        self.secondary_dark = "#E8E8DD"
+        self.accent = "#FF0000"
+        self.background = "#0A0A0A"
+        self.foreground = "#F5F5F0"
+        self.success = "#00CC66"
+        self.warning = "#FFA500"
+        self.error = "#FF0000"
+        self.info = "#4A90E2"
+    
+    @classmethod
+    def from_file(cls, filepath: Path):
+        """Load theme from JSON file"""
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        
+        theme = cls(data['name'])
+        for key, value in data.get('colors', {}).items():
+            setattr(theme, key, value)
+        return theme
+    
+    def to_dict(self) -> Dict:
+        """Convert theme to dictionary"""
+        return {
+            'name': self.name,
+            'colors': {
+                'primary': self.primary,
+                'primary_light': self.primary_light,
+                'primary_dark': self.primary_dark,
+                'secondary': self.secondary,
+                'secondary_light': self.secondary_light,
+                'secondary_dark': self.secondary_dark,
+                'accent': self.accent,
+                'background': self.background,
+                'foreground': self.foreground,
+                'success': self.success,
+                'warning': self.warning,
+                'error': self.error,
+                'info': self.info
+            }
+        }
+
+class PresetThemes:
+    """Predefined TaaOS themes"""
+    
+    @staticmethod
+    def rosso_corsa() -> ColorTheme:
+        """Default Rosso Corsa theme"""
+        theme = ColorTheme("Rosso Corsa")
+        # Already set in default ColorTheme init
+        return theme
+    
+    @staticmethod
+    def midnight_black() -> ColorTheme:
+        """Midnight Black theme"""
+        theme = ColorTheme("Midnight Black")
+        theme.primary = "#0A0A0A"
+        theme.primary_light = "#1A1A1A"
+        theme.primary_dark = "#000000"
+        theme.secondary = "#CCCCCC"
+        theme.secondary_light = "#E0E0E0"
+        theme.secondary_dark = "#999999"
+        theme.accent = "#333333"
+        theme.background = "#000000"
+        theme.foreground = "#FFFFFF"
+        return theme
+    
+    @staticmethod
+    def arctic_blue() -> ColorTheme:
+        """Arctic Blue theme"""
+        theme = ColorTheme("Arctic Blue")
+        theme.primary = "#4A90E2"
+        theme.primary_light = "#6BADF5"
+        theme.primary_dark = "#2E5C8F"
+        theme.secondary = "#E8F4FD"
+        theme.secondary_light = "#F0F8FF"
+        theme.secondary_dark = "#D0E8F7"
+        theme.accent = "#1E90FF"
+        theme.background = "#0D1B2A"
+        theme.foreground = "#E8F4FD"
+        return theme
+    
+    @staticmethod
+    def graphite_grey() -> ColorTheme:
+        """Graphite Grey theme"""
+        theme = ColorTheme("Graphite Grey")
+        theme.primary = "#2B2B2B"
+        theme.primary_light = "#3F3F3F"
+        theme.primary_dark = "#1A1A1A"
+        theme.secondary = "#D3D3D3"
+        theme.secondary_light = "#E8E8E8"
+        theme.secondary_dark = "#A9A9A9"
+        theme.accent = "#696969"
+        theme.background = "#121212"
+        theme.foreground = "#E0E0E0"
+        return theme
+    
+    @staticmethod
+    def pure_white() -> ColorTheme:
+        """Pure White theme"""
+        theme = ColorTheme("Pure White")
+        theme.primary = "#FFFFFF"
+        theme.primary_light = "#FFFFFF"
+        theme.primary_dark = "#F0F0F0"
+        theme.secondary = "#1A1A1A"
+        theme.secondary_light = "#333333"
+        theme.secondary_dark = "#000000"
+        theme.accent = "#E0E0E0"
+        theme.background = "#FAFAFA"
+        theme.foreground = "#1A1A1A"
+        return theme
+
+class ThemeApplicator:
+    """Apply themes to various system components"""
+    
+    def __init__(self, theme: ColorTheme):
+        self.theme = theme
+    
+    def apply_all(self):
+        """Apply theme to all components"""
+        print(f"Applying theme: {self.theme.name}")
+        
+        self.apply_plasma()
+        self.apply_terminal()
+        self.apply_gtk()
+        self.apply_qt()
+        self.apply_vscode()
+        
+        print("Theme applied successfully!")
+    
+    def apply_plasma(self):
+        """Apply theme to KDE Plasma"""
+        print("  [PLASMA] Applying theme...")
+        
+        # Create Plasma color scheme
+        colors_dir = Path.home() / ".local" / "share" / "color-schemes"
+        colors_dir.mkdir(parents=True, exist_ok=True)
+        
+        color_scheme = f"""[ColorEffects:Disabled]
+Color={self.theme.secondary_dark}
+
+[ColorEffects:Inactive]
+Color={self.theme.secondary}
+
+[Colors:Button]
+BackgroundNormal={self.theme.primary}
+ForegroundNormal={self.theme.foreground}
+
+[Colors:Selection]
+BackgroundNormal={self.theme.primary}
+ForegroundNormal={self.theme.foreground}
+
+[Colors:Tooltip]
+BackgroundNormal={self.theme.primary_dark}
+ForegroundNormal={self.theme.foreground}
+
+[Colors:View]
+BackgroundNormal={self.theme.background}
+ForegroundNormal={self.theme.foreground}
+
+[Colors:Window]
+BackgroundNormal={self.theme.background}
+ForegroundNormal={self.theme.foreground}
+
+[General]
+Name={self.theme.name}
+ColorScheme={self.theme.name}
+"""
+        
+        scheme_file = colors_dir / f"{self.theme.name}.colors"
+        with open(scheme_file, 'w') as f:
+            f.write(color_scheme)
+        
+        # Apply via plasma-apply-colorscheme
+        try:
+            subprocess.run(
+                ["plasma-apply-colorscheme", self.theme.name],
+                check=False,
+                capture_output=True
+            )
+        except FileNotFoundError:
+            print("    [WARNING] plasma-apply-colorscheme not found")
+    
+    def apply_terminal(self):
+        """Apply theme to terminal (Konsole/Zsh)"""
+        print("  [TERMINAL] Applying theme...")
+        
+        # Create Konsole color scheme
+        konsole_dir = Path.home() / ".local" / "share" / "konsole"
+        konsole_dir.mkdir(parents=True, exist_ok=True)
+        
+        konsole_scheme = f"""[Background]
+Color={self.theme.background}
+
+[Foreground]
+Color={self.theme.foreground}
+
+[Color0]
+Color=#000000
+
+[Color1]
+Color={self.theme.error}
+
+[Color2]
+Color={self.theme.success}
+
+[Color3]
+Color={self.theme.warning}
+
+[Color4]
+Color={self.theme.info}
+
+[Color5]
+Color={self.theme.primary}
+
+[Color6]
+Color={self.theme.accent}
+
+[Color7]
+Color={self.theme.foreground}
+
+[General]
+Description={self.theme.name}
+Opacity=0.95
+Wallpaper=
+"""
+        
+        scheme_file = konsole_dir / f"{self.theme.name}.colorscheme"
+        with open(scheme_file, 'w') as f:
+            f.write(konsole_scheme)
+        
+        # Update Powerlevel10k colors
+        p10k_config = Path.home() / ".p10k.zsh"
+        if p10k_config.exists():
+            # This would need more complex parsing
+            print("    [INFO] Update .p10k.zsh manually for custom colors")
+    
+    def apply_gtk(self):
+        """Apply theme to GTK applications"""
+        print("  [GTK] Applying theme...")
+        
+        gtk3_config = Path.home() / ".config" / "gtk-3.0" / "settings.ini"
+        gtk3_config.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Simple GTK theme preference
+        gtk_settings = f"""[Settings]
+gtk-theme-name={self.theme.name}
+gtk-icon-theme-name=TaaOS-Icons
+gtk-font-name=Inter 10
+gtk-cursor-theme-name=breeze_cursors
+gtk-cursor-theme-size=24
+gtk-toolbar-style=GTK_TOOLBAR_BOTH
+gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
+gtk-button-images=1
+gtk-menu-images=1
+gtk-enable-event-sounds=1
+gtk-enable-input-feedback-sounds=1
+gtk-xft-antialias=1
+gtk-xft-hinting=1
+gtk-xft-hintstyle=hintfull
+gtk-xft-rgba=rgb
+"""
+        
+        with open(gtk3_config, 'w') as f:
+            f.write(gtk_settings)
+    
+    def apply_qt(self):
+        """Apply theme to Qt applications"""
+        print("  [QT] Applying theme...")
+        
+        qt_config = Path.home() / ".config" / "kdeglobals"
+        # Qt theme is handled by Plasma color scheme
+        print("    [INFO] Qt theme managed by Plasma")
+    
+    def apply_vscode(self):
+        """Apply theme to VSCode/VSCodium"""
+        print("  [VSCODE] Applying theme...")
+        
+        vscode_dir = Path.home() / ".config" / "Code" / "User"
+        vscode_dir.mkdir(parents=True, exist_ok=True)
+        
+        settings_file = vscode_dir / "settings.json"
+        
+        # Create VSCode theme
+        theme_data = {
+            "workbench.colorTheme": f"TaaOS {self.theme.name}",
+            "workbench.colorCustomizations": {
+                "activityBar.background": self.theme.primary,
+                "activityBar.foreground": self.theme.foreground,
+                "editor.background": self.theme.background,
+                "editor.foreground": self.theme.foreground,
+                "sideBar.background": self.theme.primary_dark,
+                "statusBar.background": self.theme.primary,
+                "statusBar.foreground": self.theme.foreground
+            }
+        }
+        
+        # Merge with existing settings if they exist
+        if settings_file.exists():
+            with open(settings_file, 'r') as f:
+                try:
+                    existing = json.load(f)
+                    existing.update(theme_data)
+                    theme_data = existing
+                except json.JSONDecodeError:
+                    pass
+        
+        with open(settings_file, 'w') as f:
+            json.dump(theme_data, f, indent=2)
+
+class TaaThemeManager:
+    """Main theme manager"""
+    
+    def __init__(self):
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        self.presets = {
+            'rosso-corsa': PresetThemes.rosso_corsa(),
+            'midnight-black': PresetThemes.midnight_black(),
+            'arctic-blue': PresetThemes.arctic_blue(),
+            'graphite-grey': PresetThemes.graphite_grey(),
+            'pure-white': PresetThemes.pure_white()
+        }
+    
+    def list_themes(self):
+        """List available themes"""
+        print("Available themes:")
+        for name in self.presets.keys():
+            print(f"  - {name}")
+        
+        # Custom themes
+        if THEME_DIR.exists():
+            custom_themes = list(THEME_DIR.glob("*.json"))
+            if custom_themes:
+                print("\nCustom themes:")
+                for theme_file in custom_themes:
+                    print(f"  - {theme_file.stem}")
+    
+    def apply_theme(self, theme_name: str):
+        """Apply a theme"""
+        theme = self.presets.get(theme_name)
+        
+        if not theme:
+            # Try loading custom theme
+            theme_file = THEME_DIR / f"{theme_name}.json"
+            if theme_file.exists():
+                theme = ColorTheme.from_file(theme_file)
+            else:
+                print(f"Error: Theme '{theme_name}' not found")
+                return False
+        
+        applicator = ThemeApplicator(theme)
+        applicator.apply_all()
+        
+        # Save current theme
+        with open(CURRENT_THEME_FILE, 'w') as f:
+            json.dump(theme.to_dict(), f, indent=2)
+        
+        return True
+    
+    def get_current_theme(self):
+        """Get currently applied theme"""
+        if CURRENT_THEME_FILE.exists():
+            with open(CURRENT_THEME_FILE, 'r') as f:
+                data = json.load(f)
+                return data.get('name', 'Unknown')
+        return "rosso-corsa"  # Default
+
+def main():
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description='TaaTheme - TaaOS Theme Manager'
+    )
+    parser.add_argument('--version', action='version', version=f'TaaTheme {VERSION}')
+    
+    subparsers = parser.add_subparsers(dest='command', help='Commands')
+    
+    # List themes
+    subparsers.add_parser('list', help='List available themes')
+    
+    # Apply theme
+    apply_parser = subparsers.add_parser('apply', help='Apply a theme')
+    apply_parser.add_argument('theme', help='Theme name to apply')
+    
+    # Current theme
+    subparsers.add_parser('current', help='Show current theme')
+    
+    args = parser.parse_args()
+    
+    manager = TaaThemeManager()
+    
+    if args.command == 'list':
+        manager.list_themes()
+    elif args.command == 'apply':
+        manager.apply_theme(args.theme)
+    elif args.command == 'current':
+        print(f"Current theme: {manager.get_current_theme()}")
+    else:
+        parser.print_help()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user")
+        sys.exit(130)
+    except Exception as e:
+        print(f"\nError: {e}", file=sys.stderr)
+        sys.exit(1)

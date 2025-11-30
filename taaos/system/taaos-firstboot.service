@@ -1,0 +1,11 @@
+[Unit]
+Description=TaaOS First Boot Setup
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/taaos-firstboot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

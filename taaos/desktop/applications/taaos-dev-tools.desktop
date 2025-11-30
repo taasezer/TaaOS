@@ -1,0 +1,35 @@
+[Desktop Entry]
+Name=TaaOS Dev Environment Manager
+Comment=Manage Python, Node, Rust development environments
+Exec=taaos-dev-env-manager
+Icon=applications-development
+Terminal=false
+Type=Application
+Categories=Development;
+
+[Desktop Entry]
+Name=TaaOS Network Analyzer
+Comment=Network monitoring and diagnostics
+Exec=taaos-network-analyzer
+Icon=network-wired
+Terminal=false
+Type=Application
+Categories=Network;System;
+
+[Desktop Entry]
+Name=TaaOS Performance Profiler
+Comment=System performance analysis
+Exec=taaos-performance-profiler
+Icon=utilities-system-monitor
+Terminal=false
+Type=Application
+Categories=System;Monitor;
+
+[Desktop Entry]
+Name=TaaOS Container Orchestrator
+Comment=Docker and Podman management
+Exec=taaos-container-orchestrator
+Icon=docker
+Terminal=false
+Type=Application
+Categories=Development;System;

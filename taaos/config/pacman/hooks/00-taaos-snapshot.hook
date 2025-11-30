@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Upgrade
+Operation = Install
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Creating Btrfs snapshot before system update...
+When = PreTransaction
+Exec = /usr/bin/taaos-snapshot create "Pre-Update-$(date +%Y%m%d-%H%M%S)"

@@ -1,0 +1,16 @@
+# TaaOS Udev Rules for I/O Scheduling
+
+# NVMe SSDs: none (let hardware handle it) or kyber
+ACTION=="add|change", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none"
+
+# SATA SSDs: bfq (good for desktop responsiveness)
+ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="bfq"
+
+# HDDs: bfq (prevent starvation)
+ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+
+# Power Management for PCI Devices
+ACTION=="add", SUBSYSTEM=="pci", ATTR{power/control}="auto"
+
+# USB Auto-suspend (save battery on laptops)
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="auto"

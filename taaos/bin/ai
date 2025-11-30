@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""
+TaaOS Terminal AI
+CLI tool to ask AI for commands and explanations.
+Usage:
+  ai "how do I update the system?"
+  ai explain <filename>
+  ai fix <last_error>
+"""
+
+import sys
+import os
+import requests
+import argparse
+
+def query_ollama(prompt, context=""):
+    url = "http://localhost:11434/api/generate"
+    
+    system_prompt = """You are TaaOS CLI Assistant. 
+    - Provide ONLY the command when asked for a command.
+    - Keep explanations concise (max 3 lines).
+    - TaaOS uses 'taapac' for packages and 'systemctl' for services.
+    - TaaOS is Arch-based.
+    """
+    
+    data = {
+        "model": "taaos-expert",
+        "prompt": f"{system_prompt}\n\nContext: {context}\n\nUser: {prompt}\n\nAssistant:",
+        "stream": False
+    }
+    
+    try:
+        response = requests.post(url, json=data)
+        if response.status_code == 200:
+            return response.json().get('response', '').strip()
+        else:
+            return f"Error: AI Service returned {response.status_code}"
+    except:
+        return "Error: Could not connect to local AI service."
+
+def main():
+    parser = argparse.ArgumentParser(description="TaaOS AI CLI Helper")
+    parser.add_argument('query', nargs='+', help='The question or command to ask AI')
+    parser.add_argument('--explain', '-e', action='store_true', help='Explain a file or command')
+    
+    args = parser.parse_args()
+    query = " ".join(args.query)
+    
+    context = ""
+    
+    # Handle 'explain file'
+    if args.explain and os.path.exists(query):
+        try:
+            with open(query, 'r') as f:
+                content = f.read(1000) # Read first 1000 chars
+                context = f"File content of {query}:\n{content}..."
+                query = f"Explain what this file does: {query}"
+        except:
+            pass
+
+    print(f"🤖 TaaOS AI: Thinking...", end='\r')
+    response = query_ollama(query, context)
+    
+    # Clear thinking line
+    print(" " * 50, end='\r')
+    
+    # Colorize output
+    print(f"\033[1;31m🤖 TaaOS AI:\033[0m {response}")
+
+if __name__ == "__main__":
+    main()

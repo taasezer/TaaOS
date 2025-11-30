@@ -1,0 +1,85 @@
+#!/bin/bash
+#
+# TaaOS Service Manager
+# Simple systemd service management
+#
+
+echo "╔══════════════════════════════════════════╗"
+echo "║     TaaOS Service Manager                ║"
+echo "╚══════════════════════════════════════════╝"
+echo ""
+
+list_services() {
+    echo "TaaOS Services:"
+    echo "───────────────────────────────────────────"
+    
+    services=(
+        "taaos-guardian.service"
+        "NetworkManager.service"
+        "sddm.service"
+        "bluetooth.service"
+        "cups.service"
+        "docker.service"
+    )
+    
+    for service in "${services[@]}"; do
+        status=$(systemctl is-active "$service" 2>/dev/null || echo "not-found")
+        
+        if [ "$status" = "active" ]; then
+            echo "✓ $service [ACTIVE]"
+        elif [ "$status" = "inactive" ]; then
+            echo "○ $service [INACTIVE]"
+        else
+            echo "✗ $service [NOT INSTALLED]"
+        fi
+    done
+    
+    echo ""
+    echo "System Services:"
+    systemctl list-units --type=service --state=running | head -n 20
+}
+
+enable_service() {
+    local service=$1
+    echo "Enabling ${service}..."
+    sudo systemctl enable "$service"
+    sudo systemctl start "$service"
+    echo "✓ ${service} enabled and started"
+}
+
+disable_service() {
+    local service=$1
+    echo "Disabling ${service}..."
+    sudo systemctl stop "$service"
+    sudo systemctl disable "$service"
+    echo "✓ ${service} stopped and disabled"
+}
+
+service_status() {
+    local service=$1
+    systemctl status "$service" --no-pager
+}
+
+case "$1" in
+    list)
+        list_services
+        ;;
+    enable)
+        enable_service "$2"
+        ;;
+    disable)
+        disable_service "$2"
+        ;;
+    status)
+        service_status "$2"
+        ;;
+    *)
+        echo "Usage: $0 {list|enable|disable|status} [service-name]"
+        echo ""
+        echo "Examples:"
+        echo "  $0 list"
+        echo "  $0 enable docker.service"
+        echo "  $0 status taaos-guardian.service"
+        exit 1
+        ;;
+esac

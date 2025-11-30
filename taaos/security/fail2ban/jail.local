@@ -1,0 +1,21 @@
+# TaaOS Fail2Ban Configuration
+
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1
+bantime  = 1h
+findtime = 10m
+maxretry = 3
+backend = systemd
+
+[sshd]
+enabled = true
+port    = ssh
+logpath = %(sshd_log)s
+backend = %(sshd_backend)s
+
+[taaos-guardian]
+enabled = true
+filter = taaos-guardian
+logpath = /var/log/taaos/guardian.log
+maxretry = 1
+bantime = 24h

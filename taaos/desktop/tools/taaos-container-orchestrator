@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""
+TaaOS Container Orchestrator
+Kubernetes-style container orchestration for Docker/Podman
+"""
+
+import sys
+import subprocess
+import json
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QFont
+
+COLORS = {
+    'primary': '#D40000',
+    'background': '#0A0A0A',
+    'surface': '#1A1A1A',
+    'text': '#F5F5F0'
+}
+
+class ContainerOrchestrator(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TaaOS Container Orchestrator")
+        self.setGeometry(100, 100, 1200, 800)
+        
+        self.setup_ui()
+        self.apply_theme()
+        self.refresh_containers()
+        
+        # Auto-refresh
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.refresh_containers)
+        self.timer.start(5000)
+        
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        
+        # Header
+        header = QLabel("Container Orchestration Dashboard")
+        header.setFont(QFont("Sans", 16, QFont.Bold))
+        header.setStyleSheet(f"color: {COLORS['primary']};")
+        layout.addWidget(header)
+        
+        # Toolbar
+        toolbar = QHBoxLayout()
+        
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.clicked.connect(self.refresh_containers)
+        toolbar.addWidget(refresh_btn)
+        
+        deploy_btn = QPushButton("Deploy Stack")
+        deploy_btn.clicked.connect(self.deploy_stack)
+        toolbar.addWidget(deploy_btn)
+        
+        compose_btn = QPushButton("Docker Compose")
+        compose_btn.clicked.connect(self.run_compose)
+        toolbar.addWidget(compose_btn)
+        
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+        
+        # Container list
+        self.container_table = QTableWidget()
+        self.container_table.setColumnCount(6)
+        self.container_table.setHorizontalHeaderLabels(['Name', 'Image', 'Status', 'Ports', 'CPU', 'Memory'])
+        self.container_table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self.container_table)
+        
+        # Actions
+        actions_layout = QHBoxLayout()
+        
+        start_btn = QPushButton("Start")
+        start_btn.clicked.connect(self.start_container)
+        actions_layout.addWidget(start_btn)
+        
+        stop_btn = QPushButton("Stop")
+        stop_btn.clicked.connect(self.stop_container)
+        actions_layout.addWidget(stop_btn)
+        
+        restart_btn = QPushButton("Restart")
+        restart_btn.clicked.connect(self.restart_container)
+        actions_layout.addWidget(restart_btn)
+        
+        logs_btn = QPushButton("View Logs")
+        logs_btn.clicked.connect(self.view_logs)
+        actions_layout.addWidget(logs_btn)
+        
+        shell_btn = QPushButton("Open Shell")
+        shell_btn.clicked.connect(self.open_shell)
+        actions_layout.addWidget(shell_btn)
+        
+        remove_btn = QPushButton("Remove")
+        remove_btn.clicked.connect(self.remove_container)
+        actions_layout.addWidget(remove_btn)
+        
+        layout.addLayout(actions_layout)
+        
+    def refresh_containers(self):
+        try:
+            result = subprocess.check_output(['docker', 'ps', '-a', '--format', '{{json .}}'], text=True)
+            containers = [json.loads(line) for line in result.strip().split('\n') if line]
+            
+            self.container_table.setRowCount(len(containers))
+            
+            for i, container in enumerate(containers):
+                self.container_table.setItem(i, 0, QTableWidgetItem(container.get('Names', '')))
+                self.container_table.setItem(i, 1, QTableWidgetItem(container.get('Image', '')))
+                self.container_table.setItem(i, 2, QTableWidgetItem(container.get('Status', '')))
+                self.container_table.setItem(i, 3, QTableWidgetItem(container.get('Ports', '')))
+                
+                # Get stats
+                try:
+                    stats = subprocess.check_output(
+                        ['docker', 'stats', '--no-stream', '--format', '{{json .}}', container['Names']],
+                        text=True
+                    )
+                    stats_data = json.loads(stats.strip())
+                    self.container_table.setItem(i, 4, QTableWidgetItem(stats_data.get('CPUPerc', 'N/A')))
+                    self.container_table.setItem(i, 5, QTableWidgetItem(stats_data.get('MemUsage', 'N/A')))
+                except:
+                    self.container_table.setItem(i, 4, QTableWidgetItem('N/A'))
+                    self.container_table.setItem(i, 5, QTableWidgetItem('N/A'))
+                    
+        except subprocess.CalledProcessError:
+            QMessageBox.warning(self, "Error", "Failed to fetch containers. Is Docker running?")
+            
+    def get_selected_container(self):
+        row = self.container_table.currentRow()
+        if row >= 0:
+            return self.container_table.item(row, 0).text()
+        return None
+        
+    def start_container(self):
+        container = self.get_selected_container()
+        if container:
+            subprocess.run(['docker', 'start', container])
+            self.refresh_containers()
+            
+    def stop_container(self):
+        container = self.get_selected_container()
+        if container:
+            subprocess.run(['docker', 'stop', container])
+            self.refresh_containers()
+            
+    def restart_container(self):
+        container = self.get_selected_container()
+        if container:
+            subprocess.run(['docker', 'restart', container])
+            self.refresh_containers()
+            
+    def view_logs(self):
+        container = self.get_selected_container()
+        if container:
+            try:
+                logs = subprocess.check_output(['docker', 'logs', '--tail', '100', container], text=True)
+                dialog = QDialog(self)
+                dialog.setWindowTitle(f"Logs: {container}")
+                dialog.setGeometry(200, 200, 800, 600)
+                layout = QVBoxLayout(dialog)
+                text = QTextEdit()
+                text.setReadOnly(True)
+                text.setText(logs)
+                layout.addWidget(text)
+                dialog.exec_()
+            except subprocess.CalledProcessError as e:
+                QMessageBox.warning(self, "Error", f"Failed to fetch logs: {e}")
+                
+    def open_shell(self):
+        container = self.get_selected_container()
+        if container:
+            subprocess.Popen(['konsole', '-e', 'docker', 'exec', '-it', container, '/bin/bash'])
+            
+    def remove_container(self):
+        container = self.get_selected_container()
+        if container:
+            reply = QMessageBox.question(self, "Confirm", f"Remove container {container}?")
+            if reply == QMessageBox.Yes:
+                subprocess.run(['docker', 'rm', '-f', container])
+                self.refresh_containers()
+                
+    def deploy_stack(self):
+        QMessageBox.information(self, "Deploy Stack", "Stack deployment feature coming soon!")
+        
+    def run_compose(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select docker-compose.yml", "", "YAML Files (*.yml *.yaml)")
+        if file_path:
+            subprocess.Popen(['konsole', '-e', 'docker-compose', '-f', file_path, 'up'])
+        
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {COLORS['background']}; }}
+            QWidget {{ background-color: {COLORS['background']}; color: {COLORS['text']}; }}
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                border: none;
+                padding: 8px 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{ background-color: #8B0000; }}
+            QTableWidget {{
+                background-color: {COLORS['surface']};
+                border: 1px solid #333;
+                gridline-color: #333;
+            }}
+            QHeaderView::section {{
+                background-color: {COLORS['primary']};
+                color: {COLORS['text']};
+                padding: 5px;
+                border: none;
+                font-weight: bold;
+            }}
+        """)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = ContainerOrchestrator()
+    window.show()
+    sys.exit(app.exec_())

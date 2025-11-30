@@ -1,0 +1,94 @@
+#!/bin/bash
+#
+# TaaOS Backup Tool
+# Simple rsync-based backup system
+#
+
+BACKUP_DIR="/mnt/backup/taaos"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+BACKUP_NAME="taaos-backup-${TIMESTAMP}"
+
+echo "╔══════════════════════════════════════════╗"
+echo "║       TaaOS Backup Tool                  ║"
+echo "╚══════════════════════════════════════════╝"
+echo ""
+
+create_backup() {
+    echo "Creating system backup..."
+    echo "Target: ${BACKUP_DIR}/${BACKUP_NAME}"
+    echo ""
+    
+    # Create backup directory
+    mkdir -p "${BACKUP_DIR}/${BACKUP_NAME}"
+    
+    # Backup important directories
+    echo "[1/5] Backing up /home..."
+    rsync -aAXv --exclude={".cache","Downloads","*.tmp"} \
+        /home/ "${BACKUP_DIR}/${BACKUP_NAME}/home/"
+    
+    echo "[2/5] Backing up /etc..."
+    rsync -aAXv /etc/ "${BACKUP_DIR}/${BACKUP_NAME}/etc/"
+    
+    echo "[3/5] Backing up package list..."
+    taapac list > "${BACKUP_DIR}/${BACKUP_NAME}/packages.txt"
+    
+    echo "[4/5] Backing up TaaOS configuration..."
+    rsync -aAXv /var/lib/taaos/ "${BACKUP_DIR}/${BACKUP_NAME}/taaos-data/"
+    
+    echo "[5/5] Creating backup info..."
+    cat > "${BACKUP_DIR}/${BACKUP_NAME}/backup-info.txt" << EOF
+TaaOS Backup
+Date: $(date)
+Kernel: $(uname -r)
+Hostname: $(hostname)
+Packages: $(taapac list | wc -l)
+EOF
+    
+    echo ""
+    echo "✓ Backup complete: ${BACKUP_DIR}/${BACKUP_NAME}"
+    
+    # Create latest symlink
+    ln -sfn "${BACKUP_NAME}" "${BACKUP_DIR}/latest"
+}
+
+list_backups() {
+    echo "Available backups:"
+    ls -lht "${BACKUP_DIR}" | grep ^d
+}
+
+restore_backup() {
+    local backup=$1
+    
+    if [ -z "$backup" ]; then
+        echo "Usage: $0 restore <backup-name>"
+        exit 1
+    fi
+    
+    echo "WARNING: This will restore from: ${backup}"
+    read -p "Continue? (yes/no): " confirm
+    
+    if [ "$confirm" = "yes" ]; then
+        echo "Restoring from backup..."
+        
+        rsync -aAXv "${BACKUP_DIR}/${backup}/home/" /home/
+        rsync -aAXv "${BACKUP_DIR}/${backup}/etc/" /etc/
+        
+        echo "✓ Restore complete. Please review and reboot."
+    fi
+}
+
+case "$1" in
+    create)
+        create_backup
+        ;;
+    list)
+        list_backups
+        ;;
+    restore)
+        restore_backup "$2"
+        ;;
+    *)
+        echo "Usage: $0 {create|list|restore <name>}"
+        exit 1
+        ;;
+esac

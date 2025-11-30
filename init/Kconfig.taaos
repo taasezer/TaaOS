@@ -1,0 +1,48 @@
+config TAAOS
+	bool "TaaOS Kernel Features"
+	default y
+	help
+	  Enable TaaOS-specific kernel features including Neural Engine
+	  integration, AI workload optimizations, and custom scheduler
+	  enhancements.
+	  
+	  This option enables:
+	  - Neural Engine kernel hooks
+	  - AI process priority boosting
+	  - Custom /proc/taaos interface
+	  - TaaOS branding and boot messages
+	  
+	  If you are building TaaOS, say Y.
+
+config TAAOS_NEURAL_ENGINE
+	bool "TaaOS Neural Engine Support"
+	depends on TAAOS
+	default y
+	help
+	  Enable kernel-level support for TaaOS Neural Engine.
+	  This provides hooks for the userspace AI subsystem to
+	  communicate with the kernel for priority scheduling
+	  and resource allocation.
+
+config TAAOS_AI_BOOST
+	bool "AI Workload Priority Boost"
+	depends on TAAOS
+	default y
+	help
+	  Automatically boost priority of AI-related processes
+	  (ollama, python, taaos-brain) for better responsiveness
+	  during AI workloads.
+
+config TAAOS_OPTIMIZATIONS
+	bool "TaaOS Performance Optimizations"
+	depends on TAAOS
+	default y
+	select HZ_1000
+	select PREEMPT
+	select IOSCHED_BFQ
+	help
+	  Enable TaaOS-specific performance optimizations including:
+	  - 1000Hz timer frequency
+	  - Preemptible kernel
+	  - BFQ I/O scheduler as default
+	  - BBR TCP congestion control

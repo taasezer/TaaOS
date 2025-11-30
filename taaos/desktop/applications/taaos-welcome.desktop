@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=TaaOS Welcome
+Name[tr]=TaaOS Hoş Geldiniz
+Comment=Welcome to TaaOS - Quick start guide
+Comment[tr]=TaaOS'a Hoş Geldiniz - Hızlı başlangıç rehberi
+Icon=taaos-welcome
+Exec=python3 /usr/share/taaos/desktop/welcome/taaos-welcome
+Terminal=false
+Categories=System;Utility;Qt;
+Keywords=welcome;getting started;tour;
+StartupNotify=true
+X-KDE-autostart-phase=2

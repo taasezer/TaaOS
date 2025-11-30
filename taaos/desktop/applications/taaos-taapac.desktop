@@ -1,0 +1,24 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=TaaPac
+Name[tr]=TaaPac Paket Yöneticisi
+Comment=TaaOS Package Manager - Fast, parallel downloads
+Comment[tr]=TaaOS Paket Yöneticisi - Hızlı, paralel indirmeler
+Icon=taaos-taapac
+Exec=python3 /usr/share/taaos/taapac/gui/taapac-gui
+Terminal=false
+Categories=System;PackageManager;Qt;
+Keywords=package;install;update;software;taapac;
+StartupNotify=true
+StartupWMClass=taapac-gui
+
+[Desktop Action Sync]
+Name=Sync Repositories
+Exec=python3 /usr/share/taaos/taapac/gui/taapac-gui --sync
+
+[Desktop Action Upgrade]
+Name=Upgrade System
+Exec=python3 /usr/share/taaos/taapac/gui/taapac-gui --upgrade
+
+Actions=Sync;Upgrade;

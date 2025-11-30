@@ -1,0 +1,170 @@
+{
+    "name": "TaaOS AI Auto-Optimizer",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 1
+                        }
+                    ]
+                }
+            },
+            "name": "Every Hour",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "journalctl -p 3 -n 100 --no-pager"
+            },
+            "name": "Get System Errors",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:9999",
+                "jsonParameters": true,
+                "options": {},
+                "bodyParametersJson": "={\n  \"type\": \"system_query\",\n  \"query\": \"Analyze these system errors and suggest fixes: {{$json.stdout}}\"\n}"
+            },
+            "name": "Query Neural Engine",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "const response = JSON.parse(items[0].json.body);\nconst suggestions = response.response;\n\nreturn items.map(item => ({\n  json: {\n    suggestions: suggestions,\n    timestamp: new Date().toISOString()\n  }\n}));"
+            },
+            "name": "Parse AI Response",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "echo '{{$json.suggestions}}' >> /var/log/taaos/ai-suggestions.log"
+            },
+            "name": "Log Suggestions",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{$json.suggestions}}",
+                            "operation": "contains",
+                            "value2": "CRITICAL"
+                        }
+                    ]
+                }
+            },
+            "name": "Is Critical",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                450
+            ]
+        },
+        {
+            "parameters": {
+                "command": "notify-send 'TaaOS AI' 'Critical issue detected - check /var/log/taaos/ai-suggestions.log'"
+            },
+            "name": "Send Alert",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                450
+            ]
+        }
+    ],
+    "connections": {
+        "Every Hour": {
+            "main": [
+                [
+                    {
+                        "node": "Get System Errors",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get System Errors": {
+            "main": [
+                [
+                    {
+                        "node": "Query Neural Engine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Neural Engine": {
+            "main": [
+                [
+                    {
+                        "node": "Parse AI Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse AI Response": {
+            "main": [
+                [
+                    {
+                        "node": "Log Suggestions",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Is Critical",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Critical": {
+            "main": [
+                [
+                    {
+                        "node": "Send Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "example-app",
+  "version": "1.0.0",
+  "release": "1",
+  "desc": "Example application for TaaOS",
+  "url": "https://example.com",
+  "license": ["MIT"],
+  "arch": ["x86_64"],
+  
+  "depends": [
+    "glibc",
+    "gcc-libs"
+  ],
+  
+  "makedepends": [
+    "gcc",
+    "make",
+    "cmake"
+  ],
+  
+  "sources": [
+    "https://example.com/releases/example-app-1.0.0.tar.gz",
+    "example.patch"
+  ],
+  
+  "checksums": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ""
+  ],
+  
+  "options": {
+    "strip": true,
+    "docs": true,
+    "debug": false,
+    "optimize": "O3",
+    "jobs": 8
+  }
+}

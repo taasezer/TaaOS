@@ -1,0 +1,12 @@
+[Unit]
+Description=TaaOS Brain (Proactive AI System Optimizer)
+After=network.target ollama.service n8n.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/lib/taaos/taaos-brain.py
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target
