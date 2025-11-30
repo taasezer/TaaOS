@@ -3,8 +3,7 @@
 TaaOS
 =====
 
-> **The AI-Powered Operating System**  
-> *Geleceğin işletim sistemini bugünden deneyimleyin*
+> **Born To Create**  
 
 ---
 
