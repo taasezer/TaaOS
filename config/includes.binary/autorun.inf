@@ -1,0 +1,4 @@
+[autorun]
+label=TaaOS Live Drive
+icon=boot\grub\taaos.ico
+open=README.txt
