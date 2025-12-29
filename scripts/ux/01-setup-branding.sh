@@ -175,6 +175,12 @@ GTK_GREETER_CONF
     mkdir -p /usr/share/backgrounds/taaos
 
     # Create a Rosso Corsa login background
+    # Check for custom wallpaper in assets
+    if [ -f "/build/assets/wallpaper.png" ]; then
+        echo "[BRANDING] Custom wallpaper found, copying..."
+        cp "/build/assets/wallpaper.png" "/usr/share/backgrounds/taaos/login-bg.png"
+    fi
+
     if [ ! -f "/usr/share/backgrounds/taaos/login-bg.png" ]; then
         # Create black gradient with Rosso Corsa accent
         convert -size 1920x1080 xc:'#0A0A0A' \
