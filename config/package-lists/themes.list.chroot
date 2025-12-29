@@ -1,0 +1,21 @@
+# =============================================================================
+# TaaOS Theme Packages - Torvalds Edition
+# =============================================================================
+# GTK themes, icon packs, fonts, and theming utilities.
+# Location: config/package-lists/themes.list.chroot
+# =============================================================================
+
+# Material Design GTK Theme
+materia-gtk-theme
+
+# Papirus Icon Theme (modern, flat icons)
+papirus-icon-theme
+
+# Fira Code Font (monospace with ligatures)
+fonts-firacode
+
+# Wallpaper Manager
+nitrogen
+
+# XFCE Settings Manager
+xfce4-settings

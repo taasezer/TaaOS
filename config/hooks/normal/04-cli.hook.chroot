@@ -1,0 +1,296 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Modern CLI Hook - Torvalds Edition
+# =============================================================================
+# Installs modern CLI tools that replace traditional Unix utilities with
+# faster, more user-friendly alternatives built in Rust.
+# Location: config/hooks/normal/04-cli.hook.chroot
+# Executed during: chroot stage of live-build
+# =============================================================================
+
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Color Output Helpers
+# -----------------------------------------------------------------------------
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+log_info() {
+    echo -e "${BLUE}[CLI]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[CLI]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[CLI]${NC} $1"
+}
+
+# =============================================================================
+# SECTION 1: RUST-BASED CLI TOOLS
+# =============================================================================
+install_rust_tools() {
+    log_info "Installing modern Rust-based CLI tools..."
+
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        bat \
+        fzf \
+        ripgrep \
+        lsd \
+        zoxide
+
+    log_success "Installed: bat, fzf, ripgrep, lsd, zoxide"
+}
+
+# =============================================================================
+# SECTION 2: ZSH SHELL
+# =============================================================================
+install_zsh() {
+    log_info "Installing Zsh shell..."
+
+    apt-get install -y --no-install-recommends \
+        zsh \
+        zsh-autosuggestions \
+        zsh-syntax-highlighting
+
+    log_success "Zsh installed with autosuggestions and syntax highlighting"
+}
+
+# =============================================================================
+# SECTION 3: SYSTEM-WIDE ALIASES
+# =============================================================================
+create_aliases() {
+    log_info "Creating system-wide aliases..."
+
+    cat > /etc/profile.d/00-aliases.sh << 'ALIASES_EOF'
+# =============================================================================
+# TaaOS Modern CLI Aliases
+# =============================================================================
+# These aliases replace traditional Unix tools with modern alternatives.
+# Loaded system-wide via /etc/profile.d/
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# bat - A cat clone with syntax highlighting and Git integration
+# -----------------------------------------------------------------------------
+# On Debian, bat is installed as 'batcat' to avoid conflict with another package
+if command -v batcat &> /dev/null; then
+    alias cat='batcat --paging=never'
+    alias bat='batcat'
+fi
+
+# -----------------------------------------------------------------------------
+# lsd - The next-gen ls command with icons and colors
+# -----------------------------------------------------------------------------
+if command -v lsd &> /dev/null; then
+    alias ls='lsd'
+    alias ll='lsd -la'
+    alias la='lsd -a'
+    alias lt='lsd --tree'
+    alias l='lsd -l'
+fi
+
+# -----------------------------------------------------------------------------
+# ripgrep - Ultra-fast grep alternative
+# -----------------------------------------------------------------------------
+if command -v rg &> /dev/null; then
+    alias grep='rg'
+fi
+
+# -----------------------------------------------------------------------------
+# zoxide - Smarter cd command that learns your habits
+# -----------------------------------------------------------------------------
+if command -v zoxide &> /dev/null; then
+    eval "$(zoxide init bash)"
+    alias cd='z'
+fi
+
+# -----------------------------------------------------------------------------
+# fzf - Fuzzy finder integration
+# -----------------------------------------------------------------------------
+if command -v fzf &> /dev/null; then
+    # Enable fzf keybindings if available
+    if [[ -f /usr/share/doc/fzf/examples/key-bindings.bash ]]; then
+        source /usr/share/doc/fzf/examples/key-bindings.bash
+    fi
+    
+    # fzf-powered history search
+    alias fh='history | fzf'
+    
+    # fzf-powered file finder
+    alias ff='find . -type f | fzf'
+fi
+
+# -----------------------------------------------------------------------------
+# Additional Productivity Aliases
+# -----------------------------------------------------------------------------
+# Quick directory navigation
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+# Disk usage with human-readable sizes
+alias df='df -h'
+alias du='du -h'
+
+# Make destructive commands interactive
+alias rm='rm -i'
+alias mv='mv -i'
+alias cp='cp -i'
+
+# Quick system info
+alias sysinfo='neofetch'
+alias ports='ss -tulanp'
+alias meminfo='free -h'
+alias cpuinfo='lscpu'
+
+# TaaOS specific
+alias health='health-check'
+alias ai='natural'
+
+# Docker shortcuts
+alias dps='docker ps'
+alias dimg='docker images'
+alias dlog='docker logs -f'
+
+# Git shortcuts
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit'
+alias gp='git push'
+alias gl='git log --oneline -10'
+ALIASES_EOF
+
+    chmod +x /etc/profile.d/00-aliases.sh
+
+    log_success "Aliases created at /etc/profile.d/00-aliases.sh"
+}
+
+# =============================================================================
+# SECTION 4: ZSH CONFIGURATION
+# =============================================================================
+configure_zsh() {
+    log_info "Configuring Zsh defaults..."
+
+    # Create default zshrc for new users
+    cat > /etc/skel/.zshrc << 'ZSHRC_EOF'
+# =============================================================================
+# TaaOS Zsh Configuration
+# =============================================================================
+
+# History configuration
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt appendhistory
+setopt sharehistory
+setopt hist_ignore_dups
+
+# Enable completion
+autoload -Uz compinit
+compinit
+
+# Enable colors
+autoload -Uz colors
+colors
+
+# Key bindings
+bindkey -e
+bindkey '^[[A' history-search-backward
+bindkey '^[[B' history-search-forward
+
+# Load plugins if available
+if [[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+    source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+fi
+
+if [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+    source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+fi
+
+# Initialize zoxide for zsh
+if command -v zoxide &> /dev/null; then
+    eval "$(zoxide init zsh)"
+fi
+
+# Initialize fzf for zsh
+if [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]]; then
+    source /usr/share/doc/fzf/examples/key-bindings.zsh
+fi
+
+# Modern CLI aliases
+if command -v batcat &> /dev/null; then
+    alias cat='batcat --paging=never'
+fi
+
+if command -v lsd &> /dev/null; then
+    alias ls='lsd'
+    alias ll='lsd -la'
+    alias lt='lsd --tree'
+fi
+
+if command -v rg &> /dev/null; then
+    alias grep='rg'
+fi
+
+# Prompt
+PROMPT='%F{cyan}%n%f@%F{magenta}%m%f:%F{yellow}%~%f %# '
+ZSHRC_EOF
+
+    log_success "Zsh configuration created"
+}
+
+# =============================================================================
+# CLEANUP
+# =============================================================================
+cleanup() {
+    log_info "Cleaning up..."
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    log_success "Cleanup completed"
+}
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+main() {
+    echo ""
+    echo "=========================================="
+    echo "  TaaOS Modern CLI Hook"
+    echo "=========================================="
+    echo ""
+
+    install_rust_tools
+    echo ""
+
+    install_zsh
+    echo ""
+
+    create_aliases
+    echo ""
+
+    configure_zsh
+    echo ""
+
+    cleanup
+    echo ""
+
+    echo "=========================================="
+    echo "  Modern CLI Hook completed!"
+    echo "=========================================="
+    echo ""
+    echo "  Replacements:"
+    echo "    cat  -> batcat (syntax highlighting)"
+    echo "    ls   -> lsd (icons & colors)"
+    echo "    grep -> ripgrep (faster search)"
+    echo "    cd   -> zoxide (smart navigation)"
+    echo ""
+}
+
+# Run main function
+main "$@"

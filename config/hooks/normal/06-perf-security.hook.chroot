@@ -1,0 +1,39 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Performance & Security Hook
+# =============================================================================
+# Runs performance optimization and security hardening scripts
+# =============================================================================
+
+set -e
+
+echo "=============================================="
+echo "  TaaOS Performance & Security Hook"
+echo "=============================================="
+
+SCRIPT_BASE="/build/scripts"
+
+# Execute performance optimization
+if [ -f "${SCRIPT_BASE}/performance/optimize-system.sh" ]; then
+    echo "[HOOK] Running performance optimization..."
+    chmod +x "${SCRIPT_BASE}/performance/optimize-system.sh"
+    bash "${SCRIPT_BASE}/performance/optimize-system.sh"
+else
+    echo "[HOOK] Warning: Performance script not found"
+fi
+
+echo ""
+
+# Execute security hardening
+if [ -f "${SCRIPT_BASE}/security/harden-system.sh" ]; then
+    echo "[HOOK] Running security hardening..."
+    chmod +x "${SCRIPT_BASE}/security/harden-system.sh"
+    bash "${SCRIPT_BASE}/security/harden-system.sh"
+else
+    echo "[HOOK] Warning: Security script not found"
+fi
+
+echo ""
+echo "=============================================="
+echo "  Performance & Security Hook - COMPLETE!"
+echo "=============================================="

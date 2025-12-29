@@ -1,0 +1,102 @@
+# =============================================================================
+# TaaOS Desktop Package List - Torvalds Edition
+# =============================================================================
+# This file defines all packages to be installed in the live system.
+# Location: config/package-lists/desktop.list.chroot
+# =============================================================================
+
+# =============================================================================
+# SECTION 1: FIRMWARE (CRITICAL for Hardware Support)
+# =============================================================================
+# These firmware blobs are essential for WiFi, Bluetooth, and other hardware
+# to function properly with the mainline kernel.
+
+# Core Linux Firmware
+firmware-linux
+firmware-linux-nonfree
+
+# Intel WiFi Adapters (iwlwifi driver)
+firmware-iwlwifi
+
+# Realtek WiFi/Ethernet Adapters
+firmware-realtek
+
+# Atheros/Qualcomm WiFi Adapters
+firmware-atheros
+
+# Miscellaneous Non-Free Firmware (various hardware)
+firmware-misc-nonfree
+
+# Bluetooth Firmware
+bluez-firmware
+
+# =============================================================================
+# SECTION 2: XFCE4 DESKTOP ENVIRONMENT
+# =============================================================================
+# Lightweight, stable, and highly customizable desktop environment.
+
+# Complete XFCE Desktop Task (meta-package)
+task-xfce-desktop
+
+# Display Manager
+lightdm
+
+# XFCE4 Additional Plugins and Tools
+xfce4-goodies
+
+# Terminal Emulator
+xfce4-terminal
+
+# File Manager and Plugins
+thunar
+thunar-archive-plugin
+
+# =============================================================================
+# SECTION 3: CONNECTIVITY
+# =============================================================================
+# Network and Bluetooth management tools.
+
+# NetworkManager with GTK frontend
+network-manager-gnome
+
+# Bluetooth Manager (GTK frontend)
+blueman
+
+# Bluetooth Protocol Stack
+bluez
+
+# =============================================================================
+# SECTION 4: HARDWARE MONITORS
+# =============================================================================
+# Tools for monitoring hardware health, ECC memory, and system sensors.
+
+# RAS Daemon - ECC Memory Error Monitoring
+# Works with CONFIG_EDAC enabled in our custom kernel
+rasdaemon
+
+# S.M.A.R.T. Disk Monitoring
+smartmontools
+
+# Hardware Sensor Monitoring (CPU temp, fan speeds, voltages)
+lm-sensors
+
+# =============================================================================
+# SECTION 5: BASE UTILITIES
+# =============================================================================
+# Essential command-line tools and development packages.
+
+# Privilege Escalation
+sudo
+
+# Download Utilities
+wget
+curl
+
+# System Monitoring (Interactive Process Viewer)
+htop
+
+# System Information Display
+neofetch
+
+# Build Tools (GCC, Make, etc.)
+build-essential

@@ -1,0 +1,36 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Live Kernel Copy Hook
+# =============================================================================
+# This hook runs during the live stage and ensures kernel files are in /live/
+# =============================================================================
+
+set -e
+
+echo "[LIVE-HOOK] Copying kernel to /live/ directory..."
+
+# Create /live directory if it doesn't exist
+mkdir -p /live
+
+# Find and copy kernel
+VMLINUZ=$(find /boot -name "vmlinuz*" -type f ! -name "*.old" | head -1)
+INITRD=$(find /boot -name "initrd*" -type f ! -name "*.old" | head -1)
+
+if [ -n "$VMLINUZ" ]; then
+    cp -v "$VMLINUZ" /live/vmlinuz
+    echo "[LIVE-HOOK] Kernel copied to /live/vmlinuz"
+else
+    echo "[LIVE-HOOK] ERROR: No kernel found!"
+fi
+
+if [ -n "$INITRD" ]; then
+    cp -v "$INITRD" /live/initrd.img
+    echo "[LIVE-HOOK] Initrd copied to /live/initrd.img"
+else
+    echo "[LIVE-HOOK] WARNING: No initrd found!"
+fi
+
+echo "[LIVE-HOOK] /live/ contents:"
+ls -la /live/
+
+echo "[LIVE-HOOK] Done!"

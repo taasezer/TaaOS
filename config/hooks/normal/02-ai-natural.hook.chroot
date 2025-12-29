@@ -1,0 +1,487 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Natural Engine AI Assistant Hook - Torvalds Edition
+# =============================================================================
+# This hook installs and configures the "Natural Engine" - an AI-powered
+# natural language to bash command translator using Ollama.
+# Location: config/hooks/normal/02-ai-natural.hook.chroot
+# Executed during: chroot stage of live-build
+# =============================================================================
+
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Color Output Helpers
+# -----------------------------------------------------------------------------
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+NC='\033[0m'
+
+log_info() {
+    echo -e "${BLUE}[AI-HOOK]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[AI-HOOK]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[AI-HOOK]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[AI-HOOK]${NC} $1"
+}
+
+log_ai() {
+    echo -e "${MAGENTA}[NATURAL]${NC} $1"
+}
+
+# =============================================================================
+# SECTION 1: PYTHON AI DEPENDENCIES
+# =============================================================================
+install_python_deps() {
+    log_info "Installing Python AI and Data Science dependencies..."
+
+    # Install pip and Python development tools
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        python3-pip \
+        python3-dev \
+        python3-venv \
+        python3-wheel \
+        python3-setuptools
+
+    # Using --break-system-packages for Debian 12+ which uses externally-managed-environment
+    
+    # Step 1: Core Data Science Libraries
+    log_info "Installing NumPy, Pandas, SciPy, Matplotlib..."
+    pip3 install --break-system-packages \
+        numpy \
+        pandas \
+        scipy \
+        matplotlib \
+        seaborn \
+        || log_warning "Data science libs install failed, continuing..."
+    
+    # Step 2: Machine Learning Libraries
+    log_info "Installing scikit-learn, xgboost..."
+    pip3 install --break-system-packages \
+        scikit-learn \
+        xgboost \
+        || log_warning "ML libs install failed, continuing..."
+    
+    # Step 3: Jupyter Notebook
+    log_info "Installing Jupyter Notebook..."
+    pip3 install --break-system-packages \
+        jupyter \
+        jupyterlab \
+        notebook \
+        || log_warning "Jupyter install failed, continuing..."
+    
+    # Step 4: Web Development Libraries
+    log_info "Installing Flask, Django, FastAPI, Requests..."
+    pip3 install --break-system-packages \
+        requests \
+        flask \
+        django \
+        fastapi \
+        uvicorn \
+        httpx \
+        || log_warning "Web libs install failed, continuing..."
+    
+    # Step 5: Utility Libraries
+    log_info "Installing utility libraries..."
+    pip3 install --break-system-packages \
+        pillow \
+        opencv-python-headless \
+        pyyaml \
+        python-dotenv \
+        tqdm \
+        click \
+        || log_warning "Utility libs install failed, continuing..."
+    
+    # Step 6: Install ollama and rich for AI integration
+    log_info "Installing ollama, rich from PyPI..."
+    pip3 install --break-system-packages ollama rich || log_warning "ollama/rich install failed, continuing..."
+    
+    # Step 7: Install PyTorch CPU-only version from special index
+    log_info "Installing torch (CPU-only)..."
+    pip3 install --break-system-packages torch --index-url https://download.pytorch.org/whl/cpu || log_warning "torch install failed, continuing..."
+    
+    # Step 8: Install tensorflow-cpu (optional, may fail in chroot)
+    log_info "Installing tensorflow-cpu..."
+    pip3 install --break-system-packages tensorflow-cpu || log_warning "tensorflow install failed, continuing..."
+
+    log_success "Python AI and Data Science dependencies installed"
+}
+
+# =============================================================================
+# SECTION 2: OLLAMA INSTALLATION
+# =============================================================================
+install_ollama() {
+    log_info "Installing Ollama AI runtime..."
+
+    # Download and run Ollama install script
+    curl -fsSL https://ollama.com/install.sh | sh
+
+    # Enable Ollama service to start on boot
+    log_info "Enabling Ollama service..."
+    systemctl enable ollama || log_warning "Could not enable Ollama service (may not be running in chroot)"
+
+    log_success "Ollama installed and enabled"
+}
+
+# =============================================================================
+# SECTION 3: NATURAL ENGINE APPLICATION
+# =============================================================================
+create_natural_engine() {
+    log_ai "Creating Natural Engine application..."
+
+    # Create the Natural Engine Python script
+    cat > /usr/local/bin/natural << 'NATURAL_ENGINE_EOF'
+#!/usr/bin/env python3
+# =============================================================================
+# TaaOS Natural Engine - AI-Powered Command Translator
+# =============================================================================
+# Translates natural language requests into Linux bash commands using Ollama.
+# Usage: natural "your request in plain English"
+# =============================================================================
+
+import sys
+import subprocess
+import os
+
+try:
+    import ollama
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.syntax import Syntax
+    from rich.prompt import Confirm
+    from rich.text import Text
+except ImportError as e:
+    print(f"Error: Missing dependency - {e}")
+    print("Please ensure ollama and rich are installed:")
+    print("  pip3 install ollama rich")
+    sys.exit(1)
+
+# Initialize Rich console for beautiful output
+console = Console()
+
+# Configuration
+DEFAULT_MODEL = "llama3.2"
+SYSTEM_PROMPT = """You are a Linux command translator. Your ONLY job is to translate the user's natural language request into a valid Linux bash command.
+
+RULES:
+1. Output ONLY the command itself, nothing else
+2. No explanations, no markdown, no code blocks
+3. No backticks or formatting
+4. If multiple commands are needed, chain them with && or ;
+5. Use common, safe commands
+6. If the request is unclear, output the most likely intended command
+
+Example inputs and outputs:
+- "show me all files" -> ls -la
+- "find large files over 100MB" -> find . -type f -size +100M
+- "check disk space" -> df -h
+- "show running processes" -> ps aux
+- "update the system" -> sudo apt update && sudo apt upgrade -y"""
+
+
+def print_banner():
+    """Display the Natural Engine banner."""
+    banner = Text()
+    banner.append("🧠 ", style="bold")
+    banner.append("TaaOS Natural Engine", style="bold magenta")
+    banner.append(" - AI Command Translator", style="dim")
+    console.print(banner)
+    console.print()
+
+
+def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
+    """Translate natural language to bash command using Ollama."""
+    try:
+        response = ollama.chat(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": user_request
+                }
+            ],
+            options={
+                "temperature": 0.1,  # Low temperature for deterministic output
+                "num_predict": 256   # Limit response length
+            }
+        )
+        
+        # Extract the command from response
+        command = response["message"]["content"].strip()
+        
+        # Clean up any accidental formatting
+        command = command.replace("```bash", "").replace("```", "").strip()
+        command = command.replace("`", "").strip()
+        
+        # Remove any leading/trailing quotes
+        if (command.startswith('"') and command.endswith('"')) or \
+           (command.startswith("'") and command.endswith("'")):
+            command = command[1:-1]
+        
+        return command
+        
+    except ollama.ResponseError as e:
+        console.print(f"[red]Error:[/red] Ollama response error - {e}")
+        console.print("[yellow]Tip:[/yellow] Make sure Ollama is running: systemctl start ollama")
+        console.print(f"[yellow]Tip:[/yellow] Ensure model '{model}' is pulled: ollama pull {model}")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+
+def display_command(command: str):
+    """Display the generated command with syntax highlighting."""
+    syntax = Syntax(command, "bash", theme="monokai", line_numbers=False)
+    panel = Panel(
+        syntax,
+        title="[bold green]Generated Command[/bold green]",
+        border_style="green",
+        padding=(0, 1)
+    )
+    console.print(panel)
+
+
+def execute_command(command: str):
+    """Execute the command and stream output."""
+    console.print()
+    console.print("[bold blue]Executing...[/bold blue]")
+    console.print("─" * 50)
+    
+    try:
+        # Run the command with shell=True to support pipes, redirects, etc.
+        result = subprocess.run(
+            command,
+            shell=True,
+            text=True,
+            capture_output=False  # Stream output directly to terminal
+        )
+        
+        console.print("─" * 50)
+        
+        if result.returncode == 0:
+            console.print("[bold green]✓ Command completed successfully[/bold green]")
+        else:
+            console.print(f"[bold yellow]⚠ Command exited with code {result.returncode}[/bold yellow]")
+            
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Command interrupted by user[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Error executing command:[/red] {e}")
+
+
+def main():
+    """Main entry point for Natural Engine."""
+    print_banner()
+    
+    # Check for command line arguments
+    if len(sys.argv) < 2:
+        console.print("[yellow]Usage:[/yellow] natural \"your request in plain English\"")
+        console.print()
+        console.print("[dim]Examples:[/dim]")
+        console.print('  natural "show me disk usage"')
+        console.print('  natural "find all python files modified today"')
+        console.print('  natural "list docker containers"')
+        sys.exit(0)
+    
+    # Get the user's request
+    user_request = " ".join(sys.argv[1:])
+    
+    # Display the request
+    console.print(f"[bold]Request:[/bold] {user_request}")
+    console.print()
+    
+    # Translate to command
+    console.print("[dim]Translating with AI...[/dim]")
+    command = translate_to_command(user_request)
+    console.print()
+    
+    # Display the generated command
+    display_command(command)
+    console.print()
+    
+    # Ask for confirmation
+    if Confirm.ask("[bold]Execute this command?[/bold]", default=True):
+        execute_command(command)
+    else:
+        console.print("[dim]Command not executed.[/dim]")
+
+
+if __name__ == "__main__":
+    main()
+NATURAL_ENGINE_EOF
+
+    # Make the script executable
+    chmod +x /usr/local/bin/natural
+
+    log_success "Natural Engine created at /usr/local/bin/natural"
+}
+
+# =============================================================================
+# SECTION 4: N8N WORKFLOW AUTOMATION
+# =============================================================================
+install_n8n() {
+    log_info "Installing n8n workflow automation..."
+    
+    # Configure npm for better network reliability
+    npm config set fetch-timeout 300000  # 5 minutes timeout
+    npm config set fetch-retries 5
+    npm config set fetch-retry-mintimeout 60000
+    npm config set fetch-retry-maxtimeout 120000
+    
+    # Clear npm cache to avoid corrupted packages
+    npm cache clean --force 2>/dev/null || true
+    
+    # Install n8n globally via npm with retry
+    log_info "Downloading and installing n8n (this may take several minutes)..."
+    
+    local retry_count=0
+    local max_retries=3
+    
+    while [ $retry_count -lt $max_retries ]; do
+        if npm install -g n8n; then
+            log_success "n8n installed successfully"
+            break
+        else
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+                log_warning "n8n installation attempt $retry_count failed, retrying in 10 seconds..."
+                sleep 10
+                npm cache clean --force 2>/dev/null || true
+            else
+                log_error "n8n installation failed after $max_retries attempts"
+                exit 1
+            fi
+        fi
+    done
+
+    # Create n8n systemd service file
+    log_info "Creating n8n systemd service..."
+    cat > /etc/systemd/system/n8n.service << 'N8N_SERVICE_EOF'
+[Unit]
+Description=n8n - Workflow Automation
+Documentation=https://docs.n8n.io
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Environment="N8N_PORT=5678"
+Environment="N8N_PROTOCOL=http"
+Environment="N8N_HOST=localhost"
+Environment="GENERIC_TIMEZONE=UTC"
+ExecStart=/usr/bin/n8n start
+Restart=on-failure
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+N8N_SERVICE_EOF
+
+    # Enable n8n service
+    systemctl enable n8n || log_warning "Could not enable n8n service (may not be running in chroot)"
+
+    log_success "n8n installed and service created (port 5678)"
+}
+
+# =============================================================================
+# SECTION 5: SHELL INTEGRATION
+# =============================================================================
+create_shell_integration() {
+    log_info "Creating shell integration..."
+
+    # Add alias to system-wide bash profile
+    cat >> /etc/bash.bashrc << 'BASHRC_EOF'
+
+# =============================================================================
+# TaaOS Natural Engine Integration
+# =============================================================================
+# Quick alias for Natural Engine
+alias n='natural'
+alias ai='natural'
+
+# Function for quick AI commands
+ask() {
+    natural "$@"
+}
+
+# Display TaaOS info on login
+if command -v neofetch &> /dev/null; then
+    : # neofetch will be called from profile if desired
+fi
+BASHRC_EOF
+
+    log_success "Shell integration added"
+}
+
+# =============================================================================
+# CLEANUP
+# =============================================================================
+cleanup() {
+    log_info "Cleaning up..."
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    log_success "Cleanup completed"
+}
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+main() {
+    echo ""
+    echo "=================================================="
+    echo "  TaaOS Natural Engine AI Assistant Hook"
+    echo "=================================================="
+    echo ""
+
+    install_python_deps
+    echo ""
+
+    install_ollama
+    echo ""
+
+    create_natural_engine
+    echo ""
+
+    install_n8n
+    echo ""
+
+    create_shell_integration
+    echo ""
+
+    cleanup
+    echo ""
+
+    echo "=================================================="
+    echo "  Natural Engine Hook completed!"
+    echo "=================================================="
+    echo ""
+    echo "  Usage: natural \"your request in plain English\""
+    echo "  Alias: n \"your request\" or ai \"your request\""
+    echo ""
+    echo "  n8n available at: http://localhost:5678"
+    echo ""
+}
+
+# Run main function
+main "$@"

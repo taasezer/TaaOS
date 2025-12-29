@@ -1,0 +1,50 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS DevOps Toolchain Hook
+# =============================================================================
+# Runs container and admin tools installation scripts
+# =============================================================================
+
+set -e
+
+echo "=============================================="
+echo "  TaaOS DevOps Toolchain Hook"
+echo "=============================================="
+
+SCRIPT_BASE="/build/scripts/devops"
+
+# Execute container infrastructure setup
+if [ -f "${SCRIPT_BASE}/install-containers.sh" ]; then
+    echo "[HOOK] Running container infrastructure setup..."
+    chmod +x "${SCRIPT_BASE}/install-containers.sh"
+    bash "${SCRIPT_BASE}/install-containers.sh"
+else
+    echo "[HOOK] Warning: Container script not found"
+fi
+
+echo ""
+
+# Execute admin tools setup
+if [ -f "${SCRIPT_BASE}/install-admin-tools.sh" ]; then
+    echo "[HOOK] Running admin tools setup..."
+    chmod +x "${SCRIPT_BASE}/install-admin-tools.sh"
+    bash "${SCRIPT_BASE}/install-admin-tools.sh"
+else
+    echo "[HOOK] Warning: Admin tools script not found"
+fi
+
+echo ""
+
+# Execute Git infrastructure setup
+if [ -f "${SCRIPT_BASE}/setup-git.sh" ]; then
+    echo "[HOOK] Running Git infrastructure setup..."
+    chmod +x "${SCRIPT_BASE}/setup-git.sh"
+    bash "${SCRIPT_BASE}/setup-git.sh"
+else
+    echo "[HOOK] Warning: Git setup script not found"
+fi
+
+echo ""
+echo "=============================================="
+echo "  DevOps Toolchain Hook - COMPLETE!"
+echo "=============================================="

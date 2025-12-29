@@ -1,0 +1,38 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS UX Branding Hook
+# =============================================================================
+# Runs the UX branding scripts during chroot stage
+# =============================================================================
+
+set -e
+
+echo "=============================================="
+echo "  TaaOS UX Branding Hook"
+echo "=============================================="
+
+# Source and execute branding scripts
+SCRIPT_DIR="/build/scripts/ux"
+
+if [ -d "${SCRIPT_DIR}" ]; then
+    # Execute branding setup
+    if [ -f "${SCRIPT_DIR}/01-setup-branding.sh" ]; then
+        echo "[UX-HOOK] Running branding setup..."
+        chmod +x "${SCRIPT_DIR}/01-setup-branding.sh"
+        bash "${SCRIPT_DIR}/01-setup-branding.sh"
+    fi
+    
+    # Execute user environment setup
+    if [ -f "${SCRIPT_DIR}/02-user-env.sh" ]; then
+        echo "[UX-HOOK] Running user environment setup..."
+        chmod +x "${SCRIPT_DIR}/02-user-env.sh"
+        bash "${SCRIPT_DIR}/02-user-env.sh"
+    fi
+else
+    echo "[UX-HOOK] Warning: Scripts directory not found at ${SCRIPT_DIR}"
+fi
+
+echo ""
+echo "=============================================="
+echo "  TaaOS UX Branding Hook - COMPLETE!"
+echo "=============================================="

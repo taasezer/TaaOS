@@ -1,0 +1,99 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Kernel Setup Hook - CRITICAL for Custom Kernel Boot
+# =============================================================================
+# This hook MUST run after kernel packages are installed
+# It creates the symlinks that live-build requires for /live/ directory
+# =============================================================================
+
+set -e
+
+echo "=============================================="
+echo "[KERNEL-HOOK] TaaOS Custom Kernel Setup"
+echo "=============================================="
+
+# Find all installed kernel versions
+echo "[KERNEL-HOOK] Scanning for installed kernels..."
+ls -la /lib/modules/ 2>/dev/null || echo "No /lib/modules found"
+ls -la /boot/ 2>/dev/null || echo "No /boot found"
+
+# Find the TaaOS custom kernel (with -taaos suffix)
+KERNEL_VERSION=$(ls /lib/modules/ 2>/dev/null | grep -E "taaos|custom" | head -1)
+
+# If no taaos kernel, get any available kernel
+if [ -z "$KERNEL_VERSION" ]; then
+    KERNEL_VERSION=$(ls /lib/modules/ 2>/dev/null | head -1)
+fi
+
+if [ -z "$KERNEL_VERSION" ]; then
+    echo "[KERNEL-HOOK] ERROR: No kernel found in /lib/modules/"
+    echo "[KERNEL-HOOK] Contents of /lib/modules/:"
+    ls -la /lib/modules/ || echo "Directory empty or missing"
+    exit 1
+fi
+
+echo "[KERNEL-HOOK] Found kernel version: $KERNEL_VERSION"
+
+# Check if kernel image exists
+VMLINUZ="/boot/vmlinuz-${KERNEL_VERSION}"
+if [ ! -f "$VMLINUZ" ]; then
+    echo "[KERNEL-HOOK] Looking for kernel image..."
+    VMLINUZ=$(find /boot -name "vmlinuz*" -type f | head -1)
+fi
+
+if [ -z "$VMLINUZ" ] || [ ! -f "$VMLINUZ" ]; then
+    echo "[KERNEL-HOOK] ERROR: No vmlinuz found in /boot/"
+    ls -la /boot/
+    exit 1
+fi
+
+echo "[KERNEL-HOOK] Kernel image: $VMLINUZ"
+
+# Generate initramfs if not exists
+INITRD="/boot/initrd.img-${KERNEL_VERSION}"
+if [ ! -f "$INITRD" ]; then
+    echo "[KERNEL-HOOK] Generating initramfs..."
+    update-initramfs -c -k "${KERNEL_VERSION}" || {
+        echo "[KERNEL-HOOK] update-initramfs failed, trying mkinitramfs..."
+        mkinitramfs -o "$INITRD" "${KERNEL_VERSION}" || echo "[KERNEL-HOOK] mkinitramfs also failed"
+    }
+fi
+
+# Find initrd file
+if [ ! -f "$INITRD" ]; then
+    INITRD=$(find /boot -name "initrd*" -type f | head -1)
+fi
+
+if [ -z "$INITRD" ] || [ ! -f "$INITRD" ]; then
+    echo "[KERNEL-HOOK] WARNING: No initrd found, boot may fail"
+else
+    echo "[KERNEL-HOOK] Initrd: $INITRD"
+fi
+
+# Create generic symlinks in /boot (live-build expects these)
+echo "[KERNEL-HOOK] Creating symlinks..."
+
+cd /boot
+
+# Remove old symlinks if they exist
+rm -f vmlinuz initrd.img vmlinuz.old initrd.img.old
+
+# Create new symlinks with generic names
+ln -sf "$(basename $VMLINUZ)" vmlinuz
+echo "[KERNEL-HOOK] Created: /boot/vmlinuz -> $(basename $VMLINUZ)"
+
+if [ -f "$INITRD" ]; then
+    ln -sf "$(basename $INITRD)" initrd.img
+    echo "[KERNEL-HOOK] Created: /boot/initrd.img -> $(basename $INITRD)"
+fi
+
+# Verify
+echo ""
+echo "[KERNEL-HOOK] Verification:"
+ls -la /boot/vmlinuz* /boot/initrd* 2>/dev/null || echo "Some files missing"
+
+echo ""
+echo "=============================================="
+echo "[KERNEL-HOOK] Kernel setup completed!"
+echo "[KERNEL-HOOK] Kernel: $KERNEL_VERSION"
+echo "=============================================="

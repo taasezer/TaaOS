@@ -1,0 +1,383 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS User Setup & Theming Hook - Torvalds Edition
+# =============================================================================
+# Final setup hook: creates default user, configures XFCE theming,
+# enables ECC monitoring, and sets up the desktop environment.
+# Location: config/hooks/normal/99-user.hook.chroot
+# Executed during: chroot stage of live-build (runs last due to 99- prefix)
+# =============================================================================
+
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Color Output Helpers
+# -----------------------------------------------------------------------------
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+MAGENTA='\033[0;35m'
+NC='\033[0m'
+
+log_info() {
+    echo -e "${BLUE}[USER]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[USER]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[USER]${NC} $1"
+}
+
+log_theme() {
+    echo -e "${MAGENTA}[THEME]${NC} $1"
+}
+
+# =============================================================================
+# SECTION 1: CREATE DEFAULT USER
+# =============================================================================
+create_user() {
+    log_info "Creating default user 'engineer'..."
+
+    # Create user with home directory
+    useradd -m -s /bin/bash -c "TaaOS Engineer" engineer || log_warning "User may already exist"
+
+    # Set password (engineer:engineer)
+    echo "engineer:engineer" | chpasswd
+
+    # Add user to groups
+    usermod -aG sudo,docker,video engineer || log_warning "Some groups may not exist yet"
+
+    log_success "User 'engineer' created with groups: sudo, docker, video"
+}
+
+# =============================================================================
+# SECTION 2: WALLPAPERS DIRECTORY
+# =============================================================================
+setup_wallpapers() {
+    log_info "Setting up wallpapers directory..."
+
+    # Create wallpapers directory in skeleton (for new users)
+    mkdir -p /etc/skel/Pictures/Wallpapers
+
+    # Create a placeholder readme
+    cat > /etc/skel/Pictures/Wallpapers/README.txt << 'EOF'
+TaaOS Wallpapers Directory
+===========================
+Place your wallpaper images here.
+Use 'nitrogen' to set your desktop wallpaper.
+EOF
+
+    # Also create for the engineer user
+    mkdir -p /home/engineer/Pictures/Wallpapers
+    cp /etc/skel/Pictures/Wallpapers/README.txt /home/engineer/Pictures/Wallpapers/
+    chown -R engineer:engineer /home/engineer/Pictures
+
+    log_success "Wallpapers directory created"
+}
+
+# =============================================================================
+# SECTION 3: ENABLE ECC MONITORING (RASDAEMON)
+# =============================================================================
+enable_ecc_monitoring() {
+    log_info "Enabling ECC memory monitoring (rasdaemon)..."
+
+    # Enable rasdaemon service
+    systemctl enable rasdaemon || log_warning "Could not enable rasdaemon (may not be running in chroot)"
+
+    log_success "rasdaemon service enabled"
+}
+
+# =============================================================================
+# SECTION 4: XFCE CONFIGURATION - XSETTINGS.XML
+# =============================================================================
+create_xsettings_config() {
+    log_theme "Creating XFCE xsettings.xml (Materia-light theme)..."
+
+    # Create XFCE config directory in skeleton
+    mkdir -p /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml
+
+    cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << 'XSETTINGS_EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+
+<channel name="xsettings" version="1.0">
+  <property name="Net" type="empty">
+    <property name="ThemeName" type="string" value="Materia-light"/>
+    <property name="IconThemeName" type="string" value="Papirus"/>
+    <property name="DoubleClickTime" type="int" value="400"/>
+    <property name="DoubleClickDistance" type="int" value="5"/>
+    <property name="DndDragThreshold" type="int" value="8"/>
+    <property name="CursorBlink" type="bool" value="true"/>
+    <property name="CursorBlinkTime" type="int" value="1200"/>
+    <property name="SoundThemeName" type="string" value="default"/>
+    <property name="EnableEventSounds" type="bool" value="false"/>
+    <property name="EnableInputFeedbackSounds" type="bool" value="false"/>
+  </property>
+  <property name="Xft" type="empty">
+    <property name="DPI" type="int" value="96"/>
+    <property name="Antialias" type="int" value="1"/>
+    <property name="Hinting" type="int" value="1"/>
+    <property name="HintStyle" type="string" value="hintslight"/>
+    <property name="RGBA" type="string" value="rgb"/>
+  </property>
+  <property name="Gtk" type="empty">
+    <property name="CanChangeAccels" type="bool" value="false"/>
+    <property name="ColorPalette" type="string" value="black:white:gray50:red:purple:blue:light blue:green:yellow:orange:lavender:brown:goldenrod4:dodger blue:pink:light green:gray10:gray30:gray75:gray90"/>
+    <property name="FontName" type="string" value="Fira Code 10"/>
+    <property name="MonospaceFontName" type="string" value="Fira Code 10"/>
+    <property name="IconSizes" type="string" value=""/>
+    <property name="KeyThemeName" type="string" value=""/>
+    <property name="ToolbarStyle" type="string" value="icons"/>
+    <property name="ToolbarIconSize" type="int" value="3"/>
+    <property name="MenuImages" type="bool" value="true"/>
+    <property name="ButtonImages" type="bool" value="true"/>
+    <property name="MenuBarAccel" type="string" value="F10"/>
+    <property name="CursorThemeName" type="string" value=""/>
+    <property name="CursorThemeSize" type="int" value="0"/>
+    <property name="DecorationLayout" type="string" value="menu:minimize,maximize,close"/>
+  </property>
+</channel>
+XSETTINGS_EOF
+
+    log_success "xsettings.xml created with Materia-light theme"
+}
+
+# =============================================================================
+# SECTION 5: XFCE CONFIGURATION - XFWM4.XML
+# =============================================================================
+create_xfwm4_config() {
+    log_theme "Creating XFCE xfwm4.xml (Window Manager)..."
+
+    cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'XFWM4_EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="activate_action" type="string" value="bring"/>
+    <property name="borderless_maximize" type="bool" value="true"/>
+    <property name="box_move" type="bool" value="false"/>
+    <property name="box_resize" type="bool" value="false"/>
+    <property name="button_layout" type="string" value="O|HMC"/>
+    <property name="button_offset" type="int" value="0"/>
+    <property name="button_spacing" type="int" value="0"/>
+    <property name="click_to_focus" type="bool" value="true"/>
+    <property name="cycle_apps_only" type="bool" value="false"/>
+    <property name="cycle_draw_frame" type="bool" value="true"/>
+    <property name="cycle_raise" type="bool" value="false"/>
+    <property name="cycle_hidden" type="bool" value="true"/>
+    <property name="cycle_minimum" type="bool" value="true"/>
+    <property name="cycle_minimized" type="bool" value="false"/>
+    <property name="cycle_preview" type="bool" value="true"/>
+    <property name="cycle_tabwin_mode" type="int" value="0"/>
+    <property name="cycle_workspaces" type="bool" value="false"/>
+    <property name="double_click_action" type="string" value="maximize"/>
+    <property name="double_click_distance" type="int" value="5"/>
+    <property name="double_click_time" type="int" value="400"/>
+    <property name="easy_click" type="string" value="Alt"/>
+    <property name="focus_delay" type="int" value="250"/>
+    <property name="focus_hint" type="bool" value="true"/>
+    <property name="focus_new" type="bool" value="true"/>
+    <property name="frame_opacity" type="int" value="100"/>
+    <property name="full_width_title" type="bool" value="true"/>
+    <property name="horiz_scroll_opacity" type="bool" value="false"/>
+    <property name="inactive_opacity" type="int" value="100"/>
+    <property name="maximized_offset" type="int" value="0"/>
+    <property name="mousewheel_rollup" type="bool" value="true"/>
+    <property name="move_opacity" type="int" value="100"/>
+    <property name="placement_mode" type="string" value="center"/>
+    <property name="placement_ratio" type="int" value="20"/>
+    <property name="popup_opacity" type="int" value="100"/>
+    <property name="prevent_focus_stealing" type="bool" value="false"/>
+    <property name="raise_delay" type="int" value="250"/>
+    <property name="raise_on_click" type="bool" value="true"/>
+    <property name="raise_on_focus" type="bool" value="false"/>
+    <property name="raise_with_any_button" type="bool" value="true"/>
+    <property name="repeat_urgent_blink" type="bool" value="false"/>
+    <property name="resize_opacity" type="int" value="100"/>
+    <property name="scroll_workspaces" type="bool" value="true"/>
+    <property name="shadow_delta_height" type="int" value="0"/>
+    <property name="shadow_delta_width" type="int" value="0"/>
+    <property name="shadow_delta_x" type="int" value="0"/>
+    <property name="shadow_delta_y" type="int" value="-3"/>
+    <property name="shadow_opacity" type="int" value="50"/>
+    <property name="show_app_icon" type="bool" value="false"/>
+    <property name="show_dock_shadow" type="bool" value="true"/>
+    <property name="show_frame_shadow" type="bool" value="true"/>
+    <property name="show_popup_shadow" type="bool" value="false"/>
+    <property name="snap_resist" type="bool" value="false"/>
+    <property name="snap_to_border" type="bool" value="true"/>
+    <property name="snap_to_windows" type="bool" value="false"/>
+    <property name="snap_width" type="int" value="10"/>
+    <property name="theme" type="string" value="Materia-light"/>
+    <property name="tile_on_move" type="bool" value="true"/>
+    <property name="title_alignment" type="string" value="center"/>
+    <property name="title_font" type="string" value="Fira Code Bold 9"/>
+    <property name="title_horizontal_offset" type="int" value="0"/>
+    <property name="title_shadow_active" type="string" value="false"/>
+    <property name="title_shadow_inactive" type="string" value="false"/>
+    <property name="title_vertical_offset_active" type="int" value="0"/>
+    <property name="title_vertical_offset_inactive" type="int" value="0"/>
+    <property name="toggle_workspaces" type="bool" value="false"/>
+    <property name="unredirect_overlays" type="bool" value="true"/>
+    <property name="urgent_blink" type="bool" value="false"/>
+    <property name="use_compositing" type="bool" value="true"/>
+    <property name="vblank_mode" type="string" value="auto"/>
+    <property name="workspace_count" type="int" value="4"/>
+    <property name="workspace_names" type="array">
+      <value type="string" value="Main"/>
+      <value type="string" value="Dev"/>
+      <value type="string" value="Web"/>
+      <value type="string" value="Misc"/>
+    </property>
+    <property name="wrap_cycle" type="bool" value="true"/>
+    <property name="wrap_layout" type="bool" value="true"/>
+    <property name="wrap_resistance" type="int" value="10"/>
+    <property name="wrap_windows" type="bool" value="true"/>
+    <property name="wrap_workspaces" type="bool" value="false"/>
+    <property name="zoom_desktop" type="bool" value="true"/>
+    <property name="zoom_pointer" type="bool" value="true"/>
+  </property>
+</channel>
+XFWM4_EOF
+
+    log_success "xfwm4.xml created with Materia-light window decorations"
+}
+
+# =============================================================================
+# SECTION 6: XFCE TERMINAL CONFIGURATION
+# =============================================================================
+create_terminal_config() {
+    log_theme "Creating XFCE Terminal config (Solarized Light)..."
+
+    mkdir -p /etc/skel/.config/xfce4/terminal
+
+    cat > /etc/skel/.config/xfce4/terminal/terminalrc << 'TERMINALRC_EOF'
+[Configuration]
+MiscAlwaysShowTabs=FALSE
+MiscBell=FALSE
+MiscBellUrgent=FALSE
+MiscBordersDefault=TRUE
+MiscCursorBlinks=FALSE
+MiscCursorShape=TERMINAL_CURSOR_SHAPE_BLOCK
+MiscDefaultGeometry=120x35
+MiscInheritGeometry=FALSE
+MiscMenubarDefault=TRUE
+MiscMouseAutohide=FALSE
+MiscMouseWheelZoom=TRUE
+MiscToolbarDefault=FALSE
+MiscConfirmClose=TRUE
+MiscCycleTabs=TRUE
+MiscTabCloseButtons=TRUE
+MiscTabCloseMiddleClick=TRUE
+MiscTabPosition=GTK_POS_TOP
+MiscHighlightUrls=TRUE
+MiscMiddleClickOpensUri=FALSE
+MiscCopyOnSelect=FALSE
+MiscShowRelaunchDialog=TRUE
+MiscRewrapOnResize=TRUE
+MiscUseShiftArrowsToScroll=FALSE
+MiscSlimTabs=FALSE
+MiscNewTabAdjacent=FALSE
+MiscSearchDialogOpacity=100
+MiscShowUnsafePasteDialog=TRUE
+ScrollingBar=TERMINAL_SCROLLBAR_NONE
+ScrollingUnlimited=FALSE
+ScrollingLines=10000
+ScrollingOnOutput=FALSE
+ScrollingOnKeystroke=TRUE
+TitleMode=TERMINAL_TITLE_REPLACE
+FontName=Fira Code 11
+ColorForeground=#657b83
+ColorBackground=#fdf6e3
+ColorCursor=#657b83
+ColorCursorUseDefault=FALSE
+ColorSelection=#93a1a1
+ColorSelectionUseDefault=FALSE
+ColorBold=#073642
+ColorBoldUseDefault=FALSE
+ColorPalette=#073642;#dc322f;#859900;#b58900;#268bd2;#d33682;#2aa198;#eee8d5;#002b36;#cb4b16;#586e75;#657b83;#839496;#6c71c4;#93a1a1;#fdf6e3
+TabActivityColor=#dc322f
+ColorBoldIsBright=FALSE
+ColorUseTheme=FALSE
+BackgroundMode=TERMINAL_BACKGROUND_SOLID
+BackgroundDarkness=0.950000
+TERMINALRC_EOF
+
+    log_success "terminalrc created with Solarized Light color scheme"
+}
+
+# =============================================================================
+# SECTION 7: COPY CONFIGS TO ENGINEER USER
+# =============================================================================
+copy_configs_to_user() {
+    log_info "Copying configurations to engineer user..."
+
+    # Copy all skeleton configs to engineer home
+    cp -r /etc/skel/.config /home/engineer/
+    chown -R engineer:engineer /home/engineer/.config
+
+    log_success "Configurations copied to /home/engineer"
+}
+
+# =============================================================================
+# CLEANUP
+# =============================================================================
+cleanup() {
+    log_info "Cleaning up..."
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    log_success "Cleanup completed"
+}
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+main() {
+    echo ""
+    echo "=================================================="
+    echo "  TaaOS User Setup & Theming Hook"
+    echo "=================================================="
+    echo ""
+
+    create_user
+    echo ""
+
+    setup_wallpapers
+    echo ""
+
+    enable_ecc_monitoring
+    echo ""
+
+    create_xsettings_config
+    echo ""
+
+    create_xfwm4_config
+    echo ""
+
+    create_terminal_config
+    echo ""
+
+    copy_configs_to_user
+    echo ""
+
+    cleanup
+    echo ""
+
+    echo "=================================================="
+    echo "  User Setup Hook completed!"
+    echo "=================================================="
+    echo ""
+    echo "  User:      engineer (password: engineer)"
+    echo "  Groups:    sudo, docker, video"
+    echo "  Theme:     Materia-light"
+    echo "  Icons:     Papirus"
+    echo "  Font:      Fira Code"
+    echo "  Terminal:  Solarized Light"
+    echo "  ECC:       rasdaemon enabled"
+    echo ""
+}
+
+# Run main function
+main "$@"

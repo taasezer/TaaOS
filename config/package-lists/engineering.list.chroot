@@ -1,0 +1,87 @@
+# =============================================================================
+# TaaOS Engineering Arsenal Package List - Torvalds Edition
+# =============================================================================
+# Development tools, compilers, runtimes, and utilities for engineers.
+# Location: config/package-lists/engineering.list.chroot
+# =============================================================================
+
+# =============================================================================
+# SECTION 1: VERSION CONTROL SYSTEMS
+# =============================================================================
+
+# Git - Distributed Version Control
+git
+
+# Git Large File Storage
+git-lfs
+
+# Text-mode interface for Git
+tig
+
+# =============================================================================
+# SECTION 2: COMPILERS & BUILD TOOLS
+# =============================================================================
+
+# GNU Compiler Collection (C)
+gcc
+
+# GNU Compiler Collection (C++)
+g++
+
+# GNU Make
+make
+
+# CMake Build System
+cmake
+
+# GNU Debugger
+gdb
+
+# LLVM/Clang Compiler Infrastructure
+clang
+llvm
+
+# LLVM Debugger
+lldb
+
+# =============================================================================
+# SECTION 3: LANGUAGE RUNTIMES
+# =============================================================================
+
+# Python 3 (Full Installation)
+python3-full
+
+# Python Package Installer
+python3-pip
+
+# Python Virtual Environments
+python3-venv
+
+# Go Programming Language
+golang-go
+
+# Java Development Kit (OpenJDK)
+default-jdk
+
+# Node.js JavaScript Runtime
+nodejs
+
+# Node Package Manager
+npm
+
+# =============================================================================
+# SECTION 4: ESSENTIAL TOOLS
+# =============================================================================
+
+# Terminal Multiplexer
+tmux
+
+# JSON Processor
+jq
+
+# Directory Listing as Tree
+tree
+
+# Archive Utilities
+zip
+unzip

@@ -1,0 +1,17 @@
+live-boot
+live-config
+live-config-systemd
+systemd-sysv
+initramfs-tools
+kmod
+
+# EFI Bootloader Support (CRITICAL)
+grub-efi-amd64
+grub-efi-amd64-bin
+grub-efi-ia32-bin
+grub-pc-bin
+shim-signed
+shim-helpers-amd64-signed
+efibootmgr
+mtools
+dosfstools

@@ -1,0 +1,374 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Security Fortress & Integrity Hook - Torvalds Edition
+# =============================================================================
+# This hook configures security hardening, firewall, system integrity tools,
+# and installs essential productivity applications.
+# Location: config/hooks/normal/03-security.hook.chroot
+# Executed during: chroot stage of live-build
+# =============================================================================
+
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Color Output Helpers
+# -----------------------------------------------------------------------------
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+NC='\033[0m'
+
+log_info() {
+    echo -e "${BLUE}[SECURITY]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SECURITY]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[SECURITY]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[SECURITY]${NC} $1"
+}
+
+log_shield() {
+    echo -e "${MAGENTA}[FORTRESS]${NC} $1"
+}
+
+# =============================================================================
+# SECTION 1: FIREWALL (UFW)
+# =============================================================================
+configure_firewall() {
+    log_shield "Configuring Firewall..."
+
+    # Install UFW and GUI
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        ufw \
+        gufw
+
+    # Configure UFW defaults
+    log_info "Setting firewall defaults..."
+    
+    # Reset to defaults first
+    ufw --force reset
+
+    # Set default policies: Deny incoming, Allow outgoing
+    ufw default deny incoming
+    ufw default allow outgoing
+
+    # Allow some common services (optional, can be customized)
+    # SSH - uncomment if needed
+    # ufw allow ssh
+
+    # Enable UFW
+    log_info "Enabling UFW firewall..."
+    ufw --force enable
+
+    # Show status
+    ufw status verbose
+
+    log_success "Firewall configured: Deny Incoming, Allow Outgoing"
+}
+
+# =============================================================================
+# SECTION 2: INTEGRITY & REPAIR TOOLS
+# =============================================================================
+install_integrity_tools() {
+    log_shield "Installing Integrity & Repair Tools..."
+
+    # Install integrity and system tools
+    apt-get install -y --no-install-recommends \
+        debsums \
+        timeshift \
+        gparted \
+        needrestart
+
+    log_success "Integrity tools installed: debsums, timeshift, gparted, needrestart"
+}
+
+# =============================================================================
+# SECTION 3: HEALTH CHECK HELPER SCRIPT
+# =============================================================================
+create_health_check() {
+    log_info "Creating health-check helper script..."
+
+    cat > /usr/local/bin/health-check << 'HEALTH_CHECK_EOF'
+#!/bin/bash
+# =============================================================================
+# TaaOS Health Check - System Integrity Verification
+# =============================================================================
+# Runs various system health and integrity checks.
+# Usage: health-check [--full]
+# =============================================================================
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+print_header() {
+    echo ""
+    echo -e "${CYAN}╔═══════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║${NC}           ${GREEN}TaaOS Health Check - System Integrity${NC}             ${CYAN}║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+}
+
+check_package_integrity() {
+    echo -e "${BLUE}[1/5]${NC} Checking package integrity with debsums..."
+    echo "      This verifies installed package files against their checksums."
+    echo ""
+    
+    # Run debsums in silent mode (only show errors)
+    local result
+    if result=$(debsums -s 2>&1); then
+        if [[ -z "$result" ]]; then
+            echo -e "      ${GREEN}✓ All package files verified successfully${NC}"
+        else
+            echo -e "      ${YELLOW}⚠ Some files have been modified:${NC}"
+            echo "$result" | head -20
+        fi
+    else
+        echo -e "      ${RED}✗ Error running debsums${NC}"
+    fi
+    echo ""
+}
+
+check_disk_health() {
+    echo -e "${BLUE}[2/5]${NC} Checking disk health..."
+    echo ""
+    
+    # Check disk usage
+    echo "      Disk Usage:"
+    df -h / /home 2>/dev/null | awk 'NR==1 || /\/$/ || /\/home$/' | while read line; do
+        echo "      $line"
+    done
+    echo ""
+    
+    # Check for SMART status if smartctl is available
+    if command -v smartctl &> /dev/null; then
+        echo "      S.M.A.R.T. Status:"
+        for disk in /dev/sd? /dev/nvme?n?; do
+            if [[ -b "$disk" ]]; then
+                local status
+                status=$(smartctl -H "$disk" 2>/dev/null | grep -i "overall" || echo "Unknown")
+                echo "      $disk: $status"
+            fi
+        done 2>/dev/null || echo "      No disks found or requires root"
+    else
+        echo "      smartctl not available"
+    fi
+    echo ""
+}
+
+check_memory_ecc() {
+    echo -e "${BLUE}[3/5]${NC} Checking ECC memory status..."
+    echo ""
+    
+    # Check EDAC for ECC errors
+    if [[ -d /sys/devices/system/edac/mc ]]; then
+        local ce_count=0
+        local ue_count=0
+        for mc in /sys/devices/system/edac/mc/mc*; do
+            if [[ -f "$mc/ce_count" ]]; then
+                ce_count=$((ce_count + $(cat "$mc/ce_count")))
+            fi
+            if [[ -f "$mc/ue_count" ]]; then
+                ue_count=$((ue_count + $(cat "$mc/ue_count")))
+            fi
+        done
+        echo "      Correctable Errors: $ce_count"
+        echo "      Uncorrectable Errors: $ue_count"
+        if [[ $ue_count -eq 0 ]]; then
+            echo -e "      ${GREEN}✓ No uncorrectable ECC errors${NC}"
+        else
+            echo -e "      ${RED}✗ Uncorrectable ECC errors detected!${NC}"
+        fi
+    else
+        echo "      EDAC not available (no ECC memory or module not loaded)"
+    fi
+    echo ""
+}
+
+check_services() {
+    echo -e "${BLUE}[4/5]${NC} Checking critical services..."
+    echo ""
+    
+    local services=("ufw" "NetworkManager" "docker" "ollama")
+    for svc in "${services[@]}"; do
+        if systemctl is-enabled "$svc" &>/dev/null; then
+            local status
+            status=$(systemctl is-active "$svc" 2>/dev/null || echo "inactive")
+            if [[ "$status" == "active" ]]; then
+                echo -e "      ${GREEN}●${NC} $svc: $status"
+            else
+                echo -e "      ${YELLOW}○${NC} $svc: $status"
+            fi
+        fi
+    done
+    echo ""
+}
+
+check_security() {
+    echo -e "${BLUE}[5/5]${NC} Checking security status..."
+    echo ""
+    
+    # Firewall status
+    if command -v ufw &> /dev/null; then
+        local ufw_status
+        ufw_status=$(ufw status | head -1)
+        echo "      Firewall: $ufw_status"
+    fi
+    
+    # Check for pending security updates
+    if command -v apt-get &> /dev/null; then
+        local updates
+        updates=$(apt-get -s upgrade 2>/dev/null | grep -c "^Inst" || echo "0")
+        echo "      Pending updates: $updates packages"
+    fi
+    
+    # Check if reboot is required
+    if [[ -f /var/run/reboot-required ]]; then
+        echo -e "      ${YELLOW}⚠ System reboot required${NC}"
+    else
+        echo -e "      ${GREEN}✓ No reboot required${NC}"
+    fi
+    echo ""
+}
+
+print_summary() {
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "  Health check completed at $(date '+%Y-%m-%d %H:%M:%S')"
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
+# Main
+main() {
+    print_header
+    check_package_integrity
+    check_disk_health
+    check_memory_ecc
+    check_services
+    check_security
+    print_summary
+}
+
+main "$@"
+HEALTH_CHECK_EOF
+
+    chmod +x /usr/local/bin/health-check
+
+    log_success "Health check script created at /usr/local/bin/health-check"
+}
+
+# =============================================================================
+# SECTION 4: GOOGLE CHROME
+# =============================================================================
+install_chrome() {
+    log_info "Installing Google Chrome..."
+
+    # Download Chrome .deb package
+    wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O /tmp/google-chrome.deb
+
+    # Install Chrome (this will also install dependencies)
+    apt-get install -y /tmp/google-chrome.deb || {
+        # If dependencies are missing, fix them
+        apt-get install -f -y
+        apt-get install -y /tmp/google-chrome.deb
+    }
+
+    # Clean up
+    rm -f /tmp/google-chrome.deb
+
+    log_success "Google Chrome installed"
+}
+
+# NOTE: VS Code is installed by 01-frameworks.hook.chroot
+
+# =============================================================================
+# SECTION 6: DBEAVER COMMUNITY EDITION
+# =============================================================================
+install_dbeaver() {
+    log_info "Installing DBeaver Community Edition..."
+
+    # Download DBeaver .deb package
+    local DBEAVER_VERSION="23.3.1"
+    wget -q "https://dbeaver.io/files/${DBEAVER_VERSION}/dbeaver-ce_${DBEAVER_VERSION}_amd64.deb" -O /tmp/dbeaver.deb || {
+        # Try latest if specific version fails
+        wget -q "https://dbeaver.io/files/dbeaver-ce_latest_amd64.deb" -O /tmp/dbeaver.deb
+    }
+
+    # Install DBeaver
+    apt-get install -y /tmp/dbeaver.deb || {
+        apt-get install -f -y
+        apt-get install -y /tmp/dbeaver.deb
+    }
+
+    # Clean up
+    rm -f /tmp/dbeaver.deb
+
+    log_success "DBeaver Community Edition installed"
+}
+
+# =============================================================================
+# CLEANUP
+# =============================================================================
+cleanup() {
+    log_info "Cleaning up..."
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    log_success "Cleanup completed"
+}
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+main() {
+    echo ""
+    echo "=================================================="
+    echo "  TaaOS Security Fortress & Integrity Hook"
+    echo "=================================================="
+    echo ""
+
+    configure_firewall
+    echo ""
+
+    install_integrity_tools
+    echo ""
+
+    create_health_check
+    echo ""
+
+    install_chrome
+    echo ""
+
+    install_dbeaver
+    echo ""
+
+    cleanup
+    echo ""
+
+    echo "=================================================="
+    echo "  Security Fortress Hook completed!"
+    echo "=================================================="
+    echo ""
+    echo "  Firewall: UFW enabled (Deny In / Allow Out)"
+    echo "  Health:   Run 'health-check' for system integrity"
+    echo "  Apps:     Chrome, VS Code, DBeaver installed"
+    echo ""
+}
+
+# Run main function
+main "$@"
