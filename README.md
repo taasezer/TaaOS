@@ -1,5 +1,109 @@
 # TaaOS
 
+TaaOS is a professional Linux distribution built on the **Debian 12 (Bookworm)** infrastructure, optimized specifically for **software engineers, data scientists, and DevOps experts**. The system comes pre-loaded with modern development tools, AI libraries, and automation services.
+
+## Built-in Features and Software Packages
+
+TaaOS offers the following tools and libraries ready to use after installation, without requiring additional configuration:
+
+### Programming Languages and Installed Libraries
+
+TaaOS comes with the following languages and libraries:
+
+*   **Python (AI & Data Science)**
+    *   **Version**: Python 3.11+
+    *   **Artificial Intelligence (AI)**: `tensorflow-cpu`, `torch` (PyTorch CPU), `scikit-learn`, `xgboost`, `ollama`, `rich`
+    *   **Data Science**: `numpy`, `pandas`, `scipy`, `matplotlib`, `seaborn`
+    *   **Image Processing**: `opencv-python-headless`, `pillow`
+    *   **Web & API**: `django`, `flask`, `fastapi`, `uvicorn`, `requests`, `httpx`
+    *   **Tools**: `jupyter`, `jupyterlab`, `notebook`, `tqdm`, `click`, `pyyaml`, `python-dotenv`, `virtualenv`
+
+*   **C / C++ (System Programming)**
+    *   **Compilers**: GCC, G++, Clang, LLVM, MinGW-w64 (Cross-compile)
+    *   **Build Systems**: CMake, Ninja, Make, Autoconf, Automake, Libtool, Pkg-config
+    *   **Debug/Analysis**: GDB, Valgrind, Strace, Ltrace
+    *   **Installed Libraries**: 
+        *   `libboost-all-dev`: Boost C++ Libraries
+        *   `libssl-dev`: OpenSSL Development Files
+        *   `libcurl4-openssl-dev`: cURL Transfer Library
+        *   `libjson-c-dev`: JSON-C Handler
+        *   `libsqlite3-dev`: SQLite3 Database
+        *   `libstdc++-12-dev`: GNU Standard C++ Library v3
+
+*   **C# / .NET (Microsoft)**
+    *   **SDK**: .NET 8 SDK (`dotnet-sdk-8.0`)
+    *   **Runtime**: ASP.NET Core Runtime 8.0
+    *   **Tools**: NuGet Package Manager
+
+*   **JavaScript / Node.js**
+    *   **Runtime**: Node.js v20.x (LTS)
+    *   **Package Manager**: npm (Latest)
+    *   **Global Tools**: n8n (Workflow Automation)
+
+*   **Rust**
+    *   **Core**: `rustc` (Compiler), `cargo` (Package Manager)
+    *   **Source**: Debian stable repositories
+
+*   **Other Languages**
+    *   **Java**: OpenJDK (Default JDK/JRE)
+    *   **Go (Golang)**: Go Programming Language Compiler
+    *   **Perl**: Standard installation
+    *   **Bash/Shell**: Modern Bash, scripting tools
+
+### AI Assistant (Natural Engine)
+*   **Natural Engine**: A local AI assistant using the installed `python` and `ollama` infrastructure.
+*   **Usage**: Translates natural language requests into Bash commands by typing `natural "list files"` or `n "update system"` in the terminal.
+
+### DevOps and Container Management
+*   **Docker**: Docker Engine CE, Docker Buildx
+*   **Orchestration**: Docker Compose (v2)
+*   **Management Interfaces**: 
+    *   Portainer CE (Web-based Docker management)
+    *   Lazydocker (Terminal-based interface)
+    *   Ctop (Container monitoring)
+*   **Cloud Tools**: AWS CLI, Google Cloud SDK (optional add-on), Git, Git-LFS
+
+### System Management and Automation
+*   **Automation**: **n8n** workflow automation service (Pre-installed and runs as a service).
+*   **System Panel**: **Cockpit** web-based management console (Storage, Network, Updates).
+*   **Backup**: **Timeshift** system restore points (Snapshot).
+*   **Virtualization**: KVM/QEMU, Libvirt, Virt-Manager (Virtual Machine Management).
+*   **Network Analysis**: Wireshark, Nmap, Tcpdump, Htop, Btop, Iftop.
+
+### Desktop and IDE
+*   **Desktop Environment**: XFCE4 (Customized, lightweight, and fast).
+*   **Development Environment**: 
+    *   **Visual Studio Code**: Pre-installed. (`vscode-extensions` command installs recommended extensions: Python, C#, Rust, Docker, Copilot, etc.)
+    *   Vim, Nano, Micro editors.
+
+## Build and Installation
+
+TaaOS is built in a Docker-based isolated environment via the `build.sh` script. This method ensures a clean ISO creation without polluting your main system.
+
+### Build Steps
+1.  Open the terminal and navigate to the project directory.
+2.  Run the `build.sh` file:
+    ```bash
+    ./build.sh
+    ```
+3.  Build Process (Automatic):
+    *   **Cleanup**: Old containers and temporary files are cleaned.
+    *   **Docker Environment**: `taaos-builder` image is created.
+    *   **File Injection**: Package lists, libraries, and configuration files are copied into the container.
+    *   **Kernel Build**: (Optional) Customized Linux kernel is compiled.
+    *   **Live-Build**: Debian-based live system (squashfs) and ISO image are created with `lb build` command.
+    *   **Output**: When finished, `TaaOS.iso` file is created in the directory.
+
+### Post-Installation Access
+*   **User**: `engineer` (Password is set during installation or `live` in live mode).
+*   **n8n Panel**: `http://localhost:5678`
+*   **Portainer**: `http://localhost:9000`
+*   **Cockpit**: `https://localhost:9090`
+
+---
+
+# TaaOS (Türkçe)
+
 TaaOS, Debian 12 (Bookworm) altyapısı üzerine inşa edilmiş, yazılım mühendisleri, veri bilimciler ve DevOps uzmanları için özel olarak optimize edilmiş profesyonel bir Linux dağıtımıdır. Sistem, modern geliştirme araçları, yapay zeka kütüphaneleri ve otomasyon servisleri ile yüklü olarak gelir.
 
 ## Dahili Özellikler ve Yazılım Paketleri
