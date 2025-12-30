@@ -1,4 +1,4 @@
-TaaOS/assets/wallpaper.png
+
 # TaaOS
 
 TaaOS is a professional Linux distribution built on the **Debian 12 (Bookworm)** infrastructure, optimized specifically for **software engineers, data scientists, and DevOps experts**. The system comes pre-loaded with modern development tools, AI libraries, and automation services.
