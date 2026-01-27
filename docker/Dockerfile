@@ -18,16 +18,11 @@ RUN apt-get install -y --no-install-recommends \
     syslinux \
     syslinux-common \
     \
-    # Bootloaders (EFI + BIOS)
-    grub-pc \
+    # Bootloaders (EFI + BIOS) - Only -bin packages to avoid conflicts
     grub-pc-bin \
-    grub-efi \
-    grub-efi-amd64 \
     grub-efi-amd64-bin \
     grub-efi-ia32-bin \
-    shim-signed \
-    shim-helpers-amd64-signed \
-    shim-helpers-i386-signed \
+    grub-common \
     efibootmgr \
     \
     # Disk Management (CRITICAL for OS Installation)
@@ -49,11 +44,7 @@ RUN apt-get install -y --no-install-recommends \
     xfsprogs \
     btrfs-progs \
     f2fs-tools \
-    e2fsprogs \
-    \
-    # Boot Repair
-    boot-repair \
-    rescuecd
+    e2fsprogs
 
 # PHASE 2: Kernel Build Deps (UPDATED WITH FIXES)
 # Added: debhelper, libdw-dev, python3-dev, pahole, rsync
