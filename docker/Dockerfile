@@ -8,15 +8,52 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Update and Upgrade
 RUN apt-get update && apt-get upgrade -y
 
-# PHASE 1: ISO Build Deps
+# PHASE 1: ISO Build Deps (EFI Support + Disk Management)
 RUN apt-get install -y --no-install-recommends \
     live-build \
     debootstrap \
     squashfs-tools \
     xorriso \
+    isolinux \
+    syslinux \
+    syslinux-common \
+    \
+    # Bootloaders (EFI + BIOS)
+    grub-pc \
     grub-pc-bin \
+    grub-efi \
+    grub-efi-amd64 \
     grub-efi-amd64-bin \
-    mtools
+    grub-efi-ia32-bin \
+    shim-signed \
+    shim-helpers-amd64-signed \
+    shim-helpers-i386-signed \
+    efibootmgr \
+    \
+    # Disk Management (CRITICAL for OS Installation)
+    parted \
+    gparted \
+    gdisk \
+    fdisk \
+    util-linux \
+    lvm2 \
+    thin-provisioning-tools \
+    mdadm \
+    cryptsetup \
+    cryptsetup-initramfs \
+    \
+    # Filesystem Support
+    mtools \
+    dosfstools \
+    ntfs-3g \
+    xfsprogs \
+    btrfs-progs \
+    f2fs-tools \
+    e2fsprogs \
+    \
+    # Boot Repair
+    boot-repair \
+    rescuecd
 
 # PHASE 2: Kernel Build Deps (UPDATED WITH FIXES)
 # Added: debhelper, libdw-dev, python3-dev, pahole, rsync

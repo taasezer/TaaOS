@@ -1,36 +1,183 @@
 #!/bin/bash
 # =============================================================================
-# TaaOS Live Kernel Copy Hook
+# TaaOS Live Kernel & EFI Copy Hook - CRITICAL for VM Boot
 # =============================================================================
-# This hook runs during the live stage and ensures kernel files are in /live/
+# This hook runs during the binary stage and ensures:
+# 1. Kernel files are in /live/
+# 2. EFI files are properly structured
+# 3. Hybrid ISO compatibility
 # =============================================================================
 
 set -e
 
+echo "=============================================="
+echo "[LIVE-HOOK] TaaOS Live Binary Stage Setup"
+echo "=============================================="
+
+# =============================================================================
+# PART 1: Kernel Files
+# =============================================================================
 echo "[LIVE-HOOK] Copying kernel to /live/ directory..."
 
-# Create /live directory if it doesn't exist
 mkdir -p /live
 
-# Find and copy kernel
-VMLINUZ=$(find /boot -name "vmlinuz*" -type f ! -name "*.old" | head -1)
-INITRD=$(find /boot -name "initrd*" -type f ! -name "*.old" | head -1)
+# Find kernel (check multiple locations)
+VMLINUZ=$(find /boot -name "vmlinuz*" -type f ! -name "*.old" 2>/dev/null | head -1)
+INITRD=$(find /boot -name "initrd*" -type f ! -name "*.old" 2>/dev/null | head -1)
+
+# If not in /boot, check other locations
+if [ -z "$VMLINUZ" ]; then
+    VMLINUZ=$(find / -name "vmlinuz*" -type f 2>/dev/null | grep -v old | head -1)
+fi
+
+if [ -z "$INITRD" ]; then
+    INITRD=$(find / -name "initrd*" -type f -o -name "initramfs*" 2>/dev/null | grep -v old | head -1)
+fi
 
 if [ -n "$VMLINUZ" ]; then
     cp -v "$VMLINUZ" /live/vmlinuz
-    echo "[LIVE-HOOK] Kernel copied to /live/vmlinuz"
+    echo "[LIVE-HOOK] Kernel copied to /live/vmlinuz from: $VMLINUZ"
 else
     echo "[LIVE-HOOK] ERROR: No kernel found!"
+    ls -la /boot/ 2>/dev/null || true
 fi
 
 if [ -n "$INITRD" ]; then
     cp -v "$INITRD" /live/initrd.img
-    echo "[LIVE-HOOK] Initrd copied to /live/initrd.img"
+    echo "[LIVE-HOOK] Initrd copied to /live/initrd.img from: $INITRD"
 else
     echo "[LIVE-HOOK] WARNING: No initrd found!"
 fi
 
+# Verify kernel files
 echo "[LIVE-HOOK] /live/ contents:"
-ls -la /live/
+ls -la /live/ || echo "ERROR: /live/ directory empty!"
 
-echo "[LIVE-HOOK] Done!"
+# =============================================================================
+# PART 2: EFI Structure for Hybrid ISO
+# =============================================================================
+echo ""
+echo "[LIVE-HOOK] Setting up EFI boot structure..."
+
+# Create EFI directories
+mkdir -p /EFI/boot
+mkdir -p /boot/grub
+mkdir -p /boot/efi/EFI/boot 2>/dev/null || true
+
+# Copy EFI bootloaders from various sources
+EFI_SOURCE=""
+for src in /usr/lib/shim /boot/efi/EFI/debian /boot/efi/EFI/BOOT /boot/grub/x86_64-efi; do
+    if [ -d "$src" ]; then
+        EFI_SOURCE="$src"
+        echo "[LIVE-HOOK] Found EFI source: $src"
+        break
+    fi
+done
+
+# Copy shim (signed bootloader)
+for shim in \
+    /usr/lib/shim/shimx64.efi.signed \
+    /usr/lib/shim/shimx64.efi \
+    /boot/efi/EFI/debian/shimx64.efi \
+    /boot/efi/EFI/BOOT/BOOTX64.EFI \
+    /boot/efi/EFI/boot/bootx64.efi
+do
+    if [ -f "$shim" ]; then
+        cp -v "$shim" /EFI/boot/BOOTX64.EFI
+        cp -v "$shim" /EFI/boot/bootx64.efi
+        echo "[LIVE-HOOK] Copied shim: $shim"
+        break
+    fi
+done
+
+# Copy GRUB EFI binary
+for grub in \
+    /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed \
+    /usr/lib/grub/x86_64-efi/monolithic/grubx64.efi \
+    /usr/lib/grub/x86_64-efi/grubx64.efi \
+    /boot/efi/EFI/debian/grubx64.efi \
+    /boot/efi/EFI/boot/grubx64.efi \
+    /boot/grub/x86_64-efi/grub.efi
+do
+    if [ -f "$grub" ]; then
+        cp -v "$grub" /EFI/boot/grubx64.efi
+        echo "[LIVE-HOOK] Copied grubx64.efi: $grub"
+        break
+    fi
+done
+
+# Copy MOK manager
+if [ -f /usr/lib/shim/mmx64.efi ]; then
+    cp -v /usr/lib/shim/mmx64.efi /EFI/boot/
+fi
+
+# Create fallback GRUB config for EFI
+echo "[LIVE-HOOK] Creating EFI GRUB configuration..."
+cat > /EFI/boot/grub.cfg << 'EOF'
+# TaaOS EFI GRUB Configuration
+set default="0"
+set timeout=10
+
+# Search for ISO filesystem
+search --set=root --file /live/vmlinuz
+
+# Load modules
+insmod all_video
+insmod gfxterm
+insmod png
+
+set gfxmode=auto
+terminal_output gfxterm
+
+# Menu entries
+menuentry "TaaOS Live (Safe Mode - VMs)" --class taaos --class os {
+    linux /live/vmlinuz boot=live components nomodeset quiet splash
+    initrd /live/initrd.img
+}
+
+menuentry "TaaOS Live (Normal)" --class taaos --class os {
+    linux /live/vmlinuz boot=live components quiet splash
+    initrd /live/initrd.img
+}
+
+menuentry "TaaOS Live (Debug/TTY)" --class taaos --class os {
+    linux /live/vmlinuz boot=live components nomodeset debug console=tty1
+    initrd /live/initrd.img
+}
+
+menuentry "TaaOS Live (Recovery)" --class taaos --class os {
+    linux /live/vmlinuz boot=live components single nomodeset
+    initrd /live/initrd.img
+}
+EOF
+
+# Copy GRUB config to multiple locations for compatibility
+cp /EFI/boot/grub.cfg /boot/grub/grub.cfg 2>/dev/null || true
+
+# Also create in /boot/efi if it exists
+if [ -d /boot/efi ]; then
+    mkdir -p /boot/efi/EFI/boot
+    cp /EFI/boot/grub.cfg /boot/efi/EFI/boot/grub.cfg 2>/dev/null || true
+fi
+
+# Create 32-bit EFI fallback (for older systems)
+if [ -f /usr/lib/grub/i386-efi/monolithic/grubia32.efi ]; then
+    mkdir -p /EFI/boot
+    cp /usr/lib/grub/i386-efi/monolithic/grubia32.efi /EFI/boot/bootia32.efi
+    echo "[LIVE-HOOK] Added 32-bit EFI support"
+fi
+
+# Verify EFI structure
+echo ""
+echo "[LIVE-HOOK] Verifying EFI structure:"
+ls -laR /EFI/ || echo "Warning: EFI structure incomplete"
+
+echo ""
+echo "[LIVE-HOOK] Verifying boot structure:"
+ls -la /boot/ 2>/dev/null || true
+
+echo "=============================================="
+echo "[LIVE-HOOK] Binary stage setup complete!"
+echo "=============================================="
+EOF
+

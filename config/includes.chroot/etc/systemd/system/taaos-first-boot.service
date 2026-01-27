@@ -1,0 +1,16 @@
+[Unit]
+Description=TaaOS First Boot Configuration
+Documentation=man:taaos(8)
+After=network.target
+Before=display-manager.service
+ConditionFirstBoot=yes
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/taaos/first-boot-config.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

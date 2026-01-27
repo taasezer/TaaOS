@@ -1,0 +1,326 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Full Operating System Configuration
+# =============================================================================
+# This hook configures the system to work as a complete operating system
+# including: fstab, hostname, network, users, services, and hardware support
+# =============================================================================
+
+set -e
+
+echo "=============================================="
+echo "[OS-CONFIG] TaaOS Full OS Configuration"
+echo "=============================================="
+
+# =============================================================================
+# SECTION 1: SYSTEM IDENTITY
+# =============================================================================
+echo "[OS-CONFIG] Setting up system identity..."
+
+# Set hostname
+echo "taaos" > /etc/hostname
+
+# Configure hosts
+cat > /etc/hosts << 'EOF'
+127.0.0.1       localhost
+127.0.1.1       taaos.localdomain        taaos
+
+# The following lines are desirable for IPv6 capable hosts
+::1     localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+EOF
+
+# Set timezone (default to UTC, can be changed during install)
+ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+
+# Configure locale
+echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+locale-gen
+update-locale LANG=en_US.UTF-8
+
+# =============================================================================
+# SECTION 2: FILESYSTEM CONFIGURATION
+# =============================================================================
+echo "[OS-CONFIG] Configuring filesystem support..."
+
+# Ensure fstab exists
+touch /etc/fstab
+
+# Create standard directories
+mkdir -p /home /mnt /media /opt /srv /var/log /var/spool /var/tmp
+chmod 1777 /var/tmp
+
+# Enable periodic TRIM for SSDs
+systemctl enable fstrim.timer 2>/dev/null || true
+
+# =============================================================================
+# SECTION 3: NETWORK CONFIGURATION
+# =============================================================================
+echo "[OS-CONFIG] Configuring network..."
+
+# Enable NetworkManager
+systemctl enable NetworkManager.service
+
+# Configure networking
+cat > /etc/network/interfaces << 'EOF'
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# Allow NetworkManager to manage all interfaces
+allow-hotplug eth0
+iface eth0 inet dhcp
+
+allow-hotplug wlan0
+iface wlan0 inet dhcp
+EOF
+
+# Enable systemd-networkd as fallback
+systemctl enable systemd-networkd.service 2>/dev/null || true
+
+# =============================================================================
+# SECTION 4: STORAGE AND DISK MANAGEMENT
+# =============================================================================
+echo "[OS-CONFIG] Configuring storage management..."
+
+# Enable LVM if installed
+if [ -f /etc/lvm/lvm.conf ]; then
+    echo "[OS-CONFIG] LVM detected, enabling..."
+    systemctl enable lvm2-monitor.service 2>/dev/null || true
+fi
+
+# Enable RAID support if installed
+if [ -f /etc/mdadm/mdadm.conf ]; then
+    echo "[OS-CONFIG] RAID support detected..."
+    systemctl enable mdadm.service 2>/dev/null || true
+fi
+
+# Enable disk encryption (cryptsetup)
+if command -v cryptsetup >/dev/null 2>&1; then
+    echo "[OS-CONFIG] Disk encryption support enabled..."
+    # cryptsetup is usually triggered by initramfs
+fi
+
+# =============================================================================
+# SECTION 5: HARDWARE SUPPORT
+# =============================================================================
+echo "[OS-CONFIG] Configuring hardware support..."
+
+# Enable hardware detection
+update-pciids 2>/dev/null || true
+update-usbids 2>/dev/null || true
+
+# Enable thermal management
+systemctl enable thermald.service 2>/dev/null || true
+
+# Enable CPU frequency scaling
+systemctl enable cpufrequtils.service 2>/dev/null || true
+
+# Enable bluetooth
+systemctl enable bluetooth.service 2>/dev/null || true
+
+# Enable printing (CUPS)
+systemctl enable cups.service 2>/dev/null || true
+
+# Enable sound
+systemctl enable alsa-restore.service 2>/dev/null || true
+systemctl enable pulseaudio.service 2>/dev/null || true
+
+# =============================================================================
+# SECTION 6: SYSTEM SERVICES
+# =============================================================================
+echo "[OS-CONFIG] Configuring system services..."
+
+# Enable cron
+systemctl enable cron.service
+
+# Enable log rotation
+systemctl enable logrotate.timer
+
+# Enable man-db
+systemctl enable man-db.service 2>/dev/null || true
+
+# Enable fstrim for SSDs
+systemctl enable fstrim.timer 2>/dev/null || true
+
+# Enable swap
+systemctl enable swap.target 2>/dev/null || true
+
+# =============================================================================
+# SECTION 7: SECURITY CONFIGURATION
+# =============================================================================
+echo "[OS-CONFIG] Configuring security..."
+
+# Enable AppArmor if available
+if [ -f /etc/apparmor/parser.conf ]; then
+    systemctl enable apparmor.service 2>/dev/null || true
+fi
+
+# Configure sudo
+cat > /etc/sudoers.d/taaos << 'EOF'
+# TaaOS sudo configuration
+# Allow members of group sudo to execute any command
+%sudo ALL=(ALL:ALL) ALL
+
+# Allow user to use sudo without password (for live mode)
+# Comment out for installed system
+engineer ALL=(ALL) NOPASSWD: ALL
+EOF
+
+chmod 440 /etc/sudoers.d/taaos
+
+# Create sudo group if not exists
+getent group sudo >/dev/null || groupadd --system sudo
+
+# =============================================================================
+# SECTION 8: PACKAGE MANAGEMENT
+# =============================================================================
+echo "[OS-CONFIG] Configuring package management..."
+
+# Ensure apt is configured
+cat > /etc/apt/sources.list << 'EOF'
+# Debian 12 (Bookworm) - TaaOS
+deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
+deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+EOF
+
+# Update apt cache
+apt-get update 2>/dev/null || true
+
+# =============================================================================
+# SECTION 9: KERNEL AND BOOT
+# =============================================================================
+echo "[OS-CONFIG] Configuring kernel and boot..."
+
+# Ensure initramfs is updated
+update-initramfs -u -k all 2>/dev/null || true
+
+# Configure kernel modules
+cat > /etc/modules << 'EOF'
+# Kernel modules to load at boot
+# TaaOS specific modules
+
+# Filesystems
+btrfs
+f2fs
+
+# Virtualization
+kvm
+kvm_intel
+kvm_amd
+virtio
+virtio_pci
+virtio_blk
+virtio_net
+
+# Hardware monitoring
+coretemp
+nct6775
+it87
+
+# ECC memory
+edac_core
+edac_mc
+
+# Graphics (safe defaults)
+# drm
+# bochs_drm
+EOF
+
+# =============================================================================
+# SECTION 10: LOGGING AND MONITORING
+# =============================================================================
+echo "[OS-CONFIG] Configuring logging and monitoring..."
+
+# Enable systemd-journald
+systemctl enable systemd-journald.service
+
+# Configure log rotation
+cat > /etc/logrotate.d/taaos << 'EOF'
+/var/log/taaos/*.log {
+    weekly
+    rotate 4
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 640 root adm
+}
+EOF
+
+mkdir -p /var/log/taaos
+
+# =============================================================================
+# SECTION 11: INSTALLER INTEGRATION
+# =============================================================================
+echo "[OS-CONFIG] Configuring installer integration..."
+
+# Create installer marker
+touch /etc/taaos-live-installer
+
+# Create post-install script
+mkdir -p /usr/lib/taaos
+cat > /usr/lib/taaos/post-install.sh << 'EOF'
+#!/bin/bash
+# TaaOS Post-Installation Configuration
+# Runs after Calamares completes installation
+
+set -e
+
+echo "[TaaOS] Running post-installation configuration..."
+
+# Remove live-specific packages
+apt-get remove --purge -y \
+    live-boot \
+    live-config \
+    live-config-systemd \
+    live-boot-doc \
+    2>/dev/null || true
+
+# Remove live user if exists
+if id "live" >/dev/null 2>&1; then
+    userdel -r live 2>/dev/null || true
+fi
+
+# Remove installer marker
+rm -f /etc/taaos-live-installer
+
+# Update grub
+update-grub
+
+# Update initramfs
+update-initramfs -u -k all
+
+# Enable all services for installed system
+systemctl enable NetworkManager
+systemctl enable lightdm
+systemctl enable bluetooth 2>/dev/null || true
+systemctl enable cups 2>/dev/null || true
+
+echo "[TaaOS] Post-installation complete!"
+EOF
+
+chmod +x /usr/lib/taaos/post-install.sh
+
+# =============================================================================
+# COMPLETE
+# =============================================================================
+echo ""
+echo "=============================================="
+echo "[OS-CONFIG] Full OS Configuration Complete!"
+echo "=============================================="
+echo ""
+echo "System configured for:"
+echo "  - Full disk installation"
+echo "  - Hardware support (LVM, RAID, Encryption)"
+echo "  - Network connectivity"
+echo "  - System services"
+echo "  - Security features"
+echo ""

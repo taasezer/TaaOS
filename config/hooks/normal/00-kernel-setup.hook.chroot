@@ -87,6 +87,25 @@ if [ -f "$INITRD" ]; then
     echo "[KERNEL-HOOK] Created: /boot/initrd.img -> $(basename $INITRD)"
 fi
 
+# Create /live directory for live-boot
+echo "[KERNEL-HOOK] Creating /live directory..."
+mkdir -p /live
+ln -sf /boot/vmlinuz /live/vmlinuz 2>/dev/null || cp /boot/vmlinuz /live/vmlinuz
+if [ -f /boot/initrd.img ]; then
+    ln -sf /boot/initrd.img /live/initrd.img 2>/dev/null || cp /boot/initrd.img /live/initrd.img
+fi
+
+# Ensure /live has the actual files (not just symlinks)
+if [ ! -f /live/vmlinuz ]; then
+    cp /boot/vmlinuz /live/vmlinuz
+fi
+if [ -f /boot/initrd.img ] && [ ! -f /live/initrd.img ]; then
+    cp /boot/initrd.img /live/initrd.img
+fi
+
+echo "[KERNEL-HOOK] /live directory contents:"
+ls -la /live/
+
 # Verify
 echo ""
 echo "[KERNEL-HOOK] Verification:"

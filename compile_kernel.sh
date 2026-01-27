@@ -88,6 +88,49 @@ echo "[KERNEL] Applying TaaOS configurations..."
 ./scripts/config --enable CONFIG_RD_LZ4
 ./scripts/config --enable CONFIG_RD_ZSTD
 
+# EFI Support (CRITICAL for VM/UEFI Boot)
+./scripts/config --enable CONFIG_EFI
+./scripts/config --enable CONFIG_EFI_STUB
+./scripts/config --enable CONFIG_EFI_MIXED
+./scripts/config --enable CONFIG_EFI_VARS
+./scripts/config --enable CONFIG_EFIVAR_FS
+./scripts/config --enable CONFIG_UEFI_CPER
+./scripts/config --enable CONFIG_EFI_ESRT
+./scripts/config --enable CONFIG_EFI_RUNTIME_MAP
+./scripts/config --enable CONFIG_DMI
+./scripts/config --enable CONFIG_DMI_SYSFS
+
+# Boot Protocol Support
+./scripts/config --enable CONFIG_ACPI
+./scripts/config --enable CONFIG_ACPI_SYSTEM_POWER_STATES_SUPPORT
+./scripts/config --enable CONFIG_X86
+./scripts/config --enable CONFIG_X86_64
+./scripts/config --enable CONFIG_64BIT
+
+# Framebuffer Support (for VM boot)
+./scripts/config --enable CONFIG_FB
+./scripts/config --enable CONFIG_FB_SIMPLE
+./scripts/config --enable CONFIG_FB_VESA
+./scripts/config --enable CONFIG_FB_EFI
+./scripts/config --enable CONFIG_FRAMEBUFFER_CONSOLE
+./scripts/config --enable CONFIG_VT
+./scripts/config --enable CONFIG_VT_CONSOLE
+./scripts/config --enable CONFIG_HW_CONSOLE
+
+# Graphics Support (Safe defaults for VMs)
+./scripts/config --enable CONFIG_DRM
+./scripts/config --enable CONFIG_DRM_BOCHS
+./scripts/config --enable CONFIG_DRM_CIRRUS_QEMU
+./scripts/config --enable CONFIG_DRM_VIRTIO_GPU
+./scripts/config --enable CONFIG_DRM_VBOXVIDEO
+./scripts/config --enable CONFIG_DRM_VMWGFX
+./scripts/config --enable CONFIG_DRM_FBDEV_EMULATION
+./scripts/config --enable CONFIG_DRM_KMS_FB_HELPER
+
+# Disable strict EFI security (allows unsigned boot)
+./scripts/config --disable CONFIG_EFI_SECURE_BOOT_BOOTLOADER_SIGNING
+./scripts/config --disable CONFIG_LOCK_DOWN_KERNEL
+
 # Virtualization support (for VirtualBox/QEMU)
 ./scripts/config --enable CONFIG_HYPERVISOR_GUEST
 ./scripts/config --enable CONFIG_PARAVIRT
@@ -96,6 +139,21 @@ echo "[KERNEL] Applying TaaOS configurations..."
 ./scripts/config --enable CONFIG_VIRTIO_PCI
 ./scripts/config --enable CONFIG_VIRTIO_BLK
 ./scripts/config --enable CONFIG_VIRTIO_NET
+./scripts/config --enable CONFIG_VIRTIO_CONSOLE
+./scripts/config --enable CONFIG_VIRTIO_INPUT
+./scripts/config --enable CONFIG_9P_FS
+./scripts/config --enable CONFIG_9P_FS_POSIX_ACL
+./scripts/config --enable CONFIG_NET_9P
+./scripts/config --enable CONFIG_NET_9P_VIRTIO
+
+# Network boot support (for PXE/Netboot)
+./scripts/config --enable CONFIG_NET
+./scripts/config --enable CONFIG_INET
+./scripts/config --enable CONFIG_PACKET
+./scripts/config --enable CONFIG_UNIX
+./scripts/config --enable CONFIG_CFG80211
+./scripts/config --enable CONFIG_CFG80211_WEXT
+./scripts/config --enable CONFIG_MAC80211
 
 # Update config with all dependencies
 echo "[KERNEL] Resolving config dependencies..."

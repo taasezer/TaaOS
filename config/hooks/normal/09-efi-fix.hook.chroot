@@ -1,0 +1,128 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS EFI/UEFI Boot Fix - CRITICAL for VM Boot
+# =============================================================================
+# This hook ensures proper EFI boot structure for hybrid ISOs
+# Run AFTER kernel setup (after 00-kernel-setup.hook.chroot)
+# =============================================================================
+
+set -e
+
+echo "=============================================="
+echo "[EFI-FIX] TaaOS EFI/UEFI Boot Structure Setup"
+echo "=============================================="
+
+# Create EFI directory structure
+echo "[EFI-FIX] Creating EFI directory structure..."
+mkdir -p /boot/efi/EFI/boot
+mkdir -p /boot/efi/EFI/BOOT
+mkdir -p /efi/boot
+
+# Ensure shim is installed (signed bootloader for UEFI Secure Boot)
+echo "[EFI-FIX] Installing EFI bootloaders..."
+if [ -f /usr/lib/shim/shimx64.efi.signed ]; then
+    cp /usr/lib/shim/shimx64.efi.signed /boot/efi/EFI/boot/bootx64.efi
+    cp /usr/lib/shim/shimx64.efi.signed /efi/boot/bootx64.efi
+elif [ -f /usr/lib/shim/shimx64.efi ]; then
+    cp /usr/lib/shim/shimx64.efi /boot/efi/EFI/boot/bootx64.efi
+    cp /usr/lib/shim/shimx64.efi /efi/boot/bootx64.efi
+fi
+
+# Copy grub EFI binary
+if [ -f /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ]; then
+    cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /boot/efi/EFI/boot/grubx64.efi
+    cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /efi/boot/grubx64.efi
+elif [ -f /usr/lib/grub/x86_64-efi/monolithic/grubx64.efi ]; then
+    cp /usr/lib/grub/x86_64-efi/monolithic/grubx64.efi /boot/efi/EFI/boot/grubx64.efi
+    cp /usr/lib/grub/x86_64-efi/monolithic/grubx64.efi /efi/boot/grubx64.efi
+fi
+
+# Alternative paths for grubx64.efi
+for grub_path in \
+    "/usr/lib/grub/x86_64-efi/grubx64.efi" \
+    "/boot/grub/x86_64-efi/grub.efi" \
+    "/boot/efi/EFI/debian/grubx64.efi" \
+    "/boot/efi/EFI/grub/grubx64.efi"
+do
+    if [ -f "$grub_path" ]; then
+        cp "$grub_path" /boot/efi/EFI/boot/grubx64.efi
+        cp "$grub_path" /efi/boot/grubx64.efi
+        echo "[EFI-FIX] Found grubx64.efi at: $grub_path"
+        break
+    fi
+done
+
+# Copy MOK manager (Machine Owner Key manager) for Secure Boot
+if [ -f /usr/lib/shim/mmx64.efi ]; then
+    cp /usr/lib/shim/mmx64.efi /boot/efi/EFI/boot/
+    cp /usr/lib/shim/mmx64.efi /efi/boot/
+fi
+
+# Install GRUB to EFI partition
+echo "[EFI-FIX] Installing GRUB to EFI partition..."
+if [ -d /boot/efi ]; then
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=taaos --removable --no-nvram || true
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=taaos --removable || true
+fi
+
+# Copy GRUB config to EFI location
+echo "[EFI-FIX] Copying GRUB configuration..."
+mkdir -p /boot/efi/EFI/taaos
+if [ -f /boot/grub/grub.cfg ]; then
+    cp /boot/grub/grub.cfg /boot/efi/EFI/taaos/
+    cp /boot/grub/grub.cfg /boot/efi/EFI/boot/
+fi
+
+# Ensure grub.cfg is in standard locations
+for cfg_path in /boot/efi/EFI/boot/grub.cfg /efi/boot/grub.cfg /boot/grub/grub.cfg; do
+    if [ -f "$cfg_path" ]; then
+        echo "[EFI-FIX] GRUB config found at: $cfg_path"
+    fi
+done
+
+# Update grub
+echo "[EFI-FIX] Updating GRUB configuration..."
+update-grub || grub-mkconfig -o /boot/grub/grub.cfg || true
+
+# Create fallback boot entries
+echo "[EFI-FIX] Creating fallback boot entries..."
+cat > /boot/efi/EFI/boot/grub.cfg << 'EFIGRUB'
+# Fallback GRUB config for EFI
+set timeout=10
+set default=0
+
+# Search for the correct partition
+search --set=root --file /live/vmlinuz
+
+menuentry "TaaOS Live (Fallback)" {
+    linux /live/vmlinuz boot=live components nomodeset quiet splash
+    initrd /live/initrd.img
+}
+
+menuentry "TaaOS Live (Debug)" {
+    linux /live/vmlinuz boot=live components nomodeset debug console=tty1
+    initrd /live/initrd.img
+}
+EFIGRUB
+
+# Copy to multiple fallback locations
+cp /boot/efi/EFI/boot/grub.cfg /efi/boot/grub.cfg 2>/dev/null || true
+cp /boot/efi/EFI/boot/grub.cfg /boot/efi/EFI/BOOT/grub.cfg 2>/dev/null || true
+
+# Set proper permissions
+echo "[EFI-FIX] Setting permissions..."
+chmod -R 755 /boot/efi
+chmod -R 755 /efi 2>/dev/null || true
+
+# Verify EFI structure
+echo "[EFI-FIX] Verifying EFI structure..."
+find /boot/efi -type f -ls 2>/dev/null || echo "Warning: /boot/efi structure incomplete"
+find /efi -type f -ls 2>/dev/null || echo "Warning: /efi structure incomplete"
+
+# List boot directory
+echo "[EFI-FIX] /boot contents:"
+ls -la /boot/
+
+echo "=============================================="
+echo "[EFI-FIX] EFI/UEFI boot structure complete!"
+echo "=============================================="

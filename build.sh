@@ -62,8 +62,14 @@ echo "    Copying bootloader config..."
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/bootloaders/grub-efi
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/bootloaders/grub-pc
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/hooks/live
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/hooks/normal
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.binary
 [ -f ./config/bootloaders/grub-efi/grub.cfg ] && docker cp ./config/bootloaders/grub-efi/grub.cfg "$CONTAINER_NAME":/build/config/bootloaders/grub-efi/ || true
 [ -f ./config/bootloaders/grub-pc/grub.cfg ] && docker cp ./config/bootloaders/grub-pc/grub.cfg "$CONTAINER_NAME":/build/config/bootloaders/grub-pc/ || true
+
+# Copy EFI fix hook (CRITICAL for VM Boot)
+echo "    Copying EFI fix hook..."
+[ -f ./config/hooks/normal/09-efi-fix.hook.chroot ] && docker cp ./config/hooks/normal/09-efi-fix.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
 
 # Copy live hooks (binary stage)
 echo "    Copying live hooks..."
@@ -85,6 +91,10 @@ echo "    Copying devops hook..."
 echo "    Copying core installer hook..."
 [ -f ./config/hooks/normal/08-core-installer.hook.chroot ] && docker cp ./config/hooks/normal/08-core-installer.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
 
+# Copy OS configuration hook (CRITICAL for full OS)
+echo "    Copying OS configuration hook..."
+[ -f ./config/hooks/normal/10-os-config.hook.chroot ] && docker cp ./config/hooks/normal/10-os-config.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+
 # Copy scripts directory (all subdirectories)
 echo "    Copying scripts..."
 docker exec "$CONTAINER_NAME" mkdir -p /build/scripts/ux /build/scripts/performance /build/scripts/security /build/scripts/devops /build/scripts/core
@@ -93,6 +103,15 @@ docker exec "$CONTAINER_NAME" mkdir -p /build/scripts/ux /build/scripts/performa
 [ -d ./scripts/security ] && docker cp ./scripts/security/. "$CONTAINER_NAME":/build/scripts/security/ || true
 [ -d ./scripts/devops ] && docker cp ./scripts/devops/. "$CONTAINER_NAME":/build/scripts/devops/ || true
 [ -d ./scripts/core ] && docker cp ./scripts/core/. "$CONTAINER_NAME":/build/scripts/core/ || true
+
+# Copy system configuration files (CRITICAL for full OS)
+echo "    Copying system configuration files..."
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/lib/taaos
+[ -d ./config/includes.chroot/usr/lib/taaos ] && docker cp ./config/includes.chroot/usr/lib/taaos/. "$CONTAINER_NAME":/build/config/includes.chroot/usr/lib/taaos/ || true
+
+# Copy systemd services
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/systemd/system
+[ -f ./config/includes.chroot/etc/systemd/system/taaos-first-boot.service ] && docker cp ./config/includes.chroot/etc/systemd/system/taaos-first-boot.service "$CONTAINER_NAME":/build/config/includes.chroot/etc/systemd/system/ || true
 
 # Copy assets directory
 echo "    Copying assets..."
