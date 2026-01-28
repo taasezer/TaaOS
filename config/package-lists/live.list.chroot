@@ -29,7 +29,6 @@ parted
 gparted
 gdisk
 fdisk
-sfdisk
 
 # LVM Support
 lvm2
