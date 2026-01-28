@@ -40,7 +40,6 @@ lb config \
 echo "[CONFIG] Copying custom bootloader configs..."
 mkdir -p config/includes.binary/boot/grub
 mkdir -p config/includes.binary/EFI/boot
-mkdir -p config/includes.chroot_after_packages/boot/efi
 
 if [ -d "config/bootloaders" ]; then
     cp -r config/bootloaders/* config/includes.binary/ 2>/dev/null || true
@@ -52,10 +51,10 @@ fi
 echo "[CONFIG] Setting permissions for custom packages..."
 chmod -R 755 config/packages.chroot/ 2>/dev/null || true
 
-# Create EFI directory structure in chroot
+# Create EFI directory structure in chroot (FIXED: use includes.chroot only)
 echo "[CONFIG] Creating EFI directory structure..."
-mkdir -p config/includes.chroot_after_packages/boot/efi/EFI/boot
-mkdir -p config/includes.chroot_after_packages/efi/boot
+mkdir -p config/includes.chroot/boot/efi/EFI/boot
+mkdir -p config/includes.chroot/efi/boot
 
 # Create system directories
 echo "[CONFIG] Creating system directories..."
