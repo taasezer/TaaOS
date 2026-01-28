@@ -1,0 +1,242 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Branding & Theme Hook
+# =============================================================================
+# Configures Plymouth boot splash, XFCE theme, wallpaper, and panel
+# Location: config/hooks/normal/12-branding.hook.chroot
+# =============================================================================
+
+set -e
+
+echo "=============================================="
+echo "[BRANDING] TaaOS Branding Configuration"
+echo "=============================================="
+
+# =============================================================================
+# SECTION 1: PLYMOUTH BOOT SPLASH
+# =============================================================================
+echo "[BRANDING] Configuring Plymouth boot splash..."
+
+# Create TaaOS Plymouth theme directory
+mkdir -p /usr/share/plymouth/themes/taaos
+
+# Create Plymouth theme script
+cat > /usr/share/plymouth/themes/taaos/taaos.plymouth << 'EOF'
+[Plymouth Theme]
+Name=TaaOS
+Description=TaaOS Professional Boot Splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/taaos
+ScriptFile=/usr/share/plymouth/themes/taaos/taaos.script
+EOF
+
+# Create Plymouth script
+cat > /usr/share/plymouth/themes/taaos/taaos.script << 'EOF'
+# TaaOS Plymouth Theme Script
+
+Window.SetBackgroundTopColor(0.10, 0.10, 0.18);
+Window.SetBackgroundBottomColor(0.05, 0.05, 0.10);
+
+# Logo
+logo_image = Image("logo.png");
+logo_sprite = Sprite(logo_image);
+logo_sprite.SetX(Window.GetWidth() / 2 - logo_image.GetWidth() / 2);
+logo_sprite.SetY(Window.GetHeight() / 2 - logo_image.GetHeight() / 2 - 50);
+
+# Progress bar
+progress_box.image = Image("progress_box.png");
+progress_box.sprite = Sprite(progress_box.image);
+progress_box.x = Window.GetWidth() / 2 - progress_box.image.GetWidth() / 2;
+progress_box.y = Window.GetHeight() / 2 + 100;
+progress_box.sprite.SetPosition(progress_box.x, progress_box.y, 0);
+
+progress_bar.original_image = Image("progress_bar.png");
+progress_bar.sprite = Sprite();
+progress_bar.x = progress_box.x + 2;
+progress_bar.y = progress_box.y + 2;
+progress_bar.sprite.SetPosition(progress_bar.x, progress_bar.y, 1);
+
+fun progress_callback(duration, progress) {
+    if (progress_bar.image.GetWidth() != Math.Int(progress_bar.original_image.GetWidth() * progress)) {
+        progress_bar.image = progress_bar.original_image.Scale(progress_bar.original_image.GetWidth() * progress, progress_bar.original_image.GetHeight());
+        progress_bar.sprite.SetImage(progress_bar.image);
+    }
+}
+Plymouth.SetBootProgressFunction(progress_callback);
+
+# Text message
+message_sprite = Sprite();
+message_sprite.SetPosition(Window.GetWidth() / 2 - 100, Window.GetHeight() / 2 + 150, 1);
+
+fun message_callback(text) {
+    my_image = Image.Text(text, 0.8, 0.8, 0.8);
+    message_sprite.SetImage(my_image);
+}
+Plymouth.SetMessageFunction(message_callback);
+EOF
+
+# Copy logo for Plymouth (if exists)
+if [ -f /build/assets/logo.png ]; then
+    cp /build/assets/logo.png /usr/share/plymouth/themes/taaos/
+fi
+
+# Create simple progress bar images
+convert -size 200x16 xc:'#1a1a2e' -fill '#333355' -draw "roundrectangle 0,0 199,15 5,5" /usr/share/plymouth/themes/taaos/progress_box.png 2>/dev/null || \
+echo "ImageMagick not available, using fallback progress bar"
+
+convert -size 196x12 xc:'#4cc9f0' -draw "roundrectangle 0,0 195,11 4,4" /usr/share/plymouth/themes/taaos/progress_bar.png 2>/dev/null || \
+echo "ImageMagick not available, using fallback progress bar"
+
+# Set TaaOS as default Plymouth theme
+if command -v plymouth-set-default-theme &> /dev/null; then
+    plymouth-set-default-theme taaos 2>/dev/null || true
+fi
+
+# Update initramfs with Plymouth theme
+update-initramfs -u 2>/dev/null || true
+
+echo "[BRANDING] Plymouth configuration complete"
+
+# =============================================================================
+# SECTION 2: XFCE THEME CONFIGURATION
+# =============================================================================
+echo "[BRANDING] Configuring XFCE theme..."
+
+# Create default XFCE settings
+mkdir -p /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml
+
+# XFCE Settings - Window Manager (xfwm4)
+cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="theme" type="string" value="Materia-dark"/>
+    <property name="title_font" type="string" value="Fira Sans Bold 10"/>
+    <property name="button_layout" type="string" value="O|HMC"/>
+  </property>
+</channel>
+EOF
+
+# XFCE Settings - GTK Theme (xsettings)
+cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xsettings" version="1.0">
+  <property name="Net" type="empty">
+    <property name="ThemeName" type="string" value="Materia-dark"/>
+    <property name="IconThemeName" type="string" value="Papirus-Dark"/>
+  </property>
+  <property name="Gtk" type="empty">
+    <property name="FontName" type="string" value="Fira Sans 10"/>
+    <property name="MonospaceFontName" type="string" value="Fira Code 10"/>
+    <property name="CursorThemeName" type="string" value="Adwaita"/>
+  </property>
+</channel>
+EOF
+
+echo "[BRANDING] XFCE theme configuration complete"
+
+# =============================================================================
+# SECTION 3: WALLPAPER CONFIGURATION
+# =============================================================================
+echo "[BRANDING] Configuring wallpaper..."
+
+# Create wallpaper directory
+mkdir -p /usr/share/backgrounds/taaos
+
+# Copy wallpaper if exists
+if [ -f /build/assets/wallpaper.png ]; then
+    cp /build/assets/wallpaper.png /usr/share/backgrounds/taaos/
+fi
+
+# Set wallpaper as default for XFCE
+cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-desktop" version="1.0">
+  <property name="backdrop" type="empty">
+    <property name="screen0" type="empty">
+      <property name="monitorVirtual1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/taaos/wallpaper.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+    </property>
+  </property>
+</channel>
+EOF
+
+echo "[BRANDING] Wallpaper configuration complete"
+
+# =============================================================================
+# SECTION 4: PANEL CONFIGURATION
+# =============================================================================
+echo "[BRANDING] Configuring XFCE panel..."
+
+# Create panel configuration
+cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-panel" version="1.0">
+  <property name="configver" type="int" value="2"/>
+  <property name="panels" type="array">
+    <value type="int" value="1"/>
+  </property>
+  <property name="panel-1" type="empty">
+    <property name="position" type="string" value="p=6;x=0;y=0"/>
+    <property name="length" type="uint" value="100"/>
+    <property name="position-locked" type="bool" value="true"/>
+    <property name="size" type="uint" value="32"/>
+    <property name="plugin-ids" type="array">
+      <value type="int" value="1"/>
+      <value type="int" value="2"/>
+      <value type="int" value="3"/>
+      <value type="int" value="4"/>
+      <value type="int" value="5"/>
+      <value type="int" value="6"/>
+      <value type="int" value="7"/>
+    </property>
+    <property name="background-style" type="uint" value="1"/>
+    <property name="background-rgba" type="array">
+      <value type="double" value="0.10"/>
+      <value type="double" value="0.10"/>
+      <value type="double" value="0.18"/>
+      <value type="double" value="0.95"/>
+    </property>
+  </property>
+  <property name="plugins" type="empty">
+    <property name="plugin-1" type="string" value="applicationsmenu">
+      <property name="button-title" type="string" value="TaaOS"/>
+      <property name="show-button-title" type="bool" value="true"/>
+    </property>
+    <property name="plugin-2" type="string" value="tasklist"/>
+    <property name="plugin-3" type="string" value="separator">
+      <property name="expand" type="bool" value="true"/>
+      <property name="style" type="uint" value="0"/>
+    </property>
+    <property name="plugin-4" type="string" value="systray"/>
+    <property name="plugin-5" type="string" value="pulseaudio"/>
+    <property name="plugin-6" type="string" value="clock">
+      <property name="digital-format" type="string" value="%H:%M"/>
+    </property>
+    <property name="plugin-7" type="string" value="actions"/>
+  </property>
+</channel>
+EOF
+
+echo "[BRANDING] Panel configuration complete"
+
+# =============================================================================
+# COMPLETE
+# =============================================================================
+echo ""
+echo "=============================================="
+echo "[BRANDING] TaaOS Branding Complete!"
+echo "=============================================="
+echo ""
+echo "Configured:"
+echo "  - Plymouth boot splash (TaaOS theme)"
+echo "  - XFCE theme (Materia-dark + Papirus-Dark)"
+echo "  - Wallpaper (/usr/share/backgrounds/taaos/)"
+echo "  - Panel (dark theme, TaaOS menu)"
+echo ""

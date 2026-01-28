@@ -99,6 +99,10 @@ echo "    Copying OS configuration hook..."
 echo "    Copying Calamares installer hook..."
 [ -f ./config/hooks/normal/11-calamares.hook.chroot ] && docker cp ./config/hooks/normal/11-calamares.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
 
+# Copy Branding hook (Plymouth, XFCE theme, wallpaper)
+echo "    Copying Branding hook..."
+[ -f ./config/hooks/normal/12-branding.hook.chroot ] && docker cp ./config/hooks/normal/12-branding.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+
 # Copy scripts directory (all subdirectories)
 echo "    Copying scripts..."
 docker exec "$CONTAINER_NAME" mkdir -p /build/scripts/ux /build/scripts/performance /build/scripts/security /build/scripts/devops /build/scripts/core

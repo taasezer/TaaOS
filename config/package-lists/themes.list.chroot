@@ -19,3 +19,10 @@ nitrogen
 
 # XFCE Settings Manager
 xfce4-settings
+
+# Plymouth Boot Splash
+plymouth
+plymouth-themes
+
+# Dialog utilities
+zenity
