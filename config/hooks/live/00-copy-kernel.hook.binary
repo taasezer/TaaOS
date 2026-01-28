@@ -179,5 +179,5 @@ ls -la /boot/ 2>/dev/null || true
 echo "=============================================="
 echo "[LIVE-HOOK] Binary stage setup complete!"
 echo "=============================================="
-EOF
+
 
