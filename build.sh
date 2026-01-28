@@ -95,6 +95,10 @@ echo "    Copying core installer hook..."
 echo "    Copying OS configuration hook..."
 [ -f ./config/hooks/normal/10-os-config.hook.chroot ] && docker cp ./config/hooks/normal/10-os-config.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
 
+# Copy Calamares installer hook (CRITICAL for graphical installation)
+echo "    Copying Calamares installer hook..."
+[ -f ./config/hooks/normal/11-calamares.hook.chroot ] && docker cp ./config/hooks/normal/11-calamares.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+
 # Copy scripts directory (all subdirectories)
 echo "    Copying scripts..."
 docker exec "$CONTAINER_NAME" mkdir -p /build/scripts/ux /build/scripts/performance /build/scripts/security /build/scripts/devops /build/scripts/core
@@ -112,6 +116,21 @@ docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/lib/taa
 # Copy systemd services
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/systemd/system
 [ -f ./config/includes.chroot/etc/systemd/system/taaos-first-boot.service ] && docker cp ./config/includes.chroot/etc/systemd/system/taaos-first-boot.service "$CONTAINER_NAME":/build/config/includes.chroot/etc/systemd/system/ || true
+
+# Copy LightDM auto-login configuration (CRITICAL for live session)
+echo "    Copying LightDM live session config..."
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/lightdm/lightdm.conf.d
+[ -f ./config/includes.chroot/etc/lightdm/lightdm.conf.d/50-taaos-live.conf ] && docker cp ./config/includes.chroot/etc/lightdm/lightdm.conf.d/50-taaos-live.conf "$CONTAINER_NAME":/build/config/includes.chroot/etc/lightdm/lightdm.conf.d/ || true
+
+# Copy autostart entries
+echo "    Copying autostart entries..."
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/xdg/autostart
+[ -f ./config/includes.chroot/etc/xdg/autostart/taaos-welcome.desktop ] && docker cp ./config/includes.chroot/etc/xdg/autostart/taaos-welcome.desktop "$CONTAINER_NAME":/build/config/includes.chroot/etc/xdg/autostart/ || true
+
+# Copy desktop shortcuts
+echo "    Copying desktop shortcuts..."
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/skel/Desktop
+[ -f ./config/includes.chroot/etc/skel/Desktop/install-taaos.desktop ] && docker cp ./config/includes.chroot/etc/skel/Desktop/install-taaos.desktop "$CONTAINER_NAME":/build/config/includes.chroot/etc/skel/Desktop/ || true
 
 # Copy assets directory
 echo "    Copying assets..."

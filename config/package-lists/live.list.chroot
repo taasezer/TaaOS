@@ -5,25 +5,24 @@ systemd-sysv
 initramfs-tools
 kmod
 
-# EFI Bootloader Support (CRITICAL for VM Boot)
-grub-pc
+# EFI Bootloader Support (FIXED - only -bin packages to avoid conflicts)
 grub-pc-bin
-grub-efi
-grub-efi-amd64
 grub-efi-amd64-bin
 grub-efi-ia32-bin
-grub2-common
 grub-common
 
-# Secure Boot Support
-shim-signed
-shim-helpers-amd64-signed
-shim-helpers-i386-signed
-
 # EFI Management
-defibootmgr
+efibootmgr
 efivar
-libefivar1
+
+# =============================================================================
+# CALAMARES INSTALLER (TaaOS Graphical Installer)
+# =============================================================================
+calamares
+calamares-settings-debian
+os-prober
+squashfs-tools
+rsync
 
 # Disk and Storage Management (CRITICAL for OS installation)
 parted
@@ -47,15 +46,9 @@ cryptsetup-initramfs
 mtools
 dosfstools
 ntfs-3g
-hfsprogs
-reiserfsprogs
 xfsprogs
 btrfs-progs
 f2fs-tools
-
-# Boot Repair and Recovery
-boot-repair
-rescuecd
 
 # Tools
 htop

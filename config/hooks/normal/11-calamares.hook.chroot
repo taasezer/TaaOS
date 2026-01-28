@@ -1,0 +1,266 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Calamares Installer Hook
+# =============================================================================
+# This hook configures Calamares graphical installer for TaaOS
+# Location: config/hooks/normal/11-calamares.hook.chroot
+# =============================================================================
+
+set -e
+
+echo "=============================================="
+echo "[CALAMARES] TaaOS Installer Configuration"
+echo "=============================================="
+
+# =============================================================================
+# SECTION 1: VERIFY CALAMARES INSTALLATION
+# =============================================================================
+echo "[CALAMARES] Verifying Calamares installation..."
+
+if ! command -v calamares &> /dev/null; then
+    echo "[CALAMARES] Calamares not found, installing..."
+    apt-get update
+    apt-get install -y calamares calamares-settings-debian
+fi
+
+# =============================================================================
+# SECTION 2: CREATE TAAOS BRANDING
+# =============================================================================
+echo "[CALAMARES] Creating TaaOS branding..."
+
+mkdir -p /etc/calamares/branding/taaos
+
+cat > /etc/calamares/branding/taaos/branding.desc << 'EOF'
+---
+componentName: taaos
+welcomeStyleCalamares: true
+welcomeExpandingLogo: true
+
+strings:
+    productName:         TaaOS
+    shortProductName:    TaaOS
+    version:             1.0
+    shortVersion:        1.0
+    versionedName:       TaaOS 1.0
+    shortVersionedName:  TaaOS 1.0
+    bootloaderEntryName: TaaOS
+    productUrl:          https://github.com/taasezer/TaaOS
+    supportUrl:          https://github.com/taasezer/TaaOS/issues
+    knownIssuesUrl:      https://github.com/taasezer/TaaOS/issues
+    releaseNotesUrl:     https://github.com/taasezer/TaaOS/releases
+
+images:
+    productLogo:         "logo.png"
+    productIcon:         "logo.png"
+    productWelcome:      "welcome.png"
+
+slideshow:               "show.qml"
+
+style:
+    sidebarBackground:   "#1a1a2e"
+    sidebarText:         "#ffffff"
+    sidebarTextSelect:   "#4cc9f0"
+    sidebarTextHighlight: "#7209b7"
+EOF
+
+# Copy TaaOS logo if exists
+if [ -f /build/assets/logo.png ]; then
+    cp /build/assets/logo.png /etc/calamares/branding/taaos/
+    cp /build/assets/logo.png /etc/calamares/branding/taaos/welcome.png
+else
+    echo "[CALAMARES] Warning: logo.png not found in /build/assets/"
+fi
+
+# Create slideshow
+cat > /etc/calamares/branding/taaos/show.qml << 'EOF'
+import QtQuick 2.0
+
+Rectangle {
+    id: root
+    color: "#1a1a2e"
+    
+    Text {
+        anchors.centerIn: parent
+        text: "Installing TaaOS...\n\nProfessional Linux for Engineers"
+        color: "#ffffff"
+        font.pixelSize: 24
+        horizontalAlignment: Text.AlignHCenter
+    }
+}
+EOF
+
+# =============================================================================
+# SECTION 3: CONFIGURE CALAMARES SETTINGS
+# =============================================================================
+echo "[CALAMARES] Configuring installer settings..."
+
+cat > /etc/calamares/settings.conf << 'EOF'
+---
+modules-search: [ local, /usr/lib/calamares/modules ]
+
+sequence:
+    - show:
+        - welcome
+        - locale
+        - keyboard
+        - partition
+        - users
+        - summary
+    - exec:
+        - partition
+        - mount
+        - unpackfs
+        - machineid
+        - fstab
+        - locale
+        - keyboard
+        - localecfg
+        - luksbootkeyfile
+        - users
+        - displaymanager
+        - networkcfg
+        - hwclock
+        - services-systemd
+        - packages
+        - initramfscfg
+        - initramfs
+        - grubcfg
+        - bootloader
+        - umount
+    - show:
+        - finished
+
+branding: taaos
+prompt-install: true
+dont-chroot: false
+oem-setup: false
+disable-cancel: false
+disable-cancel-during-exec: true
+hide-back-and-next-during-exec: true
+quit-at-end: false
+EOF
+
+# =============================================================================
+# SECTION 4: CONFIGURE UNPACKFS MODULE
+# =============================================================================
+echo "[CALAMARES] Configuring unpackfs module..."
+
+mkdir -p /etc/calamares/modules
+
+cat > /etc/calamares/modules/unpackfs.conf << 'EOF'
+---
+unpack:
+    -   source: "/run/live/medium/live/filesystem.squashfs"
+        sourcefs: "squashfs"
+        destination: ""
+EOF
+
+# =============================================================================
+# SECTION 5: CONFIGURE USERS MODULE
+# =============================================================================
+echo "[CALAMARES] Configuring users module..."
+
+cat > /etc/calamares/modules/users.conf << 'EOF'
+---
+defaultGroups:
+    - name: users
+      must_exist: true
+      system: true
+    - sudo
+    - docker
+    - audio
+    - video
+    - plugdev
+    - netdev
+    - bluetooth
+
+autologinGroup: autologin
+doAutologin: false
+sudoersGroup: sudo
+setRootPassword: true
+doReusePassword: true
+passwordRequirements:
+    minLength: 1
+    maxLength: -1
+    libpwquality: []
+allowWeakPasswords: true
+allowWeakPasswordsDefault: false
+userShell: /bin/bash
+EOF
+
+# =============================================================================
+# SECTION 6: CONFIGURE BOOTLOADER MODULE
+# =============================================================================
+echo "[CALAMARES] Configuring bootloader module..."
+
+cat > /etc/calamares/modules/bootloader.conf << 'EOF'
+---
+efiBootLoader: "grub"
+kernel: "/vmlinuz"
+img: "/initrd.img"
+kernelLine: ", with Linux"
+fallbackKernelLine: ", with Linux (fallback initramfs)"
+grubInstall: "grub-install"
+grubMkconfig: "grub-mkconfig"
+grubCfg: "/boot/grub/grub.cfg"
+grubProbe: "grub-probe"
+efiBootloaderId: "TaaOS"
+EOF
+
+# =============================================================================
+# SECTION 7: CONFIGURE DISPLAYMANAGER MODULE
+# =============================================================================
+echo "[CALAMARES] Configuring displaymanager module..."
+
+cat > /etc/calamares/modules/displaymanager.conf << 'EOF'
+---
+displaymanagers:
+    - lightdm
+
+defaultDesktopEnvironment:
+    executable: "startxfce4"
+    desktopFile: "xfce"
+
+basicSetup: false
+EOF
+
+# =============================================================================
+# SECTION 8: CREATE DESKTOP SHORTCUT
+# =============================================================================
+echo "[CALAMARES] Creating desktop shortcut..."
+
+mkdir -p /usr/share/applications
+
+cat > /usr/share/applications/taaos-installer.desktop << 'EOF'
+[Desktop Entry]
+Name=Install TaaOS
+Name[tr]=TaaOS Kurulumu
+Comment=Install TaaOS to your computer
+Comment[tr]=TaaOS'u bilgisayarınıza kurun
+Exec=pkexec calamares
+Icon=calamares
+Terminal=false
+Type=Application
+Categories=System;
+Keywords=Install;Installer;Setup;
+EOF
+
+# Create shortcut on desktop for live user
+mkdir -p /etc/skel/Desktop
+cp /usr/share/applications/taaos-installer.desktop /etc/skel/Desktop/
+chmod +x /etc/skel/Desktop/taaos-installer.desktop
+
+# =============================================================================
+# COMPLETE
+# =============================================================================
+echo ""
+echo "=============================================="
+echo "[CALAMARES] Installer configuration complete!"
+echo "=============================================="
+echo ""
+echo "TaaOS Installer features:"
+echo "  - Disk partitioning (manual, automatic, alongside)"
+echo "  - LVM and encryption support"
+echo "  - User creation"
+echo "  - TaaOS branding"
+echo ""
