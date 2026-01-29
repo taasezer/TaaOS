@@ -1,0 +1,6 @@
+// TaaOS Pre-Update Snapshot Hook
+// Automatically creates a Timeshift snapshot before kernel updates
+
+DPkg::Pre-Install-Pkgs {
+    "/usr/bin/taaos-pre-update-snapshot";
+};

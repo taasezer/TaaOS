@@ -1,0 +1,25 @@
+# TaaOS Recovery Tools
+# System recovery and backup utilities
+
+# Snapshot management
+timeshift
+
+# Boot repair
+grub-efi-amd64
+grub-pc-bin
+os-prober
+
+# Backup utilities
+rsync
+pigz
+pv
+
+# System repair
+debsums
+apt-file
+aptitude
+
+# Disk utilities
+gparted
+smartmontools
+testdisk

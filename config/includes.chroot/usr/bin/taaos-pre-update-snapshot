@@ -1,0 +1,38 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Pre-Update Snapshot Script
+# =============================================================================
+# Triggered by APT before package installations
+# Creates a Timeshift snapshot for kernel/critical updates
+# =============================================================================
+
+set -euo pipefail
+
+LOG_FILE="/var/log/taaos/snapshot.log"
+
+log() {
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    mkdir -p "$(dirname "$LOG_FILE")"
+    echo "[$timestamp] $*" >> "$LOG_FILE"
+}
+
+# Read package list from stdin (APT provides this)
+PACKAGES=$(cat)
+
+# Check if kernel package is being installed
+if echo "$PACKAGES" | grep -q "linux-image"; then
+    log "Kernel update detected, creating snapshot..."
+    
+    if command -v timeshift &> /dev/null; then
+        timeshift --create --comments "Pre-kernel-update $(date +%Y%m%d)" --scripted >> "$LOG_FILE" 2>&1 || {
+            log "WARNING: Snapshot creation failed, continuing anyway"
+        }
+        log "Snapshot created successfully"
+    else
+        log "WARNING: Timeshift not installed, skipping snapshot"
+    fi
+fi
+
+# Always exit successfully to not block updates
+exit 0
