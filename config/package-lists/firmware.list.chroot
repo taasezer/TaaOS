@@ -1,0 +1,31 @@
+# TaaOS Firmware Packages
+# Hardware firmware for WiFi, Bluetooth, and GPU
+
+# Linux firmware (generic)
+firmware-linux
+firmware-linux-nonfree
+firmware-linux-free
+
+# Intel WiFi
+firmware-iwlwifi
+
+# Realtek WiFi/Ethernet
+firmware-realtek
+
+# Atheros/Qualcomm WiFi
+firmware-atheros
+
+# AMD GPU
+firmware-amd-graphics
+
+# Misc firmware
+firmware-misc-nonfree
+
+# Bluetooth support
+bluetooth
+bluez
+blueman
+
+# Input device support
+xserver-xorg-input-libinput
+xinput

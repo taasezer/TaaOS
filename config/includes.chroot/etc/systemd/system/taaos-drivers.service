@@ -1,0 +1,16 @@
+[Unit]
+Description=TaaOS First-Boot Driver Detection
+Documentation=https://github.com/taasezer/TaaOS
+After=network.target graphical.target
+ConditionPathExists=!/var/lib/taaos/.drivers_configured
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/taaos-drivers detect
+Environment=AUTO_INSTALL=false
+StandardOutput=journal
+StandardError=journal
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
