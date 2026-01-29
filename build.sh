@@ -2,34 +2,117 @@
 # =============================================================================
 # TaaOS Master Build - SURGICAL ISOLATION MODE (Windows/Git Bash Fix)
 # =============================================================================
-set -e
+# Phase 1 Hardening: Error handling, logging, pre-flight checks
+# =============================================================================
+set -euo pipefail
 
 # CRITICAL: Disable MSYS path conversion for docker commands
 export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL="*"
 
+# =============================================================================
+# SOURCE COMMON LIBRARY IF AVAILABLE
+# =============================================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${SCRIPT_DIR}/scripts/lib/common.sh" ]]; then
+    source "${SCRIPT_DIR}/scripts/lib/common.sh"
+    init_logging
+    enable_error_trap
+    LOGGING_ENABLED=true
+else
+    LOGGING_ENABLED=false
+    log_info() { echo "[INFO] $*"; }
+    log_warn() { echo "[WARN] $*"; }
+    log_error() { echo "[ERROR] $*" >&2; }
+    log_success() { echo "[SUCCESS] $*"; }
+    log_phase() { echo ""; echo "=== $1 ==="; echo ""; }
+fi
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 IMAGE_NAME="taaos-builder:torvalds"
 CONTAINER_NAME="taaos_factory_$(date +%s)"
 ISO_NAME="TaaOS"
 
+# =============================================================================
+# CLEANUP HANDLER (Called on error or exit)
+# =============================================================================
+taaos_cleanup() {
+    if [[ -n "${CONTAINER_NAME:-}" ]]; then
+        log_warn "Cleaning up container: ${CONTAINER_NAME}"
+        docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+    fi
+}
+
+# Register cleanup on script exit (success or failure)
+trap taaos_cleanup EXIT
+
+# =============================================================================
+# BANNER
+# =============================================================================
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
 echo "║         TaaOS Build - LINUS TORVALDS IS A GENIUS                      ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 
-# Cleanup old containers
-echo "[1/6] Cleaning up old containers..."
+# =============================================================================
+# PRE-FLIGHT CHECKS
+# =============================================================================
+log_phase "PRE-FLIGHT CHECKS"
+
+# Check Docker
+if ! command -v docker &> /dev/null; then
+    log_error "Docker is not installed!"
+    exit 2
+fi
+
+if ! docker info &> /dev/null 2>&1; then
+    log_error "Docker daemon is not running!"
+    exit 2
+fi
+log_success "Docker is available"
+
+# Check disk space (warn only, don't block)
+if command -v df &> /dev/null; then
+    available_gb=$(df -BG . 2>/dev/null | awk 'NR==2 {gsub(/G/,""); print $4}' || echo "0")
+    if [[ "${available_gb:-0}" -lt 20 ]]; then
+        log_warn "Low disk space: ${available_gb}GB available (20GB recommended)"
+    else
+        log_success "Disk space OK: ${available_gb}GB available"
+    fi
+fi
+
+log_success "Pre-flight checks passed"
+
+# =============================================================================
+# PHASE 1: CLEANUP
+# =============================================================================
+log_phase "PHASE 1/6: CLEANUP"
+log_info "Cleaning up old containers..."
 docker rm -f $(docker ps -a -q -f name=taaos_factory) 2>/dev/null || true
 
-# Build Docker image
-echo "[2/6] Building Docker image..."
+# =============================================================================
+# PHASE 2: BUILD DOCKER IMAGE
+# =============================================================================
+log_phase "PHASE 2/6: BUILD DOCKER IMAGE"
+log_info "Building Docker image: ${IMAGE_NAME}..."
 docker build -t "$IMAGE_NAME" -f docker/Dockerfile docker/
+log_success "Docker image built successfully"
 
-# Start container
-echo "[3/6] Starting isolated container..."
+# =============================================================================
+# PHASE 3: START CONTAINER
+# =============================================================================
+log_phase "PHASE 3/6: START ISOLATED CONTAINER"
+log_info "Starting container: ${CONTAINER_NAME}..."
+# NOTE: --privileged is required for live-build mknod and loop device operations
 docker run -d --name "$CONTAINER_NAME" --privileged "$IMAGE_NAME" sleep infinity
+log_success "Container started successfully"
 
-# Create directories inside container
-echo "[4/6] Surgical file injection..."
+# =============================================================================
+# PHASE 4: SURGICAL FILE INJECTION
+# =============================================================================
+log_phase "PHASE 4/6: SURGICAL FILE INJECTION"
+log_info "Creating directory structure inside container..."
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/hooks/normal
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/package-lists
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot

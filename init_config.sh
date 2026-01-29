@@ -1,12 +1,33 @@
 #!/bin/bash
+# =============================================================================
+# TaaOS Live-Build Configuration
+# =============================================================================
+# Phase 1 Hardening: Logging and validation
+# =============================================================================
 set -euo pipefail
+
+# =============================================================================
+# SOURCE COMMON LIBRARY IF AVAILABLE
+# =============================================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${SCRIPT_DIR}/scripts/lib/common.sh" ]]; then
+    source "${SCRIPT_DIR}/scripts/lib/common.sh"
+elif [[ -f "/build/scripts/lib/common.sh" ]]; then
+    source "/build/scripts/lib/common.sh"
+else
+    log_info() { echo "[INFO] $*"; }
+    log_warn() { echo "[WARN] $*"; }
+    log_error() { echo "[ERROR] $*" >&2; }
+    log_success() { echo "[SUCCESS] $*"; }
+    log_phase() { echo ""; echo "=== $1 ==="; echo ""; }
+fi
 
 DISTRIBUTION="bookworm"
 IMAGE_NAME="TaaOS"
 
-echo "=============================================="
-echo "[CONFIG] TaaOS Live-Build Configuration"
-echo "=============================================="
+log_phase "TaaOS Live-Build Configuration"
+log_info "Distribution: ${DISTRIBUTION}"
+log_info "Image name: ${IMAGE_NAME}"
 
 # TaaOS Live-Build Configuration - FIXED for VM/EFI Boot
 # Custom kernel is injected via packages.chroot and kernel hook

@@ -5,57 +5,108 @@
 # Compiles the latest Linux kernel from Linus Torvalds' repo
 # with TaaOS-specific optimizations (ECC, PREEMPT, SELinux)
 # =============================================================================
+# Phase 1 Hardening: Error handling, logging, retry logic
+# =============================================================================
 
 set -euo pipefail
 
+# =============================================================================
+# SOURCE COMMON LIBRARY IF AVAILABLE
+# =============================================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${SCRIPT_DIR}/scripts/lib/common.sh" ]]; then
+    source "${SCRIPT_DIR}/scripts/lib/common.sh"
+    enable_error_trap
+elif [[ -f "/build/scripts/lib/common.sh" ]]; then
+    source "/build/scripts/lib/common.sh"
+    enable_error_trap
+else
+    # Fallback logging functions if common.sh not available
+    log_info() { echo "[INFO] $*"; }
+    log_warn() { echo "[WARN] $*"; }
+    log_error() { echo "[ERROR] $*" >&2; }
+    log_success() { echo "[SUCCESS] $*"; }
+    log_phase() { echo ""; echo "=== $1 ==="; echo ""; }
+fi
+
+# =============================================================================
+# BANNER
+# =============================================================================
 echo "=============================================="
 echo "  TaaOS Custom Kernel Compilation"
 echo "=============================================="
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 KERNEL_SRC_DIR="${SCRIPT_DIR}/kernel-build/linux"
 KERNEL_REPO="https://github.com/torvalds/linux.git"
 PACKAGES_CHROOT_DIR="${SCRIPT_DIR}/config/packages.chroot"
 NPROC=$(nproc)
+MAX_CLONE_RETRIES=3
+CLONE_RETRY_DELAY=10
 
-echo "[KERNEL] Script directory: ${SCRIPT_DIR}"
-echo "[KERNEL] Kernel source: ${KERNEL_SRC_DIR}"
-echo "[KERNEL] Packages output: ${PACKAGES_CHROOT_DIR}"
-echo "[KERNEL] Using ${NPROC} CPU cores"
+log_info "Script directory: ${SCRIPT_DIR}"
+log_info "Kernel source: ${KERNEL_SRC_DIR}"
+log_info "Packages output: ${PACKAGES_CHROOT_DIR}"
+log_info "Using ${NPROC} CPU cores"
 
 # =============================================================================
-# STEP 1: Clone Kernel Source
+# STEP 1: Clone Kernel Source (with retry logic)
 # =============================================================================
-echo ""
-echo "=== STEP 1: Cloning Kernel Source ==="
+log_phase "STEP 1: CLONING KERNEL SOURCE"
 
 if [[ ! -d "${KERNEL_SRC_DIR}" ]]; then
-    echo "[KERNEL] Cloning Linux kernel from ${KERNEL_REPO}..."
+    log_info "Cloning Linux kernel from ${KERNEL_REPO}..."
     mkdir -p "$(dirname "${KERNEL_SRC_DIR}")"
-    git clone --depth 1 "${KERNEL_REPO}" "${KERNEL_SRC_DIR}"
+    
+    # Retry logic for network resilience
+    clone_attempt=1
+    clone_success=false
+    
+    while [[ $clone_attempt -le $MAX_CLONE_RETRIES ]]; do
+        log_info "Clone attempt ${clone_attempt}/${MAX_CLONE_RETRIES}..."
+        
+        if git clone --depth 1 "${KERNEL_REPO}" "${KERNEL_SRC_DIR}"; then
+            clone_success=true
+            log_success "Kernel source cloned successfully"
+            break
+        fi
+        
+        if [[ $clone_attempt -lt $MAX_CLONE_RETRIES ]]; then
+            log_warn "Clone failed, retrying in ${CLONE_RETRY_DELAY} seconds..."
+            sleep "${CLONE_RETRY_DELAY}"
+        fi
+        
+        ((clone_attempt++))
+    done
+    
+    if [[ "$clone_success" != "true" ]]; then
+        log_error "Failed to clone kernel source after ${MAX_CLONE_RETRIES} attempts"
+        exit 3
+    fi
 else
-    echo "[KERNEL] Kernel source already exists, skipping clone"
+    log_info "Kernel source already exists, skipping clone"
 fi
 
 cd "${KERNEL_SRC_DIR}"
-echo "[KERNEL] Working in: $(pwd)"
+log_info "Working in: $(pwd)"
 
 # =============================================================================
 # STEP 2: Configure Kernel
 # =============================================================================
-echo ""
-echo "=== STEP 2: Configuring Kernel ==="
+log_phase "STEP 2: CONFIGURING KERNEL"
 
 # Clean previous builds
-echo "[KERNEL] Cleaning previous build..."
+log_info "Cleaning previous build..."
 make mrproper
 
 # Start with default config
-echo "[KERNEL] Generating default config..."
+log_info "Generating default config..."
 make defconfig
 
 # Apply TaaOS-specific configurations
-echo "[KERNEL] Applying TaaOS configurations..."
+log_info "Applying TaaOS configurations..."
 
 # ECC Memory Support (EDAC)
 ./scripts/config --enable CONFIG_EDAC
@@ -69,6 +120,60 @@ echo "[KERNEL] Applying TaaOS configurations..."
 ./scripts/config --enable CONFIG_SECURITY_SELINUX
 ./scripts/config --enable CONFIG_SECURITY_SELINUX_DEVELOP
 ./scripts/config --enable CONFIG_SECURITY_SELINUX_AVC_STATS
+
+# =============================================================================
+# Docker/Container Support (CRITICAL for TaaOS DevOps features)
+# =============================================================================
+log_info "Adding container/namespace support..."
+
+# Namespaces (required for container isolation)
+./scripts/config --enable CONFIG_NAMESPACES
+./scripts/config --enable CONFIG_NET_NS
+./scripts/config --enable CONFIG_PID_NS
+./scripts/config --enable CONFIG_IPC_NS
+./scripts/config --enable CONFIG_UTS_NS
+./scripts/config --enable CONFIG_USER_NS
+
+# Control Groups (required for resource limits)
+./scripts/config --enable CONFIG_CGROUPS
+./scripts/config --enable CONFIG_CGROUP_CPUACCT
+./scripts/config --enable CONFIG_CGROUP_DEVICE
+./scripts/config --enable CONFIG_CGROUP_FREEZER
+./scripts/config --enable CONFIG_CGROUP_SCHED
+./scripts/config --enable CONFIG_CPUSETS
+./scripts/config --enable CONFIG_MEMCG
+./scripts/config --enable CONFIG_CGROUP_PIDS
+./scripts/config --enable CONFIG_CGROUP_BPF
+
+# Container networking
+./scripts/config --enable CONFIG_VETH
+./scripts/config --enable CONFIG_BRIDGE
+./scripts/config --enable CONFIG_BRIDGE_NETFILTER
+./scripts/config --enable CONFIG_NETFILTER_XT_MATCH_CONNTRACK
+./scripts/config --enable CONFIG_NF_NAT
+./scripts/config --enable CONFIG_IP_NF_NAT
+./scripts/config --enable CONFIG_IP_NF_TARGET_MASQUERADE
+
+# =============================================================================
+# Filesystem Support (CRITICAL for live-build and persistence)
+# =============================================================================
+log_info "Adding filesystem support..."
+
+# OverlayFS (CRITICAL for Phase 3 persistence)
+./scripts/config --enable CONFIG_OVERLAY_FS
+
+# Squashfs (CRITICAL for live-build)
+./scripts/config --enable CONFIG_SQUASHFS
+./scripts/config --enable CONFIG_SQUASHFS_XZ
+./scripts/config --enable CONFIG_SQUASHFS_ZSTD
+./scripts/config --enable CONFIG_SQUASHFS_LZO
+./scripts/config --enable CONFIG_SQUASHFS_LZ4
+
+# Additional filesystems
+./scripts/config --enable CONFIG_EXT4_FS
+./scripts/config --enable CONFIG_BTRFS_FS
+./scripts/config --enable CONFIG_XFS_FS
+./scripts/config --enable CONFIG_FUSE_FS
 
 # Disable signature verification (required for custom kernel)
 ./scripts/config --disable CONFIG_SYSTEM_TRUSTED_KEYS
@@ -156,59 +261,68 @@ echo "[KERNEL] Applying TaaOS configurations..."
 ./scripts/config --enable CONFIG_MAC80211
 
 # Update config with all dependencies
-echo "[KERNEL] Resolving config dependencies..."
+log_info "Resolving config dependencies..."
 make olddefconfig
 
-echo "[KERNEL] Configuration complete"
+log_success "Kernel configuration complete"
+
+# =============================================================================
+# STEP 2.5: Preserve Kernel Config
+# =============================================================================
+log_info "Preserving kernel configuration..."
+KERNEL_CONFIG_DIR="${SCRIPT_DIR}/config/kernel"
+mkdir -p "${KERNEL_CONFIG_DIR}"
+cp .config "${KERNEL_CONFIG_DIR}/taaos-kernel.config"
+log_success "Config saved to: ${KERNEL_CONFIG_DIR}/taaos-kernel.config"
 
 # =============================================================================
 # STEP 3: Compile Kernel
 # =============================================================================
-echo ""
-echo "=== STEP 3: Compiling Kernel (this will take a while) ==="
-echo "[KERNEL] Starting compilation with ${NPROC} parallel jobs..."
+log_phase "STEP 3: COMPILING KERNEL"
+log_info "Starting compilation with ${NPROC} parallel jobs..."
+log_warn "This will take a while (30-60 minutes)..."
 
 # Compile everything
+COMPILE_START=$SECONDS
 make -j"${NPROC}" all
+COMPILE_ELAPSED=$((SECONDS - COMPILE_START))
 
-echo "[KERNEL] Compilation successful!"
+log_success "Compilation successful! (${COMPILE_ELAPSED} seconds)"
 
 # =============================================================================
 # STEP 4: Create Debian Packages
 # =============================================================================
-echo ""
-echo "=== STEP 4: Creating Debian Packages ==="
+log_phase "STEP 4: CREATING DEBIAN PACKAGES"
+
+# Get kernel version for package naming
+KERNEL_VERSION=$(make kernelversion)
+log_info "Kernel version: ${KERNEL_VERSION}"
 
 # Build .deb packages
 make -j"${NPROC}" bindeb-pkg \
     LOCALVERSION="-taaos" \
-    KDEB_PKGVERSION="1.0.0-taaos"
+    KDEB_PKGVERSION="${KERNEL_VERSION}-taaos"
 
-echo "[KERNEL] Debian packages created!"
+log_success "Debian packages created!"
 
 # =============================================================================
 # STEP 5: Move Packages to Config Directory
 # =============================================================================
-echo ""
-echo "=== STEP 5: Moving Packages ==="
+log_phase "STEP 5: MOVING PACKAGES"
 
 mkdir -p "${PACKAGES_CHROOT_DIR}"
 
 # Move all generated .deb files
 mv ../*.deb "${PACKAGES_CHROOT_DIR}/"
 
-echo "[KERNEL] Packages moved to: ${PACKAGES_CHROOT_DIR}"
-echo "[KERNEL] Package contents:"
+log_info "Packages moved to: ${PACKAGES_CHROOT_DIR}"
+log_info "Package contents:"
 ls -lh "${PACKAGES_CHROOT_DIR}/"
 
 # =============================================================================
 # COMPLETE
 # =============================================================================
-echo ""
-echo "=============================================="
-echo "  TaaOS Kernel Compilation - COMPLETE!"
-echo "=============================================="
-echo ""
-echo "  Kernel packages are ready in:"
-echo "  ${PACKAGES_CHROOT_DIR}"
-echo ""
+log_phase "KERNEL COMPILATION COMPLETE"
+log_success "Kernel version: ${KERNEL_VERSION}-taaos"
+log_success "Packages ready in: ${PACKAGES_CHROOT_DIR}"
+log_success "Config saved to: ${KERNEL_CONFIG_DIR}/taaos-kernel.config"
