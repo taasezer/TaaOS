@@ -1,0 +1,7 @@
+# Visual Studio Code Package Definition
+# Used by taaos-pkg for custom package installation
+
+PACKAGE_NAME="Visual Studio Code"
+PACKAGE_TYPE="deb"
+PACKAGE_URL="https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64"
+PACKAGE_DESCRIPTION="Code editor by Microsoft"

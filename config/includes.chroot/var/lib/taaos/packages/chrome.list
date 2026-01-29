@@ -1,0 +1,7 @@
+# Google Chrome Package Definition
+# Used by taaos-pkg for custom package installation
+
+PACKAGE_NAME="Google Chrome"
+PACKAGE_TYPE="deb"
+PACKAGE_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
+PACKAGE_DESCRIPTION="Web browser by Google"

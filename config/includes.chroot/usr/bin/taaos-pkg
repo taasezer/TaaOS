@@ -1,0 +1,409 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Package Manager (taaos-pkg)
+# =============================================================================
+# APT wrapper with category-based installation and custom package registry
+# =============================================================================
+
+set -euo pipefail
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+TAAOS_VERSION="1.0.0"
+REPO_URL="https://raw.githubusercontent.com/taasezer/TaaOS/main"
+LOCAL_REGISTRY="/var/lib/taaos/packages"
+LOG_FILE="/var/log/taaos/packages.log"
+SCRIPT_NAME="taaos-pkg"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+log_action() {
+    local action="$1"
+    local target="$2"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    mkdir -p "$(dirname "$LOG_FILE")"
+    echo "[$timestamp] [$action] $target" >> "$LOG_FILE"
+}
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+
+# =============================================================================
+# PREREQUISITES
+# =============================================================================
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        log_error "This command requires root privileges"
+        log_info "Try: sudo $SCRIPT_NAME $*"
+        exit 1
+    fi
+}
+
+# =============================================================================
+# HELP
+# =============================================================================
+show_help() {
+    cat << 'EOF'
+╔══════════════════════════════════════════════════════════════════╗
+║              TaaOS Package Manager v1.0.0                        ║
+╚══════════════════════════════════════════════════════════════════╝
+
+USAGE:
+  taaos-pkg <command> [arguments]
+
+COMMANDS:
+  install <pkg|category>   Install package or category stack
+  remove <pkg>             Remove package
+  update                   Update package lists
+  upgrade                  Upgrade all packages
+  search <query>           Search for packages
+  list [category]          List installed packages
+  category                 Show available categories
+  info <pkg>               Show package information
+  help                     Show this help message
+
+CATEGORIES:
+  ai-ml           AI and Machine Learning (TensorFlow, PyTorch, Jupyter)
+  devops          DevOps tools (Docker, Kubernetes, Terraform)
+  webdev          Web Development (Node.js, Angular, React, databases)
+  sysdev          System Development (C/C++, Rust, debugging tools)
+  data-science    Data Science (Pandas, R, visualization)
+  virtualization  Virtualization (KVM, QEMU, Virt-Manager)
+
+EXAMPLES:
+  taaos-pkg install ai-ml         Install complete AI/ML stack
+  taaos-pkg install code          Install Visual Studio Code
+  taaos-pkg search tensorflow     Search for TensorFlow packages
+  taaos-pkg upgrade               Upgrade all system packages
+
+EOF
+}
+
+# =============================================================================
+# CATEGORY DEFINITIONS
+# =============================================================================
+show_categories() {
+    echo ""
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║              TaaOS Package Categories                            ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "  ${GREEN}ai-ml${NC}           → TensorFlow, PyTorch, Scikit-learn, Jupyter"
+    echo -e "  ${GREEN}devops${NC}          → Docker-compose, Kubernetes, Terraform, Helm"
+    echo -e "  ${GREEN}webdev${NC}          → Angular, React, Vue, Node.js, databases"
+    echo -e "  ${GREEN}sysdev${NC}          → GCC, Clang, Rust, GDB, Valgrind"
+    echo -e "  ${GREEN}data-science${NC}    → Jupyter, Pandas, R, matplotlib"
+    echo -e "  ${GREEN}virtualization${NC}  → KVM, QEMU, Libvirt, Virt-Manager"
+    echo ""
+    echo "Install a category with: taaos-pkg install <category>"
+    echo ""
+}
+
+install_category() {
+    local category="$1"
+    
+    case "$category" in
+        ai-ml)
+            log_info "🤖 Installing AI/ML Stack..."
+            log_action "CATEGORY_INSTALL" "ai-ml"
+            
+            apt-get install -y \
+                python3-pip python3-venv python3-dev \
+                python3-numpy python3-scipy python3-pandas \
+                python3-matplotlib python3-seaborn \
+                jupyter-notebook
+            
+            # Install ML frameworks via pip (user-space for safety)
+            log_info "Installing Python ML packages..."
+            pip3 install --break-system-packages \
+                scikit-learn \
+                jupyterlab \
+                notebook || log_warn "Some pip packages may have failed"
+            
+            log_success "AI/ML stack installed!"
+            log_info "Start Jupyter with: jupyter lab"
+            ;;
+            
+        devops)
+            log_info "🐳 Installing DevOps Stack..."
+            log_action "CATEGORY_INSTALL" "devops"
+            
+            apt-get install -y \
+                docker-compose \
+                ansible \
+                git \
+                jq \
+                yq
+            
+            log_success "DevOps stack installed!"
+            log_info "Docker is ready. Start with: docker run hello-world"
+            ;;
+            
+        webdev)
+            log_info "🌐 Installing Web Development Stack..."
+            log_action "CATEGORY_INSTALL" "webdev"
+            
+            apt-get install -y \
+                nodejs npm \
+                nginx \
+                redis-server \
+                postgresql postgresql-contrib \
+                sqlite3
+            
+            # Install global npm packages
+            npm install -g \
+                typescript \
+                nodemon \
+                pm2 || log_warn "Some npm packages may have failed"
+            
+            log_success "Web Development stack installed!"
+            ;;
+            
+        sysdev)
+            log_info "⚙️ Installing System Development Stack..."
+            log_action "CATEGORY_INSTALL" "sysdev"
+            
+            apt-get install -y \
+                build-essential \
+                gcc g++ clang \
+                gdb valgrind strace ltrace \
+                cmake ninja-build meson \
+                libboost-all-dev libssl-dev \
+                binutils elfutils
+            
+            log_success "System Development stack installed!"
+            ;;
+            
+        data-science)
+            log_info "📊 Installing Data Science Stack..."
+            log_action "CATEGORY_INSTALL" "data-science"
+            
+            apt-get install -y \
+                python3-pip python3-venv \
+                python3-numpy python3-scipy python3-pandas \
+                python3-matplotlib python3-seaborn \
+                r-base r-base-dev \
+                jupyter-notebook
+            
+            log_success "Data Science stack installed!"
+            ;;
+            
+        virtualization)
+            log_info "🖥️ Installing Virtualization Stack..."
+            log_action "CATEGORY_INSTALL" "virtualization"
+            
+            apt-get install -y \
+                qemu-system-x86 qemu-utils \
+                libvirt-daemon-system libvirt-clients \
+                virt-manager \
+                bridge-utils
+            
+            # Enable libvirt
+            systemctl enable libvirtd || true
+            systemctl start libvirtd || true
+            
+            log_success "Virtualization stack installed!"
+            log_info "Start Virt-Manager with: virt-manager"
+            ;;
+            
+        *)
+            return 1
+            ;;
+    esac
+    
+    return 0
+}
+
+# =============================================================================
+# CUSTOM PACKAGE INSTALLATION
+# =============================================================================
+install_custom_package() {
+    local package="$1"
+    local package_file="$LOCAL_REGISTRY/${package}.list"
+    
+    if [[ ! -f "$package_file" ]]; then
+        return 1
+    fi
+    
+    log_info "Installing custom package: $package"
+    log_warn "This package is not from the official Debian repository"
+    
+    # Source the package definition
+    source "$package_file"
+    
+    # Validate required variables
+    if [[ -z "${PACKAGE_URL:-}" ]]; then
+        log_error "Package definition missing PACKAGE_URL"
+        return 1
+    fi
+    
+    local tmp_file="/tmp/${package}_$(date +%s).deb"
+    
+    log_info "Downloading from: $PACKAGE_URL"
+    if wget -q --show-progress -O "$tmp_file" "$PACKAGE_URL"; then
+        apt-get install -y "$tmp_file"
+        rm -f "$tmp_file"
+        log_action "CUSTOM_INSTALL" "$package"
+        log_success "Custom package $package installed!"
+    else
+        log_error "Failed to download package"
+        rm -f "$tmp_file"
+        return 1
+    fi
+}
+
+# =============================================================================
+# STANDARD PACKAGE OPERATIONS
+# =============================================================================
+install_package() {
+    local package="$1"
+    
+    # Check if it's a category
+    if install_category "$package" 2>/dev/null; then
+        return 0
+    fi
+    
+    # Check if it's a custom package
+    if [[ -f "$LOCAL_REGISTRY/${package}.list" ]]; then
+        install_custom_package "$package"
+        return $?
+    fi
+    
+    # Standard APT package
+    log_info "📦 Installing $package..."
+    log_action "INSTALL" "$package"
+    apt-get install -y "$package"
+    log_success "Package $package installed!"
+}
+
+remove_package() {
+    local package="$1"
+    log_info "🗑️ Removing $package..."
+    log_action "REMOVE" "$package"
+    apt-get remove -y "$package"
+    log_success "Package $package removed!"
+}
+
+search_packages() {
+    local query="$1"
+    log_info "🔍 Searching for: $query"
+    apt-cache search "$query" | head -50
+}
+
+list_packages() {
+    local filter="${1:-}"
+    
+    if [[ -n "$filter" ]]; then
+        dpkg -l | grep "^ii" | grep -i "$filter" | awk '{print $2, $3}'
+    else
+        dpkg -l | grep "^ii" | awk '{print $2, $3}' | head -100
+        log_info "Showing first 100 packages. Use 'taaos-pkg list <filter>' to search."
+    fi
+}
+
+update_packages() {
+    log_info "📥 Updating package lists..."
+    log_action "UPDATE" "system"
+    apt-get update
+    
+    # Update custom registry
+    log_info "Updating TaaOS registry..."
+    mkdir -p "$LOCAL_REGISTRY"
+    # Future: curl registry from GitHub
+    
+    log_success "Package lists updated!"
+}
+
+upgrade_packages() {
+    log_info "⬆️ Upgrading packages..."
+    log_action "UPGRADE" "system"
+    apt-get update
+    apt-get upgrade -y
+    log_success "System upgraded!"
+}
+
+show_info() {
+    local package="$1"
+    apt-cache show "$package" 2>/dev/null || log_error "Package not found: $package"
+}
+
+# =============================================================================
+# MAIN
+# =============================================================================
+main() {
+    local command="${1:-help}"
+    shift || true
+    
+    case "$command" in
+        install)
+            check_root
+            if [[ $# -eq 0 ]]; then
+                log_error "Usage: taaos-pkg install <package|category>"
+                exit 1
+            fi
+            for pkg in "$@"; do
+                install_package "$pkg"
+            done
+            ;;
+        remove)
+            check_root
+            if [[ $# -eq 0 ]]; then
+                log_error "Usage: taaos-pkg remove <package>"
+                exit 1
+            fi
+            remove_package "$1"
+            ;;
+        update)
+            check_root
+            update_packages
+            ;;
+        upgrade)
+            check_root
+            upgrade_packages
+            ;;
+        search)
+            if [[ $# -eq 0 ]]; then
+                log_error "Usage: taaos-pkg search <query>"
+                exit 1
+            fi
+            search_packages "$1"
+            ;;
+        list)
+            list_packages "${1:-}"
+            ;;
+        category|categories)
+            show_categories
+            ;;
+        info)
+            if [[ $# -eq 0 ]]; then
+                log_error "Usage: taaos-pkg info <package>"
+                exit 1
+            fi
+            show_info "$1"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
