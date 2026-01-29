@@ -1,0 +1,14 @@
+[Unit]
+Description=TaaOS Update Check Timer
+Documentation=https://github.com/taasezer/TaaOS
+
+[Timer]
+# Check for updates daily at 3 AM
+OnCalendar=*-*-* 03:00:00
+# Random delay up to 1 hour to avoid thundering herd
+RandomizedDelaySec=3600
+# Run immediately if missed (e.g., system was off)
+Persistent=true
+
+[Install]
+WantedBy=timers.target

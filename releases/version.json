@@ -1,0 +1,14 @@
+{
+  "current_version": "1.0.0",
+  "release_date": "2026-01-29",
+  "download_url": "https://github.com/taasezer/TaaOS/releases/download/v1.0.0/TaaOS-v1.0.0.iso",
+  "checksum": {
+    "sha256": "pending",
+    "md5": "pending"
+  },
+  "min_supported_version": "0.9.0",
+  "update_available": false,
+  "update_type": "major",
+  "update_size_mb": 2048,
+  "breaking_changes": false
+}

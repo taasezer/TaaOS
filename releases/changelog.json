@@ -1,0 +1,31 @@
+{
+    "versions": [
+        {
+            "version": "1.0.0",
+            "date": "2026-01-29",
+            "type": "major",
+            "changes": {
+                "added": [
+                    "TaaOS Package Manager (taaos-pkg)",
+                    "Persistence mode selector",
+                    "GitHub-based auto-update system",
+                    "Calamares installer integration",
+                    "Container/namespace kernel support",
+                    "OverlayFS for live persistence"
+                ],
+                "fixed": [
+                    "Kernel compilation with proper logging",
+                    "Build system error handling",
+                    "GRUB boot menu organization"
+                ],
+                "security": [
+                    "USB creator dual confirmation",
+                    "Package checksum validation",
+                    "Pre-update snapshots"
+                ]
+            },
+            "download_url": "https://github.com/taasezer/TaaOS/releases/download/v1.0.0/TaaOS-v1.0.0.iso",
+            "patch_url": null
+        }
+    ]
+}

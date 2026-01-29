@@ -1,0 +1,20 @@
+[Unit]
+Description=TaaOS Update Check Service
+Documentation=https://github.com/taasezer/TaaOS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/taaos-update check
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/cache/taaos /var/log/taaos /var/lib/taaos /etc/taaos
+
+[Install]
+WantedBy=multi-user.target
