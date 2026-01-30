@@ -5,6 +5,9 @@ systemd-sysv
 initramfs-tools
 kmod
 
+# KERNEL - CRITICAL FOR BOOT
+linux-image-amd64
+
 # EFI Bootloader Support (FIXED - only -bin packages to avoid conflicts)
 grub-pc-bin
 grub-efi-amd64-bin
