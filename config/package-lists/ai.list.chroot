@@ -1,0 +1,19 @@
+# TaaOS AI/ML Packages
+# Natural Engine and AI development tools
+
+# Ollama (installed via script, not apt)
+# Install: curl -fsSL https://ollama.com/install.sh | sh
+
+# Python AI stack
+python3-pip
+python3-venv
+python3-dev
+
+# ML libraries (install via pip)
+# pip3 install torch tensorflow transformers
+
+# Jupyter
+jupyter-notebook
+
+# JSON processing for conversation history
+jq
