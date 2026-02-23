@@ -40,8 +40,7 @@ lb config \
     --binary-images "iso-hybrid" \
     --image-name "${IMAGE_NAME}" \
     --debian-installer "none" \
-    --linux-packages "linux-image" \
-    --linux-flavours "amd64" \
+    --linux-packages "none" \
     --bootappend-live "boot=live components quiet splash" \
     --memtest "none" \
     --apt-options "--yes -o APT::Sandbox::User=root" \
