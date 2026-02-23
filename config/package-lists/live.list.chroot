@@ -5,8 +5,9 @@ systemd-sysv
 initramfs-tools
 kmod
 
-# KERNEL - CRITICAL FOR BOOT
-linux-image-amd64
+# KERNEL - Custom kernel is provided via packages.chroot (compiled by compile_kernel.sh)
+# linux-image-amd64 is NOT used - custom kernel (6.19.0-taaos) replaces it
+# linux-image-amd64
 
 # EFI Bootloader Support (FIXED - only -bin packages to avoid conflicts)
 grub-pc-bin
