@@ -2,10 +2,9 @@
 # =============================================================================
 # TaaOS Live Kernel & EFI Copy Hook - CRITICAL for VM Boot
 # =============================================================================
-# This hook runs during the binary stage and ensures:
-# 1. Kernel files are in /live/
-# 2. EFI files are properly structured
-# 3. Hybrid ISO compatibility
+# This hook runs during the BINARY stage of live-build.
+# At this stage, the chroot filesystem is at ./chroot/ and
+# the binary output directory is at ./binary/
 # =============================================================================
 
 set -e
@@ -15,43 +14,103 @@ echo "[LIVE-HOOK] TaaOS Live Binary Stage Setup"
 echo "=============================================="
 
 # =============================================================================
+# DETECT WORKING DIRECTORY STRUCTURE
+# =============================================================================
+# Binary hooks run from the build root. Chroot is at ./chroot/
+# Binary output goes to ./binary/
+# Some live-build versions may place us differently, so we detect paths.
+
+CHROOT_DIR=""
+BINARY_DIR=""
+
+if [ -d "./chroot/boot" ]; then
+    CHROOT_DIR="./chroot"
+    BINARY_DIR="./binary"
+elif [ -d "/chroot/boot" ]; then
+    CHROOT_DIR="/chroot"
+    BINARY_DIR="/binary"
+elif [ -d "chroot/boot" ]; then
+    CHROOT_DIR="chroot"
+    BINARY_DIR="binary"
+fi
+
+echo "[LIVE-HOOK] Detecting directory structure..."
+echo "[LIVE-HOOK] Current directory: $(pwd)"
+echo "[LIVE-HOOK] Directory listing:"
+ls -la
+
+if [ -n "$CHROOT_DIR" ]; then
+    echo "[LIVE-HOOK] Found chroot at: $CHROOT_DIR"
+    echo "[LIVE-HOOK] Binary output at: $BINARY_DIR"
+else
+    echo "[LIVE-HOOK] WARNING: No chroot directory found, trying direct paths..."
+    # Fallback: maybe we're already inside the binary tree
+    CHROOT_DIR=""
+    BINARY_DIR=""
+fi
+
+# =============================================================================
 # PART 1: Kernel Files
 # =============================================================================
-echo "[LIVE-HOOK] Copying kernel to /live/ directory..."
+echo "[LIVE-HOOK] Copying kernel to live directory..."
 
-mkdir -p /live
+# Create output directory
+if [ -n "$BINARY_DIR" ]; then
+    mkdir -p "${BINARY_DIR}/live"
+    LIVE_OUT="${BINARY_DIR}/live"
+else
+    mkdir -p /live
+    LIVE_OUT="/live"
+fi
 
-# Find kernel (check multiple locations)
-VMLINUZ=$(find /boot -name "vmlinuz*" -type f ! -name "*.old" 2>/dev/null | head -1)
-INITRD=$(find /boot -name "initrd*" -type f ! -name "*.old" 2>/dev/null | head -1)
+# Search for kernel in chroot/boot (primary) and fallback locations
+VMLINUZ=""
+INITRD=""
 
-# If not in /boot, check other locations
+if [ -n "$CHROOT_DIR" ]; then
+    # Primary: search in chroot's /boot
+    VMLINUZ=$(find "${CHROOT_DIR}/boot" -name "vmlinuz*" -type f ! -name "*.old" 2>/dev/null | head -1)
+    INITRD=$(find "${CHROOT_DIR}/boot" -name "initrd*" -type f ! -name "*.old" 2>/dev/null | head -1)
+
+    # Fallback: search chroot's /live
+    if [ -z "$VMLINUZ" ]; then
+        VMLINUZ=$(find "${CHROOT_DIR}/live" -name "vmlinuz*" -type f 2>/dev/null | head -1)
+    fi
+    if [ -z "$INITRD" ]; then
+        INITRD=$(find "${CHROOT_DIR}/live" -name "initrd*" -type f 2>/dev/null | head -1)
+    fi
+fi
+
+# Additional fallback: /boot directly (in case hook context is different)
 if [ -z "$VMLINUZ" ]; then
-    VMLINUZ=$(find / -name "vmlinuz*" -type f 2>/dev/null | grep -v old | head -1)
+    VMLINUZ=$(find /boot -name "vmlinuz*" -type f ! -name "*.old" 2>/dev/null | head -1)
 fi
-
 if [ -z "$INITRD" ]; then
-    INITRD=$(find / -name "initrd*" -type f -o -name "initramfs*" 2>/dev/null | grep -v old | head -1)
+    INITRD=$(find /boot -name "initrd*" -type f ! -name "*.old" 2>/dev/null | head -1)
 fi
 
+# Copy kernel
 if [ -n "$VMLINUZ" ]; then
-    cp -v "$VMLINUZ" /live/vmlinuz
-    echo "[LIVE-HOOK] Kernel copied to /live/vmlinuz from: $VMLINUZ"
+    cp -v "$VMLINUZ" "${LIVE_OUT}/vmlinuz"
+    echo "[LIVE-HOOK] Kernel copied to ${LIVE_OUT}/vmlinuz from: $VMLINUZ"
 else
     echo "[LIVE-HOOK] ERROR: No kernel found!"
+    echo "[LIVE-HOOK] Searched locations:"
+    [ -n "$CHROOT_DIR" ] && ls -la "${CHROOT_DIR}/boot/" 2>/dev/null || true
     ls -la /boot/ 2>/dev/null || true
 fi
 
+# Copy initrd
 if [ -n "$INITRD" ]; then
-    cp -v "$INITRD" /live/initrd.img
-    echo "[LIVE-HOOK] Initrd copied to /live/initrd.img from: $INITRD"
+    cp -v "$INITRD" "${LIVE_OUT}/initrd.img"
+    echo "[LIVE-HOOK] Initrd copied to ${LIVE_OUT}/initrd.img from: $INITRD"
 else
     echo "[LIVE-HOOK] WARNING: No initrd found!"
 fi
 
 # Verify kernel files
-echo "[LIVE-HOOK] /live/ contents:"
-ls -la /live/ || echo "ERROR: /live/ directory empty!"
+echo "[LIVE-HOOK] ${LIVE_OUT}/ contents:"
+ls -la "${LIVE_OUT}/" || echo "ERROR: live directory empty!"
 
 # =============================================================================
 # PART 2: EFI Structure for Hybrid ISO
@@ -59,32 +118,36 @@ ls -la /live/ || echo "ERROR: /live/ directory empty!"
 echo ""
 echo "[LIVE-HOOK] Setting up EFI boot structure..."
 
-# Create EFI directories
-mkdir -p /EFI/boot
-mkdir -p /boot/grub
-mkdir -p /boot/efi/EFI/boot 2>/dev/null || true
+# Determine EFI output directory
+if [ -n "$BINARY_DIR" ]; then
+    EFI_OUT="${BINARY_DIR}/EFI/boot"
+    BOOT_GRUB_OUT="${BINARY_DIR}/boot/grub"
+else
+    EFI_OUT="/EFI/boot"
+    BOOT_GRUB_OUT="/boot/grub"
+fi
 
-# Copy EFI bootloaders from various sources
-EFI_SOURCE=""
-for src in /usr/lib/shim /boot/efi/EFI/debian /boot/efi/EFI/BOOT /boot/grub/x86_64-efi; do
-    if [ -d "$src" ]; then
-        EFI_SOURCE="$src"
-        echo "[LIVE-HOOK] Found EFI source: $src"
-        break
-    fi
-done
+mkdir -p "${EFI_OUT}"
+mkdir -p "${BOOT_GRUB_OUT}"
+
+# Determine where to find EFI binaries (chroot or host)
+if [ -n "$CHROOT_DIR" ]; then
+    SHIM_PREFIX="${CHROOT_DIR}"
+else
+    SHIM_PREFIX=""
+fi
 
 # Copy shim (signed bootloader)
 for shim in \
-    /usr/lib/shim/shimx64.efi.signed \
-    /usr/lib/shim/shimx64.efi \
-    /boot/efi/EFI/debian/shimx64.efi \
-    /boot/efi/EFI/BOOT/BOOTX64.EFI \
-    /boot/efi/EFI/boot/bootx64.efi
+    "${SHIM_PREFIX}/usr/lib/shim/shimx64.efi.signed" \
+    "${SHIM_PREFIX}/usr/lib/shim/shimx64.efi" \
+    "${SHIM_PREFIX}/boot/efi/EFI/debian/shimx64.efi" \
+    "${SHIM_PREFIX}/boot/efi/EFI/BOOT/BOOTX64.EFI" \
+    "${SHIM_PREFIX}/boot/efi/EFI/boot/bootx64.efi"
 do
     if [ -f "$shim" ]; then
-        cp -v "$shim" /EFI/boot/BOOTX64.EFI
-        cp -v "$shim" /EFI/boot/bootx64.efi
+        cp -v "$shim" "${EFI_OUT}/BOOTX64.EFI"
+        cp -v "$shim" "${EFI_OUT}/bootx64.efi"
         echo "[LIVE-HOOK] Copied shim: $shim"
         break
     fi
@@ -92,28 +155,28 @@ done
 
 # Copy GRUB EFI binary
 for grub in \
-    /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed \
-    /usr/lib/grub/x86_64-efi/monolithic/grubx64.efi \
-    /usr/lib/grub/x86_64-efi/grubx64.efi \
-    /boot/efi/EFI/debian/grubx64.efi \
-    /boot/efi/EFI/boot/grubx64.efi \
-    /boot/grub/x86_64-efi/grub.efi
+    "${SHIM_PREFIX}/usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed" \
+    "${SHIM_PREFIX}/usr/lib/grub/x86_64-efi/monolithic/grubx64.efi" \
+    "${SHIM_PREFIX}/usr/lib/grub/x86_64-efi/grubx64.efi" \
+    "${SHIM_PREFIX}/boot/efi/EFI/debian/grubx64.efi" \
+    "${SHIM_PREFIX}/boot/efi/EFI/boot/grubx64.efi" \
+    "${SHIM_PREFIX}/boot/grub/x86_64-efi/grub.efi"
 do
     if [ -f "$grub" ]; then
-        cp -v "$grub" /EFI/boot/grubx64.efi
+        cp -v "$grub" "${EFI_OUT}/grubx64.efi"
         echo "[LIVE-HOOK] Copied grubx64.efi: $grub"
         break
     fi
 done
 
 # Copy MOK manager
-if [ -f /usr/lib/shim/mmx64.efi ]; then
-    cp -v /usr/lib/shim/mmx64.efi /EFI/boot/
+if [ -f "${SHIM_PREFIX}/usr/lib/shim/mmx64.efi" ]; then
+    cp -v "${SHIM_PREFIX}/usr/lib/shim/mmx64.efi" "${EFI_OUT}/"
 fi
 
 # Create fallback GRUB config for EFI
 echo "[LIVE-HOOK] Creating EFI GRUB configuration..."
-cat > /EFI/boot/grub.cfg << 'EOF'
+cat > "${EFI_OUT}/grub.cfg" << 'EOF'
 # TaaOS EFI GRUB Configuration
 set default="0"
 set timeout=10
@@ -152,32 +215,29 @@ menuentry "TaaOS Live (Recovery)" --class taaos --class os {
 EOF
 
 # Copy GRUB config to multiple locations for compatibility
-cp /EFI/boot/grub.cfg /boot/grub/grub.cfg 2>/dev/null || true
-
-# Also create in /boot/efi if it exists
-if [ -d /boot/efi ]; then
-    mkdir -p /boot/efi/EFI/boot
-    cp /EFI/boot/grub.cfg /boot/efi/EFI/boot/grub.cfg 2>/dev/null || true
-fi
+cp "${EFI_OUT}/grub.cfg" "${BOOT_GRUB_OUT}/grub.cfg" 2>/dev/null || true
 
 # Create 32-bit EFI fallback (for older systems)
-if [ -f /usr/lib/grub/i386-efi/monolithic/grubia32.efi ]; then
-    mkdir -p /EFI/boot
-    cp /usr/lib/grub/i386-efi/monolithic/grubia32.efi /EFI/boot/bootia32.efi
+if [ -f "${SHIM_PREFIX}/usr/lib/grub/i386-efi/monolithic/grubia32.efi" ]; then
+    cp "${SHIM_PREFIX}/usr/lib/grub/i386-efi/monolithic/grubia32.efi" "${EFI_OUT}/bootia32.efi"
     echo "[LIVE-HOOK] Added 32-bit EFI support"
 fi
 
 # Verify EFI structure
 echo ""
 echo "[LIVE-HOOK] Verifying EFI structure:"
-ls -laR /EFI/ || echo "Warning: EFI structure incomplete"
-
-echo ""
-echo "[LIVE-HOOK] Verifying boot structure:"
-ls -la /boot/ 2>/dev/null || true
+if [ -n "$BINARY_DIR" ]; then
+    ls -laR "${BINARY_DIR}/EFI/" 2>/dev/null || echo "Warning: EFI structure incomplete"
+    echo ""
+    echo "[LIVE-HOOK] Verifying live directory:"
+    ls -la "${BINARY_DIR}/live/" 2>/dev/null || true
+else
+    ls -laR /EFI/ || echo "Warning: EFI structure incomplete"
+    echo ""
+    echo "[LIVE-HOOK] Verifying boot structure:"
+    ls -la /boot/ 2>/dev/null || true
+fi
 
 echo "=============================================="
 echo "[LIVE-HOOK] Binary stage setup complete!"
 echo "=============================================="
-
-
