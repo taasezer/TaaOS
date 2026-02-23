@@ -238,6 +238,10 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     
     chmod +x *.sh
     
+    # CRITICAL FIX: Ensure ALL hooks are executable! live-build drops hooks silently if they lack +x bit
+    echo "Ensuring all hooks are executable..."
+    find config/hooks -type f -exec chmod +x {} \; 2>/dev/null || true
+    
     # Verify files
     echo "=== Files in /build ==="
     ls -la
