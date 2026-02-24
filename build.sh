@@ -113,7 +113,7 @@ log_success "Container started successfully"
 # =============================================================================
 log_phase "PHASE 4/6: SURGICAL FILE INJECTION"
 log_info "Creating directory structure inside container..."
-docker exec "$CONTAINER_NAME" mkdir -p /build/config/hooks/normal
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/hooks/live
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/package-lists
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.binary
@@ -133,26 +133,26 @@ docker cp ./config/package-lists/themes.list.chroot "$CONTAINER_NAME":/build/con
 
 # Copy hooks
 echo "    Copying hooks..."
-[ -f ./config/hooks/normal/00-kernel-setup.hook.chroot ] && docker cp ./config/hooks/normal/00-kernel-setup.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
-[ -f ./config/hooks/normal/01-frameworks.hook.chroot ] && docker cp ./config/hooks/normal/01-frameworks.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
-[ -f ./config/hooks/normal/02-ai-natural.hook.chroot ] && docker cp ./config/hooks/normal/02-ai-natural.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
-[ -f ./config/hooks/normal/03-security.hook.chroot ] && docker cp ./config/hooks/normal/03-security.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
-[ -f ./config/hooks/normal/04-cli.hook.chroot ] && docker cp ./config/hooks/normal/04-cli.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
-[ -f ./config/hooks/normal/99-user.hook.chroot ] && docker cp ./config/hooks/normal/99-user.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+[ -f ./config/hooks/live/00-kernel-setup.hook.chroot ] && docker cp ./config/hooks/live/00-kernel-setup.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
+[ -f ./config/hooks/live/01-frameworks.hook.chroot ] && docker cp ./config/hooks/live/01-frameworks.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
+[ -f ./config/hooks/live/02-ai-natural.hook.chroot ] && docker cp ./config/hooks/live/02-ai-natural.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
+[ -f ./config/hooks/live/03-security.hook.chroot ] && docker cp ./config/hooks/live/03-security.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
+[ -f ./config/hooks/live/04-cli.hook.chroot ] && docker cp ./config/hooks/live/04-cli.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
+[ -f ./config/hooks/live/99-user.hook.chroot ] && docker cp ./config/hooks/live/99-user.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
 
 # Copy bootloader config (EFI)
 echo "    Copying bootloader config..."
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/bootloaders/grub-efi
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/bootloaders/grub-pc
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/hooks/live
-docker exec "$CONTAINER_NAME" mkdir -p /build/config/hooks/normal
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/hooks/live
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.binary
 [ -f ./config/bootloaders/grub-efi/grub.cfg ] && docker cp ./config/bootloaders/grub-efi/grub.cfg "$CONTAINER_NAME":/build/config/bootloaders/grub-efi/ || true
 [ -f ./config/bootloaders/grub-pc/grub.cfg ] && docker cp ./config/bootloaders/grub-pc/grub.cfg "$CONTAINER_NAME":/build/config/bootloaders/grub-pc/ || true
 
 # Copy EFI fix hook (CRITICAL for VM Boot)
 echo "    Copying EFI fix hook..."
-[ -f ./config/hooks/normal/09-efi-fix.hook.chroot ] && docker cp ./config/hooks/normal/09-efi-fix.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+[ -f ./config/hooks/live/09-efi-fix.hook.chroot ] && docker cp ./config/hooks/live/09-efi-fix.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
 
 # Copy live hooks (binary stage)
 echo "    Copying live hooks..."
@@ -160,31 +160,31 @@ echo "    Copying live hooks..."
 
 # Copy UX branding hook
 echo "    Copying UX branding hook..."
-[ -f ./config/hooks/normal/05-ux-branding.hook.chroot ] && docker cp ./config/hooks/normal/05-ux-branding.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+[ -f ./config/hooks/live/05-ux-branding.hook.chroot ] && docker cp ./config/hooks/live/05-ux-branding.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
 
 # Copy performance/security hook
 echo "    Copying performance/security hook..."
-[ -f ./config/hooks/normal/06-perf-security.hook.chroot ] && docker cp ./config/hooks/normal/06-perf-security.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+[ -f ./config/hooks/live/06-perf-security.hook.chroot ] && docker cp ./config/hooks/live/06-perf-security.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
 
 # Copy devops hook
 echo "    Copying devops hook..."
-[ -f ./config/hooks/normal/07-devops-tools.hook.chroot ] && docker cp ./config/hooks/normal/07-devops-tools.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+[ -f ./config/hooks/live/07-devops-tools.hook.chroot ] && docker cp ./config/hooks/live/07-devops-tools.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
 
 # Copy core installer hook
 echo "    Copying core installer hook..."
-[ -f ./config/hooks/normal/08-core-installer.hook.chroot ] && docker cp ./config/hooks/normal/08-core-installer.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+[ -f ./config/hooks/live/08-core-installer.hook.chroot ] && docker cp ./config/hooks/live/08-core-installer.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
 
 # Copy OS configuration hook (CRITICAL for full OS)
 echo "    Copying OS configuration hook..."
-[ -f ./config/hooks/normal/10-os-config.hook.chroot ] && docker cp ./config/hooks/normal/10-os-config.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+[ -f ./config/hooks/live/10-os-config.hook.chroot ] && docker cp ./config/hooks/live/10-os-config.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
 
 # Copy Calamares installer hook (CRITICAL for graphical installation)
 echo "    Copying Calamares installer hook..."
-[ -f ./config/hooks/normal/11-calamares.hook.chroot ] && docker cp ./config/hooks/normal/11-calamares.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+[ -f ./config/hooks/live/11-calamares.hook.chroot ] && docker cp ./config/hooks/live/11-calamares.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
 
 # Copy Branding hook (Plymouth, XFCE theme, wallpaper)
 echo "    Copying Branding hook..."
-[ -f ./config/hooks/normal/12-branding.hook.chroot ] && docker cp ./config/hooks/normal/12-branding.hook.chroot "$CONTAINER_NAME":/build/config/hooks/normal/ || true
+[ -f ./config/hooks/live/12-branding.hook.chroot ] && docker cp ./config/hooks/live/12-branding.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
 
 # Copy scripts directory (all subdirectories)
 echo "    Copying scripts..."
