@@ -26,12 +26,15 @@ BINARY_DIR=""
 if [ -d "./chroot/boot" ]; then
     CHROOT_DIR="./chroot"
     BINARY_DIR="./binary"
+elif [ -d "../chroot/boot" ]; then
+    CHROOT_DIR="../chroot"
+    BINARY_DIR="."
+elif [ -d "/build/chroot/boot" ]; then
+    CHROOT_DIR="/build/chroot"
+    BINARY_DIR="/build/binary"
 elif [ -d "/chroot/boot" ]; then
     CHROOT_DIR="/chroot"
     BINARY_DIR="/binary"
-elif [ -d "chroot/boot" ]; then
-    CHROOT_DIR="chroot"
-    BINARY_DIR="binary"
 fi
 
 echo "[LIVE-HOOK] Detecting directory structure..."
@@ -69,24 +72,24 @@ INITRD=""
 
 if [ -n "$CHROOT_DIR" ]; then
     # Primary: search in chroot's /boot
-    VMLINUZ=$(find "${CHROOT_DIR}/boot" -name "vmlinuz*" -type f ! -name "*.old" 2>/dev/null | head -1)
-    INITRD=$(find "${CHROOT_DIR}/boot" -name "initrd*" -type f ! -name "*.old" 2>/dev/null | head -1)
+    VMLINUZ=$(find "${CHROOT_DIR}/boot" -name "vmlinuz*" \( -type f -o -type l \) ! -name "*.old" 2>/dev/null | head -1)
+    INITRD=$(find "${CHROOT_DIR}/boot" -name "initrd*" \( -type f -o -type l \) ! -name "*.old" 2>/dev/null | head -1)
 
     # Fallback: search chroot's /live
     if [ -z "$VMLINUZ" ]; then
-        VMLINUZ=$(find "${CHROOT_DIR}/live" -name "vmlinuz*" -type f 2>/dev/null | head -1)
+        VMLINUZ=$(find "${CHROOT_DIR}/live" -name "vmlinuz*" \( -type f -o -type l \) 2>/dev/null | head -1)
     fi
     if [ -z "$INITRD" ]; then
-        INITRD=$(find "${CHROOT_DIR}/live" -name "initrd*" -type f 2>/dev/null | head -1)
+        INITRD=$(find "${CHROOT_DIR}/live" -name "initrd*" \( -type f -o -type l \) 2>/dev/null | head -1)
     fi
 fi
 
 # Additional fallback: /boot directly (in case hook context is different)
 if [ -z "$VMLINUZ" ]; then
-    VMLINUZ=$(find /boot -name "vmlinuz*" -type f ! -name "*.old" 2>/dev/null | head -1)
+    VMLINUZ=$(find /boot -name "vmlinuz*" \( -type f -o -type l \) ! -name "*.old" 2>/dev/null | head -1)
 fi
 if [ -z "$INITRD" ]; then
-    INITRD=$(find /boot -name "initrd*" -type f ! -name "*.old" 2>/dev/null | head -1)
+    INITRD=$(find /boot -name "initrd*" \( -type f -o -type l \) ! -name "*.old" 2>/dev/null | head -1)
 fi
 
 # Copy kernel

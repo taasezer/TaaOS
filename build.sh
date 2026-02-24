@@ -259,6 +259,11 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     # Ensure packages are accessible
     chmod -R 777 config/packages.chroot 2>/dev/null || true
     
+    # CRITICAL FIX: Force inject kernel into chroot because live-build might ignore them due to --linux-packages "none"
+    echo "=== Injecting Kernel Packages into Chroot ==="
+    mkdir -p config/includes.chroot/root/taaos-kernel
+    cp config/packages.chroot/*.deb config/includes.chroot/root/taaos-kernel/ 2>/dev/null || true
+    
     # Run live-build config
     echo "=== PHASE B: Live-Build Config ==="
     ./init_config.sh

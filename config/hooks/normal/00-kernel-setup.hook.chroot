@@ -17,8 +17,20 @@ echo "[KERNEL-HOOK] TaaOS Custom Kernel Setup"
 echo "=============================================="
 
 # =============================================================================
-# STEP 1: Find installed kernels
+# STEP 1: Install & Find Custom Kernels
 # =============================================================================
+
+echo "[KERNEL-HOOK] Forcefully installing custom kernel packages..."
+if [ -d "/root/taaos-kernel" ]; then
+    dpkg -i /root/taaos-kernel/*.deb || {
+        echo "[KERNEL-HOOK] dpkg returned an error, trying to fix dependencies with apt-get install -f"
+        apt-get install -f -y || true
+    }
+    echo "[KERNEL-HOOK] Kernel packages installed successfully."
+else
+    echo "[KERNEL-HOOK] No kernel packages found in /root/taaos-kernel. Hoping they are already installed via live-build."
+fi
+
 echo "[KERNEL-HOOK] Scanning for installed kernels..."
 echo "[KERNEL-HOOK] /lib/modules/ contents:"
 ls -la /lib/modules/ 2>/dev/null || echo "No /lib/modules found"
