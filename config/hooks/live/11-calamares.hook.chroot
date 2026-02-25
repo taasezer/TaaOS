@@ -68,7 +68,15 @@ if [ -f /build/assets/logo.png ]; then
     cp /build/assets/logo.png /etc/calamares/branding/taaos/
     cp /build/assets/logo.png /etc/calamares/branding/taaos/welcome.png
 else
-    echo "[CALAMARES] Warning: logo.png not found in /build/assets/"
+    echo "[CALAMARES] Warning: logo.png not found in /build/assets/. Creating a dummy logo to prevent crash..."
+    # Fallback to creating a dummy logo if ImageMagick is available, else copy a system icon 
+    if command -v convert &> /dev/null; then
+        convert -size 200x200 xc:transparent /etc/calamares/branding/taaos/logo.png || true
+    else
+        # Copy a generic system icon as fallback
+        cp /usr/share/icons/hicolor/48x48/apps/calamares.png /etc/calamares/branding/taaos/logo.png 2>/dev/null || touch /etc/calamares/branding/taaos/logo.png
+    fi
+    cp /etc/calamares/branding/taaos/logo.png /etc/calamares/branding/taaos/welcome.png 2>/dev/null || true
 fi
 
 # Create slideshow
