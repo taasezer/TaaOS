@@ -18,7 +18,7 @@ if (Test-Path $vdiPath) {
 Write-Host "Creating Virtual Machine..."
 & $vbox createvm --name $vmName --ostype "Linux26_64" --register
 & $vbox modifyvm $vmName --memory 8192 --vram 128 --ioapic on --rtcuseutc on --mouse usbtablet
-& $vbox createhd --filename $vdiPath --size 25000 --format VDI
+& $vbox createhd --filename $vdiPath --size 40000 --format VDI
 
 Write-Host "Configuring Storage..."
 & $vbox storagectl $vmName --name "SATA Controller" --add sata --controller IntelAhci
