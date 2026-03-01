@@ -87,6 +87,7 @@ sequence:
     - services-systemd
     - grubcfg
     - bootloader
+    - shellprocess
     - umount
   - show:
     - finished
@@ -280,7 +281,21 @@ defaultDesktopEnvironment:
     desktopFile: "xfce"
 
 basicSetup: false
-DISPLAYMANAGER_CONF
+DM_CONF
+
+    # Post-installation Cleanup Module (shellprocess)
+    cat > /etc/calamares/modules/shellprocess.conf << 'SHELLPROCESS_CONF'
+---
+# TaaOS Cleanup Module
+dontChroot: false
+timeout: 300
+script:
+    - "-rm -f /home/*/Desktop/taaos-installer.desktop"
+    - "-rm -f /etc/skel/Desktop/taaos-installer.desktop"
+    - "-rm -rf /usr/share/calamares/"
+    - "-apt-get remove --purge -y calamares calamares-settings-debian live-boot live-config live-config-systemd"
+    - "-apt-get autoremove -y"
+SHELLPROCESS_CONF
 
     echo "[INSTALLER] Modules configured"
 }

@@ -165,30 +165,55 @@ try:
 except ImportError as e:
     print(f"Error: Missing dependency - {e}")
     print("Please ensure ollama and rich are installed:")
-    print("  pip3 install ollama rich")
+    print("  pip3 install ollama rich requests")
     sys.exit(1)
+
+import subprocess
+import os
+
+def check_and_pull_model(model_name: str, console) -> bool:
+    """Check if model exists and pull if missing."""
+    try:
+        models = ollama.list()
+        model_names = [m.get('name', '') for m in models.get('models', [])]
+        
+        # If the model name is provided without a tag, Ollama defaults to latest
+        check_name = model_name if ":" in model_name else f"{model_name}:latest"
+        
+        if check_name not in model_names and model_name not in model_names:
+            console.print(f"[bold yellow]Model '{model_name}' not found locally.[/bold yellow]")
+            console.print("[dim]This is required for the AI Engine. Downloading it now (it may take a few minutes)...[/dim]")
+            
+            with console.status(f"[bold green]Pulling {model_name}... this will only happen once![/bold green]", spinner="dots"):
+                ollama.pull(model_name)
+                
+            console.print(f"[bold green]✓ Download complete![/bold green]\n")
+            return True
+        return True
+    except Exception as e:
+        console.print(f"[bold red]Failed to connect to Ollama service or pull model:[/bold red] {e}")
+        console.print("[yellow]Tip:[/yellow] Make sure Ollama daemon is running: systemctl start ollama")
+        return False
+
 
 # Initialize Rich console for beautiful output
 console = Console()
 
 # Configuration
 DEFAULT_MODEL = "llama3.2"
-SYSTEM_PROMPT = """You are a Linux command translator. Your ONLY job is to translate the user's natural language request into a valid Linux bash command.
+SYSTEM_PROMPT = """You are a highly capable AI assistant inside "TaaOS Natural Engine".
+Your goal is to help the user with programming, system administration, and general coding tasks.
 
 RULES:
-1. Output ONLY the command itself, nothing else
-2. No explanations, no markdown, no code blocks
-3. No backticks or formatting
-4. If multiple commands are needed, chain them with && or ;
-5. Use common, safe commands
-6. If the request is unclear, output the most likely intended command
+1. If the user asks for a command to execute (like "update the system" or "find large files"):
+   - Output ONLY the raw bash command. NO markdown blocks (like ```bash).
+   - The system will directly execute this command.
+2. If the user asks a coding question (like "write a python script" or "how does a for loop work"):
+   - Provide a helpful, well-formatted response with code blocks (```python, ```c++, etc.)
+   - Do NOT just output raw text.
+3. Keep your answers focused, professional, and directly useful.
 
-Example inputs and outputs:
-- "show me all files" -> ls -la
-- "find large files over 100MB" -> find . -type f -size +100M
-- "check disk space" -> df -h
-- "show running processes" -> ps aux
-- "update the system" -> sudo apt update && sudo apt upgrade -y"""
+If the request looks like a system command (e.g., "show running processes"), just output: ps aux"""
 
 
 def print_banner():
@@ -203,7 +228,9 @@ def print_banner():
 
 def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
     """Translate natural language to bash command using Ollama."""
-    try:
+        # Ensure we have the model first
+        check_and_pull_model(model, console)
+        
         response = ollama.chat(
             model=model,
             messages=[
@@ -217,24 +244,27 @@ def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
                 }
             ],
             options={
-                "temperature": 0.1,  # Low temperature for deterministic output
-                "num_predict": 256   # Limit response length
+                "temperature": 0.4,  # Moderate temp for mixed coding/command usage
             }
         )
         
-        # Extract the command from response
+        # Extract the text
         command = response["message"]["content"].strip()
         
-        # Clean up any accidental formatting
-        command = command.replace("```bash", "").replace("```", "").strip()
-        command = command.replace("`", "").strip()
+        # Determine if this is a general explanation/code writing or a strict bash command
+        bash_command_mode = not ("```" in command or "def " in command or "\n" in command)
         
-        # Remove any leading/trailing quotes
-        if (command.startswith('"') and command.endswith('"')) or \
-           (command.startswith("'") and command.endswith("'")):
-            command = command[1:-1]
-        
-        return command
+        if bash_command_mode:
+            # Clean up strict bash commands so they can execute
+            command = command.replace("```bash", "").replace("```", "").strip()
+            command = command.replace("`", "").strip()
+            if (command.startswith('"') and command.endswith('"')) or \
+               (command.startswith("'") and command.endswith("'")):
+                command = command[1:-1]
+            return command, True # True means it's an executable command
+        else:
+            return command, False # False means it's a code block or explanation
+
         
     except ollama.ResponseError as e:
         console.print(f"[red]Error:[/red] Ollama response error - {e}")
@@ -246,16 +276,27 @@ def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
         sys.exit(1)
 
 
-def display_command(command: str):
-    """Display the generated command with syntax highlighting."""
-    syntax = Syntax(command, "bash", theme="monokai", line_numbers=False)
-    panel = Panel(
-        syntax,
-        title="[bold green]Generated Command[/bold green]",
-        border_style="green",
-        padding=(0, 1)
-    )
-    console.print(panel)
+def display_command(content: str, is_command: bool):
+    """Display the generated command or code block."""
+    if is_command:
+        syntax = Syntax(content, "bash", theme="monokai", line_numbers=False)
+        panel = Panel(
+            syntax,
+            title="[bold green]Generated Command[/bold green]",
+            border_style="green",
+            padding=(0, 1)
+        )
+        console.print(panel)
+    else:
+        # For general code and text, just use a different panel style
+        from rich.markdown import Markdown
+        panel = Panel(
+            Markdown(content),
+            title="[bold blue]AI Response[/bold blue]",
+            border_style="blue",
+            padding=(1, 2)
+        )
+        console.print(panel)
 
 
 def execute_command(command: str):
@@ -303,24 +344,28 @@ def main():
     # Get the user's request
     user_request = " ".join(sys.argv[1:])
     
-    # Display the request
-    console.print(f"[bold]Request:[/bold] {user_request}")
+    console.print(f"[dim]Translating:[/dim] {user_request}")
     console.print()
     
-    # Translate to command
-    console.print("[dim]Translating with AI...[/dim]")
-    command = translate_to_command(user_request)
-    console.print()
+    with console.status("[bold green]Thinking...[/bold green]", spinner="dots"):
+        content, is_command = translate_to_command(user_request)
+        
+    display_command(content, is_command)
     
-    # Display the generated command
-    display_command(command)
-    console.print()
-    
-    # Ask for confirmation
-    if Confirm.ask("[bold]Execute this command?[/bold]", default=True):
-        execute_command(command)
-    else:
-        console.print("[dim]Command not executed.[/dim]")
+    if is_command:
+        # Check if the command is safe to run
+        dangerous_keywords = ["rm ", "mkfs", "dd ", "fdisk", "parted", "> /dev/"]
+        
+        is_dangerous = any(keyword in content.lower() for keyword in dangerous_keywords)
+        
+        console.print()
+        if is_dangerous:
+            console.print("[bold red]⚠️  WARNING: This command appears potentially destructive![/bold red]")
+            
+        if Confirm.ask("[bold yellow]Execute this command?[/bold yellow]", default=not is_dangerous):
+            execute_command(content)
+        else:
+            console.print("[yellow]Execution cancelled.[/yellow]")
 
 
 if __name__ == "__main__":

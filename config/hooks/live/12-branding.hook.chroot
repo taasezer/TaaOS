@@ -135,7 +135,72 @@ cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << 'EOF'
 </channel>
 EOF
 
+# XFCE Settings - Desktop (Wallpaper)
+cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-desktop" version="1.0">
+  <property name="backdrop" type="empty">
+    <property name="screen0" type="empty">
+      <property name="monitor0" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="color-style" type="int" value="0"/>
+          <property name="image-style" type="int" value="5"/>
+          <property name="last-image" type="string" value="/usr/share/backgrounds/taaos/wallpaper.png"/>
+        </property>
+      </property>
+    </property>
+  </property>
+</channel>
+EOF
+
 echo "[BRANDING] XFCE theme configuration complete"
+
+# Ensure custom panel setup configuration is present by ensuring whiskermenu is installed
+echo "[BRANDING] Installing required xfce panel plugins..."
+apt-get install -y --no-install-recommends xfce4-whiskermenu-plugin xfce4-pulseaudio-plugin || true
+
+# Construct panel launcher profiles
+mkdir -p /etc/skel/.config/xfce4/panel/launcher-17336104441
+cat > /etc/skel/.config/xfce4/panel/launcher-17336104441/17336104441.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Terminal
+Comment=Use the command line
+Exec=xfce4-terminal
+Icon=utilities-terminal
+Path=
+Terminal=false
+StartupNotify=true
+EOF
+
+mkdir -p /etc/skel/.config/xfce4/panel/launcher-17336104442
+cat > /etc/skel/.config/xfce4/panel/launcher-17336104442/17336104442.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=File Manager
+Comment=Browse the file system
+Exec=thunar %F
+Icon=org.xfce.filemanager
+Path=
+Terminal=false
+StartupNotify=true
+EOF
+
+mkdir -p /etc/skel/.config/xfce4/panel/launcher-17336104443
+cat > /etc/skel/.config/xfce4/panel/launcher-17336104443/17336104443.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Web Browser
+Comment=Browse the web
+Exec=x-www-browser %u
+Icon=web-browser
+Path=
+Terminal=false
+StartupNotify=true
+EOF
 
 # =============================================================================
 # SECTION 3: WALLPAPER CONFIGURATION
