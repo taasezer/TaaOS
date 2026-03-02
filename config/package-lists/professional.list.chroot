@@ -5,6 +5,9 @@ docker-compose
 nmap
 htop
 neovim
+vim
+nano
+micro
 gparted
 
 # Modern App Ecosystem
@@ -23,3 +26,16 @@ cockpit
 default-jre
 wget
 curl
+awscli
+
+# Virtualization (from README)
+qemu-kvm
+libvirt-daemon-system
+libvirt-clients
+virt-manager
+
+# Network Analysis (from README)
+wireshark
+tcpdump
+btop
+iftop

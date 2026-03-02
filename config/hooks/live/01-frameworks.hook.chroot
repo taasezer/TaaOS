@@ -319,6 +319,11 @@ install_docker() {
             mv "$HOME/.local/bin/lazydocker" /usr/local/bin/
             log_success "Lazydocker installed"
         fi
+        
+        # Install Ctop (Container Monitoring)
+        log_info "Downloading ctop..."
+        wget -qO /usr/local/bin/ctop https://github.com/bcicen/ctop/releases/download/0.7.7/ctop-0.7.7-linux-amd64
+        chmod +x /usr/local/bin/ctop
 
         # We cannot run `docker run` natively inside a standard build chroot without the daemon running.
         # Instead, we will add a systemd oneshot to spawn Portainer on the first boot.
