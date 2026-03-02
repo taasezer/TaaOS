@@ -1,0 +1,90 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Professional Polish Hook
+# =============================================================================
+# Applies custom aliases, fastfetch branding, flatpak configuration,
+# and prepares the Welcome Screen script.
+# Location: config/hooks/normal/13-professional-polish.hook.chroot
+# =============================================================================
+
+set -e
+
+echo "=============================================="
+echo "[POLISH] Applying TaaOS Professional Touches"
+echo "=============================================="
+
+# 1. TaaOS ASCII Logo for Fastfetch
+echo "[POLISH] Creating TaaOS ASCII Logo..."
+cat > /etc/taaos-ascii.txt << 'EOF'
+
+   __   __   __   __   __ 
+  |_   |__| |__) |__| |__ 
+  |    |  | |  \ |  |  __| 
+                            
+   TaaOS Engineer Edition
+EOF
+
+# Alternative better logo
+cat > /etc/taaos-ascii.txt << 'EOF'
+
+  _______             ____   _____ 
+ |__   __|           / __ \ / ____|
+    | | __ _  __ _  | |  | | (___  
+    | |/ _` |/ _` | | |  | |\___ \ 
+    | | (_| | (_| | | |__| |____) |
+    |_|\__,_|\__,_|  \____/|_____/ 
+                                   
+      --- Engineer Edition ---
+EOF
+
+# 2. Append Custom Aliases & Fastfetch to bashrc
+echo "[POLISH] Injecting custom aliases and fastfetch into .bashrc..."
+
+cat >> /etc/skel/.bashrc << 'EOF'
+
+# ==========================================
+# TaaOS Professional Terminal Settings
+# ==========================================
+alias update="sudo apt update && sudo apt upgrade -y"
+alias ports="sudo netstat -tulanp"
+alias ll="ls -la"
+alias cls="clear"
+
+# Display system info on shell startup
+if command -v fastfetch >/dev/null 2>&1; then
+    fastfetch --logo /etc/taaos-ascii.txt --logo-type file
+fi
+EOF
+
+# Apply the same to the root user
+if [ -f /root/.bashrc ]; then
+    cat >> /root/.bashrc << 'EOF'
+
+# ==========================================
+# TaaOS Professional Terminal Settings
+# ==========================================
+alias update="apt update && apt upgrade -y"
+alias ports="netstat -tulanp"
+alias ll="ls -la"
+alias cls="clear"
+
+# Display system info on shell startup
+if command -v fastfetch >/dev/null 2>&1; then
+    fastfetch --logo /etc/taaos-ascii.txt --logo-type file
+fi
+EOF
+fi
+
+# 3. Configure Flatpak
+echo "[POLISH] Configuring Flatpak Ecosystem..."
+if command -v flatpak >/dev/null 2>&1; then
+    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo || true
+fi
+
+# 4. Make Python Welcome Screen Script Executable
+echo "[POLISH] Setting permissions for TaaOS Welcome Screen..."
+if [ -f /usr/local/bin/taaos-welcome.py ]; then
+    chmod +x /usr/local/bin/taaos-welcome.py
+fi
+
+echo "[POLISH] Professional touches applied successfully!"

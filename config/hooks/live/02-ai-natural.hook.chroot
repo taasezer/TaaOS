@@ -443,8 +443,9 @@ PrivateTmp=true
 WantedBy=multi-user.target
 N8N_SERVICE_EOF
 
-    # Enable n8n service
-    systemctl enable n8n || log_warning "Could not enable n8n service (may not be running in chroot)"
+    # Note: n8n service is intentionally NOT enabled by default (per user request)
+    # The user will start it manually when they actually need it.
+    # systemctl enable n8n || true
 
     log_success "n8n installed and service created (port 5678)"
 }

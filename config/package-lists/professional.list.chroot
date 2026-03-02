@@ -1,0 +1,25 @@
+# Developer Tools
+git
+docker.io
+docker-compose
+nmap
+htop
+neovim
+gparted
+
+# Modern App Ecosystem
+flatpak
+gnome-software-plugin-flatpak
+
+# Terminal Branding and Polish
+fastfetch
+python3-tk
+
+# Hardware & Disks
+smartmontools
+
+# Missing DevOps and System Utilities (from README)
+cockpit
+default-jre
+wget
+curl

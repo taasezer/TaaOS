@@ -311,6 +311,36 @@ install_docker() {
         local docker_version
         docker_version=$(docker --version 2>/dev/null || echo "unknown")
         log_success "Docker installed: ${docker_version}"
+        
+        # Install Lazydocker (Container CLI GUI)
+        log_info "Downloading Lazydocker..."
+        curl -sL "https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh" | bash || log_warning "Lazydocker installation failed"
+        if [ -f "$HOME/.local/bin/lazydocker" ]; then
+            mv "$HOME/.local/bin/lazydocker" /usr/local/bin/
+            log_success "Lazydocker installed"
+        fi
+
+        # We cannot run `docker run` natively inside a standard build chroot without the daemon running.
+        # Instead, we will add a systemd oneshot to spawn Portainer on the first boot.
+        log_info "Creating Portainer startup service..."
+        cat > /etc/systemd/system/portainer-init.service << 'PORTAINER_SVC'
+[Unit]
+Description=Initialize Portainer Container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStartPre=-/usr/bin/docker volume create portainer_data
+ExecStart=-/usr/bin/docker run -d -p 8000:8000 -p 9000:9000 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:latest
+ExecStartPost=/usr/bin/systemctl disable portainer-init.service
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+PORTAINER_SVC
+        systemctl enable portainer-init.service || log_warning "Failed to enable Portainer startup service"
+
     else
         log_warning "Docker installation completed but 'docker' command not found"
     fi
