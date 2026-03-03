@@ -253,11 +253,6 @@ Categories=System;
 Keywords=Install;Installer;Setup;
 EOF
 
-# Create shortcut on desktop for live user
-mkdir -p /etc/skel/Desktop
-cp /usr/share/applications/taaos-installer.desktop /etc/skel/Desktop/
-chmod +x /etc/skel/Desktop/taaos-installer.desktop
-
 # =============================================================================
 # COMPLETE
 # =============================================================================

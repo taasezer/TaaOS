@@ -200,6 +200,16 @@ echo "    Copying system configuration files..."
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/lib/taaos
 [ -d ./config/includes.chroot/usr/lib/taaos ] && docker cp ./config/includes.chroot/usr/lib/taaos/. "$CONTAINER_NAME":/build/config/includes.chroot/usr/lib/taaos/ || true
 
+# Copy UI Scripts and Python binaries
+echo "    Copying UI Scripts and Python binaries..."
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/local/bin
+[ -d ./config/includes.chroot/usr/local/bin ] && docker cp ./config/includes.chroot/usr/local/bin/. "$CONTAINER_NAME":/build/config/includes.chroot/usr/local/bin/ || true
+
+# Copy XFCE and Kali User Configs
+echo "    Copying XFCE User Configurations..."
+docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/skel/.config
+[ -d ./config/includes.chroot/etc/skel/.config ] && docker cp ./config/includes.chroot/etc/skel/.config/. "$CONTAINER_NAME":/build/config/includes.chroot/etc/skel/.config/ || true
+
 # Copy systemd services
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/systemd/system
 [ -f ./config/includes.chroot/etc/systemd/system/taaos-first-boot.service ] && docker cp ./config/includes.chroot/etc/systemd/system/taaos-first-boot.service "$CONTAINER_NAME":/build/config/includes.chroot/etc/systemd/system/ || true

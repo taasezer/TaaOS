@@ -228,25 +228,25 @@ def print_banner():
 
 def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
     """Translate natural language to bash command using Ollama."""
-        # Ensure we have the model first
-        check_and_pull_model(model, console)
-        
-        response = ollama.chat(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": user_request
-                }
-            ],
-            options={
-                "temperature": 0.4,  # Moderate temp for mixed coding/command usage
+    # Ensure we have the model first
+    check_and_pull_model(model, console)
+    
+    response = ollama.chat(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": user_request
             }
-        )
+        ],
+        options={
+            "temperature": 0.4,  # Moderate temp for mixed coding/command usage
+        }
+    )
         
         # Extract the text
         command = response["message"]["content"].strip()

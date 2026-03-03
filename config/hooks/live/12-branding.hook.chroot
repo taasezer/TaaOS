@@ -215,81 +215,20 @@ if [ -f /build/assets/wallpaper.png ]; then
     cp /build/assets/wallpaper.png /usr/share/backgrounds/taaos/
 fi
 
-# Set wallpaper as default for XFCE
-cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<channel name="xfce4-desktop" version="1.0">
-  <property name="backdrop" type="empty">
-    <property name="screen0" type="empty">
-      <property name="monitorVirtual1" type="empty">
-        <property name="workspace0" type="empty">
-          <property name="last-image" type="string" value="/usr/share/backgrounds/taaos/wallpaper.png"/>
-          <property name="image-style" type="int" value="5"/>
-        </property>
-      </property>
-    </property>
-  </property>
-</channel>
-EOF
+# Force default Debian wallpaper alternative to point to TaaOS wallpaper
+if [ -f /usr/share/backgrounds/taaos/wallpaper.png ]; then
+    ln -sf /usr/share/backgrounds/taaos/wallpaper.png /etc/alternatives/desktop-background || true
+    ln -sf /usr/share/backgrounds/taaos/wallpaper.png /usr/share/images/desktop-base/default || true
+fi
 
 echo "[BRANDING] Wallpaper configuration complete"
 
 # =============================================================================
 # SECTION 4: PANEL CONFIGURATION
 # =============================================================================
-echo "[BRANDING] Configuring XFCE panel..."
-
-# Create panel configuration
-cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<channel name="xfce4-panel" version="1.0">
-  <property name="configver" type="int" value="2"/>
-  <property name="panels" type="array">
-    <value type="int" value="1"/>
-  </property>
-  <property name="panel-1" type="empty">
-    <property name="position" type="string" value="p=6;x=0;y=0"/>
-    <property name="length" type="uint" value="100"/>
-    <property name="position-locked" type="bool" value="true"/>
-    <property name="size" type="uint" value="32"/>
-    <property name="plugin-ids" type="array">
-      <value type="int" value="1"/>
-      <value type="int" value="2"/>
-      <value type="int" value="3"/>
-      <value type="int" value="4"/>
-      <value type="int" value="5"/>
-      <value type="int" value="6"/>
-      <value type="int" value="7"/>
-    </property>
-    <property name="background-style" type="uint" value="1"/>
-    <property name="background-rgba" type="array">
-      <value type="double" value="0.10"/>
-      <value type="double" value="0.10"/>
-      <value type="double" value="0.18"/>
-      <value type="double" value="0.95"/>
-    </property>
-  </property>
-  <property name="plugins" type="empty">
-    <property name="plugin-1" type="string" value="applicationsmenu">
-      <property name="button-title" type="string" value="TaaOS"/>
-      <property name="show-button-title" type="bool" value="true"/>
-    </property>
-    <property name="plugin-2" type="string" value="tasklist"/>
-    <property name="plugin-3" type="string" value="separator">
-      <property name="expand" type="bool" value="true"/>
-      <property name="style" type="uint" value="0"/>
-    </property>
-    <property name="plugin-4" type="string" value="systray"/>
-    <property name="plugin-5" type="string" value="pulseaudio"/>
-    <property name="plugin-6" type="string" value="clock">
-      <property name="digital-format" type="string" value="%H:%M"/>
-    </property>
-    <property name="plugin-7" type="string" value="actions"/>
-  </property>
-</channel>
-EOF
-
-echo "[BRANDING] Panel configuration complete"
+echo "[BRANDING] Leaving Panel configuration to pre-configured xfce4-panel.xml in skel..."
+# Panel is handled by config/includes.chroot/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
+echo "[BRANDING] Panel configuration skipped (using pre-configured file)"
 
 # =============================================================================
 # COMPLETE
