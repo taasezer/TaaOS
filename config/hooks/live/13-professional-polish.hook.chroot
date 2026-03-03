@@ -45,10 +45,10 @@ if [ -s /tmp/fastfetch.deb ]; then
     rm -f /tmp/fastfetch.deb
 fi
 
-# 2. Append Custom Aliases & Fastfetch to bashrc
-echo "[POLISH] Injecting custom aliases and fastfetch into .bashrc..."
+# 2. Append Custom Aliases & Fastfetch to system-wide bashrc
+echo "[POLISH] Injecting custom aliases and fastfetch into /etc/bash.bashrc..."
 
-cat >> /etc/skel/.bashrc << 'EOF'
+cat >> /etc/bash.bashrc << 'EOF'
 
 # ==========================================
 # TaaOS Professional Terminal Settings
@@ -58,30 +58,11 @@ alias ports="sudo netstat -tulanp"
 alias ll="ls -la"
 alias cls="clear"
 
-# Display system info on shell startup
-if command -v fastfetch >/dev/null 2>&1; then
+# Display system info on shell startup (only for interactive shells)
+if [[ $- == *i* ]] && command -v fastfetch >/dev/null 2>&1; then
     fastfetch --logo /etc/taaos-ascii.txt --logo-type file
 fi
 EOF
-
-# Apply the same to the root user
-if [ -f /root/.bashrc ]; then
-    cat >> /root/.bashrc << 'EOF'
-
-# ==========================================
-# TaaOS Professional Terminal Settings
-# ==========================================
-alias update="apt update && apt upgrade -y"
-alias ports="netstat -tulanp"
-alias ll="ls -la"
-alias cls="clear"
-
-# Display system info on shell startup
-if command -v fastfetch >/dev/null 2>&1; then
-    fastfetch --logo /etc/taaos-ascii.txt --logo-type file
-fi
-EOF
-fi
 
 # 3. Configure Flatpak
 echo "[POLISH] Configuring Flatpak Ecosystem..."

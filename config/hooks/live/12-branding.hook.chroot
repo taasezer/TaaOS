@@ -105,10 +105,10 @@ echo "[BRANDING] Plymouth configuration complete"
 echo "[BRANDING] Configuring XFCE theme..."
 
 # Create default XFCE settings
-mkdir -p /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml
+mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml
 
 # XFCE Settings - Window Manager (xfwm4)
-cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'EOF'
+cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfwm4" version="1.0">
   <property name="general" type="empty">
@@ -120,7 +120,7 @@ cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'EOF'
 EOF
 
 # XFCE Settings - GTK Theme (xsettings)
-cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << 'EOF'
+cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xsettings" version="1.0">
   <property name="Net" type="empty">
@@ -136,7 +136,7 @@ cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << 'EOF'
 EOF
 
 # XFCE Settings - Desktop (Wallpaper)
-cat > /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml << 'EOF'
+cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfce4-desktop" version="1.0">
   <property name="backdrop" type="empty">
@@ -160,8 +160,8 @@ echo "[BRANDING] Installing required xfce panel plugins..."
 apt-get install -y --no-install-recommends xfce4-whiskermenu-plugin xfce4-pulseaudio-plugin || true
 
 # Construct panel launcher profiles
-mkdir -p /etc/skel/.config/xfce4/panel/launcher-17336104441
-cat > /etc/skel/.config/xfce4/panel/launcher-17336104441/17336104441.desktop << 'EOF'
+mkdir -p /etc/xdg/xfce4/panel/launcher-17336104441
+cat > /etc/xdg/xfce4/panel/launcher-17336104441/17336104441.desktop << 'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -174,8 +174,8 @@ Terminal=false
 StartupNotify=true
 EOF
 
-mkdir -p /etc/skel/.config/xfce4/panel/launcher-17336104442
-cat > /etc/skel/.config/xfce4/panel/launcher-17336104442/17336104442.desktop << 'EOF'
+mkdir -p /etc/xdg/xfce4/panel/launcher-17336104442
+cat > /etc/xdg/xfce4/panel/launcher-17336104442/17336104442.desktop << 'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -188,8 +188,8 @@ Terminal=false
 StartupNotify=true
 EOF
 
-mkdir -p /etc/skel/.config/xfce4/panel/launcher-17336104443
-cat > /etc/skel/.config/xfce4/panel/launcher-17336104443/17336104443.desktop << 'EOF'
+mkdir -p /etc/xdg/xfce4/panel/launcher-17336104443
+cat > /etc/xdg/xfce4/panel/launcher-17336104443/17336104443.desktop << 'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -229,6 +229,34 @@ echo "[BRANDING] Wallpaper configuration complete"
 echo "[BRANDING] Leaving Panel configuration to pre-configured xfce4-panel.xml in skel..."
 # Panel is handled by config/includes.chroot/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
 echo "[BRANDING] Panel configuration skipped (using pre-configured file)"
+
+# =============================================================================
+# SECTION 5: OS LOGO INJECTION (START MENU & LOGIN SCREEN)
+# =============================================================================
+echo "[BRANDING] Injecting OS Logo into Whisker Menu and LightDM..."
+
+if [ -f /build/assets/logo.png ]; then
+    cp /build/assets/logo.png /usr/share/pixmaps/taaos-logo.png
+    cp /build/assets/logo.png /usr/share/icons/taaos-logo.png
+fi
+
+# Configure Whisker Menu to use TaaOS Logo
+mkdir -p /etc/xdg/xfce4/panel
+cat > /etc/xdg/xfce4/panel/whiskermenu-1.rc << 'EOF'
+button-title=TaaOS
+button-icon=/usr/share/pixmaps/taaos-logo.png
+EOF
+
+# Configure LightDM GTK Greeter to use TaaOS Wallpaper and Logo
+mkdir -p /etc/lightdm
+cat > /etc/lightdm/lightdm-gtk-greeter.conf << 'EOF'
+[greeter]
+background = /usr/share/backgrounds/taaos/wallpaper.png
+theme-name = Materia-dark
+icon-theme-name = Papirus-Dark
+font-name = Fira Sans 10
+default-user-image = /usr/share/pixmaps/taaos-logo.png
+EOF
 
 # =============================================================================
 # COMPLETE

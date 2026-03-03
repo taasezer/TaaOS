@@ -173,6 +173,14 @@ import os
 
 def check_and_pull_model(model_name: str, console) -> bool:
     """Check if model exists and pull if missing."""
+    import time
+    # Attempt to auto-start ollama if it's not running
+    try:
+        subprocess.run("systemctl is-active --quiet ollama || sudo systemctl start ollama >/dev/null 2>&1 || (nohup ollama serve >/dev/null 2>&1 &)", shell=True)
+        time.sleep(1.5) # Give the daemon time to bind to port 11434
+    except Exception:
+        pass
+        
     try:
         models = ollama.list()
         model_names = [m.get('name', '') for m in models.get('models', [])]
@@ -192,7 +200,7 @@ def check_and_pull_model(model_name: str, console) -> bool:
         return True
     except Exception as e:
         console.print(f"[bold red]Failed to connect to Ollama service or pull model:[/bold red] {e}")
-        console.print("[yellow]Tip:[/yellow] Make sure Ollama daemon is running: systemctl start ollama")
+        console.print("[yellow]Tip:[/yellow] Run 'ollama serve' in background manually, or check systemctl status ollama")
         return False
 
 

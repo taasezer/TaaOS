@@ -1,8 +1,10 @@
 [Desktop Entry]
 Type=Application
 Name=TaaOS Welcome
-Exec=/usr/lib/taaos/welcome.sh
+Comment=First boot welcome screen for TaaOS
+Exec=/usr/local/bin/taaos-welcome.py
+StartupNotify=false
+Terminal=false
 Hidden=false
-NoDisplay=true
 X-GNOME-Autostart-enabled=true
 X-XFCE-Autostart-Override=true
