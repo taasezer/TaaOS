@@ -228,25 +228,26 @@ def print_banner():
 
 def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
     """Translate natural language to bash command using Ollama."""
-    # Ensure we have the model first
-    check_and_pull_model(model, console)
-    
-    response = ollama.chat(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT
-            },
-            {
-                "role": "user",
-                "content": user_request
+    try:
+        # Ensure we have the model first
+        check_and_pull_model(model, console)
+        
+        response = ollama.chat(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": user_request
+                }
+            ],
+            options={
+                "temperature": 0.4,  # Moderate temp for mixed coding/command usage
             }
-        ],
-        options={
-            "temperature": 0.4,  # Moderate temp for mixed coding/command usage
-        }
-    )
+        )
         
         # Extract the text
         command = response["message"]["content"].strip()
@@ -265,7 +266,6 @@ def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
         else:
             return command, False # False means it's a code block or explanation
 
-        
     except ollama.ResponseError as e:
         console.print(f"[red]Error:[/red] Ollama response error - {e}")
         console.print("[yellow]Tip:[/yellow] Make sure Ollama is running: systemctl start ollama")
@@ -274,7 +274,6 @@ def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
-
 
 def display_command(content: str, is_command: bool):
     """Display the generated command or code block."""
@@ -400,7 +399,7 @@ install_n8n() {
     local max_retries=3
     
     while [ $retry_count -lt $max_retries ]; do
-        if npm install -g n8n; then
+        if npm install -g n8n --loglevel=error --no-fund --no-audit; then
             log_success "n8n installed successfully"
             break
         else
