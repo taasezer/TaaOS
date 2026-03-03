@@ -322,8 +322,8 @@ install_docker() {
         
         # Install Ctop (Container Monitoring)
         log_info "Downloading ctop..."
-        wget -qO /usr/local/bin/ctop https://github.com/bcicen/ctop/releases/download/0.7.7/ctop-0.7.7-linux-amd64
-        chmod +x /usr/local/bin/ctop
+        wget -qO /usr/local/bin/ctop https://github.com/bcicen/ctop/releases/download/v0.7.7/ctop-0.7.7-linux-amd64 || log_warning "ctop download failed"
+        chmod +x /usr/local/bin/ctop || true
 
         # We cannot run `docker run` natively inside a standard build chroot without the daemon running.
         # Instead, we will add a systemd oneshot to spawn Portainer on the first boot.

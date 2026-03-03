@@ -37,6 +37,14 @@ cat > /etc/taaos-ascii.txt << 'EOF'
       --- Engineer Edition ---
 EOF
 
+# 1.5 Install Fastfetch manually (not in Bookworm repos)
+echo "[POLISH] Downloading and installing fastfetch..."
+wget -qO /tmp/fastfetch.deb https://github.com/fastfetch-cli/fastfetch/releases/download/2.35.0/fastfetch-linux-amd64.deb || echo "[WARN] Fastfetch download failed."
+if [ -s /tmp/fastfetch.deb ]; then
+    dpkg -i /tmp/fastfetch.deb || apt-get install -f -y
+    rm -f /tmp/fastfetch.deb
+fi
+
 # 2. Append Custom Aliases & Fastfetch to bashrc
 echo "[POLISH] Injecting custom aliases and fastfetch into .bashrc..."
 

@@ -15,7 +15,6 @@ flatpak
 gnome-software-plugin-flatpak
 
 # Terminal Branding and Polish
-fastfetch
 python3-tk
 
 # Hardware & Disks
