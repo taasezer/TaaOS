@@ -283,6 +283,19 @@ defaultDesktopEnvironment:
 basicSetup: false
 DM_CONF
 
+    # LocaleCfg module - writes /etc/locale.conf on the installed system
+    cat > /etc/calamares/modules/localecfg.conf << 'LOCALECFG_CONF'
+# TaaOS LocaleCfg Module
+# Writes the selected locale to the target system
+localeGenPath: /etc/locale.gen
+LOCALECFG_CONF
+
+    # Hwclock module - applies timezone to the installed system
+    cat > /etc/calamares/modules/hwclock.conf << 'HWCLOCK_CONF'
+# TaaOS Hwclock Module
+kernelUtc: true
+HWCLOCK_CONF
+
     # Post-installation Cleanup Module (shellprocess)
     cat > /etc/calamares/modules/shellprocess.conf << 'SHELLPROCESS_CONF'
 ---
