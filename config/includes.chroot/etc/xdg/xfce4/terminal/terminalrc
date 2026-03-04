@@ -1,0 +1,11 @@
+[Configuration]
+BackgroundColor=#000000
+ForegroundColor=#F8F8F2
+ColorPalette=black;red;#50FA7B;#F1FA8C;#6272A4;#FF79C6;#8BE9FD;#F8F8F2;#44475A;#FF5555;#50FA7B;#FFB86C;#8BE9FD;#FF79C6;#8BE9FD;white
+ColorScheme=Custom
+ColorBackground=#000000
+ColorForeground=#F8F8F2
+ColorCursor=#F8F8F2
+FontName=Monospace 11
+MiscBoldIsBright=TRUE
+MiscDefaultGeometry=100x30
