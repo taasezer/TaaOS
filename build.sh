@@ -129,6 +129,7 @@ echo "    Copying package lists..."
 docker cp ./config/package-lists/desktop.list.chroot "$CONTAINER_NAME":/build/config/package-lists/
 docker cp ./config/package-lists/engineering.list.chroot "$CONTAINER_NAME":/build/config/package-lists/
 docker cp ./config/package-lists/themes.list.chroot "$CONTAINER_NAME":/build/config/package-lists/
+[ -f ./config/package-lists/professional.list.chroot ] && docker cp ./config/package-lists/professional.list.chroot "$CONTAINER_NAME":/build/config/package-lists/ || true
 [ -f ./config/package-lists/live.list.chroot ] && docker cp ./config/package-lists/live.list.chroot "$CONTAINER_NAME":/build/config/package-lists/ || true
 
 # Copy hooks
@@ -185,6 +186,10 @@ echo "    Copying Calamares installer hook..."
 # Copy Branding hook (Plymouth, XFCE theme, wallpaper)
 echo "    Copying Branding hook..."
 [ -f ./config/hooks/live/12-branding.hook.chroot ] && docker cp ./config/hooks/live/12-branding.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
+
+# Copy Professional Polish hook (Terminal colors, Fastfetch, etc.)
+echo "    Copying Professional Polish hook..."
+[ -f ./config/hooks/live/13-professional-polish.hook.chroot ] && docker cp ./config/hooks/live/13-professional-polish.hook.chroot "$CONTAINER_NAME":/build/config/hooks/live/ || true
 
 # Copy scripts directory (all subdirectories)
 echo "    Copying scripts..."

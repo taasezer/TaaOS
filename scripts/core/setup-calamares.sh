@@ -303,8 +303,10 @@ HWCLOCK_CONF
 dontChroot: false
 timeout: 300
 script:
-    - "-find /home /etc/skel -name '*taaos-installer.desktop' -delete"
-    - "-find /home /etc/skel -name 'install-taaos.desktop' -delete"
+    - "-rm -f /home/*/Desktop/install-taaos.desktop"
+    - "-rm -f /home/*/Desktop/taaos-installer.desktop"
+    - "-rm -f /etc/skel/Desktop/install-taaos.desktop"
+    - "-rm -f /etc/skel/Desktop/taaos-installer.desktop"
     - "-rm -f /usr/share/applications/taaos-installer.desktop"
     - "-rm -f /usr/share/applications/install-taaos.desktop"
     - "-rm -rf /usr/share/calamares/"

@@ -50,6 +50,7 @@ xfce4-terminal
 # File Manager and Plugins
 thunar
 thunar-archive-plugin
+mugshot
 
 # =============================================================================
 # SECTION 3: CONNECTIVITY

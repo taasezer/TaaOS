@@ -231,13 +231,14 @@ echo "[BRANDING] Configuring wallpaper..."
 # Create wallpaper directory
 mkdir -p /usr/share/backgrounds/taaos
 
-# Copy wallpaper if exists
-if [ -f /build/assets/wallpaper.png ]; then
-    cp /build/assets/wallpaper.png /usr/share/backgrounds/taaos/
-fi
-
-# Force default Debian wallpaper alternative to point to TaaOS wallpaper
+# Force default Debian wallpaper alternative to point to TaaOS wallpaper using dpkg-divert
+# This prevents future package updates (like desktop-base) from overwriting our wallpaper
 if [ -f /usr/share/backgrounds/taaos/wallpaper.png ]; then
+    # Divert the default Debian wallpaper
+    dpkg-divert --add --rename --divert /usr/share/desktop-base/active-theme/wallpaper/contents/images/1920x1080.svg.real /usr/share/desktop-base/active-theme/wallpaper/contents/images/1920x1080.svg || true
+    ln -sf /usr/share/backgrounds/taaos/wallpaper.png /usr/share/desktop-base/active-theme/wallpaper/contents/images/1920x1080.svg || true
+    
+    # Also enforce traditional alternatives
     ln -sf /usr/share/backgrounds/taaos/wallpaper.png /etc/alternatives/desktop-background || true
     ln -sf /usr/share/backgrounds/taaos/wallpaper.png /usr/share/images/desktop-base/default || true
 fi

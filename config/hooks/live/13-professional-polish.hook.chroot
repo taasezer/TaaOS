@@ -16,25 +16,57 @@ echo "=============================================="
 # 1. TaaOS ASCII Logo for Fastfetch
 echo "[POLISH] Creating TaaOS ASCII Logo..."
 cat > /etc/taaos-ascii.txt << 'EOF'
-
-   __   __   __   __   __ 
-  |_   |__| |__) |__| |__ 
-  |    |  | |  \ |  |  __| 
-                            
-   TaaOS Engineer Edition
+               #####################
+           ####                     ####
+        ###                             ###
+      ##       _____________________       ##
+     #        /____________________/         #
+    #                  / /                    #
+   #                  / /  /|                 #
+   #                 / /  / /                 #
+   #                / /  / /                  #
+   #               / /  /_/                   #
+   #              / /  / /                    #
+    #            / /  / /                    #
+     #          / /__/ /                    #
+      ##       / _____/                   ##
+        ###                            ###
+           ####                    ####
+               ####################
 EOF
 
-# Alternative better logo
-cat > /etc/taaos-ascii.txt << 'EOF'
-
-  _______             ____   _____ 
- |__   __|           / __ \ / ____|
-    | | __ _  __ _  | |  | | (___  
-    | |/ _` |/ _` | | |  | |\___ \ 
-    | | (_| | (_| | | |__| |____) |
-    |_|\__,_|\__,_|  \____/|_____/ 
-                                   
-      --- Engineer Edition ---
+# 1.1 Create Custom Fastfetch Configuration
+echo "[POLISH] Creating Custom Fastfetch Config..."
+cat > /etc/fastfetch.jsonc << 'EOF'
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "source": "/etc/taaos-ascii.txt",
+    "type": "file",
+    "color": {"1": "green", "2": "green", "3": "green", "4": "green", "5": "green", "6": "green", "7": "green", "8": "green", "9": "green"},
+    "padding": { "top": 1, "left": 1, "right": 2 }
+  },
+  "display": {
+    "separator": "    ",
+    "color": { "keys": "default" }
+  },
+  "modules": [
+    { "type": "os", "key": "OS:" },
+    { "type": "kernel", "key": "Kernel:" },
+    { "type": "uptime", "key": "Uptime:" },
+    { "type": "packages", "key": "Packages:" },
+    { "type": "shell", "key": "Shell:" },
+    { "type": "display", "key": "Resolution:" },
+    { "type": "de", "key": "DE:" },
+    { "type": "wm", "key": "WM:" },
+    { "type": "wmtheme", "key": "WM Theme:" },
+    { "type": "disk", "key": "Disk:" },
+    { "type": "cpu", "key": "CPU:" },
+    { "type": "gpu", "key": "GPU:" },
+    { "type": "memory", "key": "RAM:" },
+    { "type": "custom", "key": "AI Engine:", "format": "Natural Engine (llama3.2)" }
+  ]
+}
 EOF
 
 # 1.5 Install Fastfetch manually (not in Bookworm repos)
@@ -60,7 +92,7 @@ alias cls="clear"
 
 # Display system info on shell startup (only for interactive shells)
 if [[ $- == *i* ]] && command -v fastfetch >/dev/null 2>&1; then
-    fastfetch --logo /etc/taaos-ascii.txt --logo-type file
+    fastfetch --config /etc/fastfetch.jsonc
 fi
 EOF
 
