@@ -2,7 +2,7 @@
 Type=Application
 Name=TaaOS Welcome
 Comment=First boot welcome screen for TaaOS
-Exec=/usr/local/bin/taaos-welcome.py
+Exec=sh -c 'sleep 3 && /usr/local/bin/taaos-welcome.py'
 StartupNotify=false
 Terminal=false
 Hidden=false

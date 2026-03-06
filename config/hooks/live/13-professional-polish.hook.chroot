@@ -102,10 +102,21 @@ if command -v flatpak >/dev/null 2>&1; then
     flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo || true
 fi
 
-# 4. Make Python Welcome Screen Script Executable
-echo "[POLISH] Setting permissions for TaaOS Welcome Screen..."
+# 4. Make UI scripts Executable and cleanup duplicates
+echo "[POLISH] Setting permissions for UI scripts and cleaning up..."
 if [ -f /usr/local/bin/taaos-welcome.py ]; then
     chmod +x /usr/local/bin/taaos-welcome.py
+fi
+if [ -f /usr/local/bin/taaos-wallpaper-fix.sh ]; then
+    chmod +x /usr/local/bin/taaos-wallpaper-fix.sh
+fi
+if [ -f /usr/local/bin/taaos-update ]; then
+    chmod +x /usr/local/bin/taaos-update
+fi
+
+# Remove the default Calamares installer icon from the main menu so only TaaOS Kurulumu remains
+if [ -f /usr/share/applications/calamares.desktop ]; then
+    rm -f /usr/share/applications/calamares.desktop
 fi
 
 echo "[POLISH] Professional touches applied successfully!"

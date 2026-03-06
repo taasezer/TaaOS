@@ -69,9 +69,12 @@ TaaOS comes with the following languages and libraries:
 *   **Backup**: **Timeshift** system restore points (Snapshot).
 *   **Virtualization**: KVM/QEMU, Libvirt, Virt-Manager (Virtual Machine Management).
 *   **Network Analysis**: Wireshark, Nmap, Tcpdump, Htop, Btop, Iftop.
+*   **Self-Healing**: `taaos-update` utility to automatically fix broken packages, apply OS core patches from GitHub, and verify AI Engine status.
 
-### Desktop and IDE
+### Desktop and Terminal
 *   **Desktop Environment**: XFCE4 (Customized, lightweight, and fast).
+*   **Welcome Screen**: Multilingual (Turkish/English) quick-start graphical guide on first boot.
+*   **Terminal Experience**: Dracula-styled terminal with pre-configured aliases (`ll`, `ports`, `update`) and customized Plane Tree (Çınar) Fastfetch system summary.
 *   **Development Environment**: 
     *   **Visual Studio Code**: Pre-installed. (`vscode-extensions` command installs recommended extensions: Python, C#, Rust, Docker, Copilot, etc.)
     *   Vim, Nano, Micro editors.
@@ -173,9 +176,12 @@ TaaOS, aşağıdaki diller ve kütüphanelerle birlikte gelir:
 *   **Yedekleme**: **Timeshift** ile sistem geri yükleme noktaları (Snapshot).
 *   **Sanallaştırma**: KVM/QEMU, Libvirt, Virt-Manager (Sanal Makine Yönetimi).
 *   **Ağ Analizi**: Wireshark, Nmap, Tcpdump, Htop, Btop, Iftop.
+*   **Otomatik Onarım**: `taaos-update` komutu ile kırık paket, sistem güncellemesi, GitHub bağımlı çekirdek yamaları ve Natural Engine sağlık kontrolünü tek tıkla yapma imkanı.
 
-### Masaüstü ve IDE
+### Masaüstü ve Terminal
 *   **Masaüstü Ortamı**: XFCE4 (Özelleştirilmiş, hafif ve hızlı).
+*   **Karşılama Ekranı**: İlk kurulumda açılan çok dilli (Türkçe/İngilizce) grafiksel rehber arayüzü.
+*   **Terminal Deneyimi**: Dracula temalı siyah arka plan, hazır komut kısayolları (`ll`, `ports`, `update`) ve özel TaaOS Çınar Ağacı (Fastfetch) sistem özeti.
 *   **Geliştirme Ortamı**: 
     *   **Visual Studio Code**: Önyüklü gelir. (`vscode-extensions` komutu ile önerilen eklentileri kurar: Python, C#, Rust, Docker, Copilot vb.)
     *   Vim, Nano, Micro editörleri.

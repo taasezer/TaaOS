@@ -227,7 +227,7 @@ docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/lightdm
 # Copy autostart entries
 echo "    Copying autostart entries..."
 docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/xdg/autostart
-[ -f ./config/includes.chroot/etc/xdg/autostart/taaos-welcome.desktop ] && docker cp ./config/includes.chroot/etc/xdg/autostart/taaos-welcome.desktop "$CONTAINER_NAME":/build/config/includes.chroot/etc/xdg/autostart/ || true
+[ -d ./config/includes.chroot/etc/xdg/autostart ] && docker cp ./config/includes.chroot/etc/xdg/autostart/. "$CONTAINER_NAME":/build/config/includes.chroot/etc/xdg/autostart/ || true
 
 # Copy desktop shortcuts
 echo "    Copying desktop shortcuts..."
