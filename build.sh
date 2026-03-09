@@ -201,39 +201,14 @@ docker exec "$CONTAINER_NAME" mkdir -p /build/scripts/ux /build/scripts/performa
 [ -d ./scripts/devops ] && docker cp ./scripts/devops/. "$CONTAINER_NAME":/build/scripts/devops/ || true
 [ -d ./scripts/core ] && docker cp ./scripts/core/. "$CONTAINER_NAME":/build/scripts/core/ || true
 
-# Copy system configuration files (CRITICAL for full OS)
-echo "    Copying system configuration files..."
-docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/lib/taaos
-[ -d ./config/includes.chroot/usr/lib/taaos ] && docker cp ./config/includes.chroot/usr/lib/taaos/. "$CONTAINER_NAME":/build/config/includes.chroot/usr/lib/taaos/ || true
-
-# Copy UI Scripts and Python binaries
-echo "    Copying UI Scripts and Python binaries..."
-docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/local/bin
-[ -d ./config/includes.chroot/usr/local/bin ] && docker cp ./config/includes.chroot/usr/local/bin/. "$CONTAINER_NAME":/build/config/includes.chroot/usr/local/bin/ || true
-
-# Copy XFCE and Kali User Configs
-echo "    Copying XFCE User Configurations..."
-docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/skel/.config
-[ -d ./config/includes.chroot/etc/skel/.config ] && docker cp ./config/includes.chroot/etc/skel/.config/. "$CONTAINER_NAME":/build/config/includes.chroot/etc/skel/.config/ || true
-
-# Copy systemd services
-docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/systemd/system
-[ -f ./config/includes.chroot/etc/systemd/system/taaos-first-boot.service ] && docker cp ./config/includes.chroot/etc/systemd/system/taaos-first-boot.service "$CONTAINER_NAME":/build/config/includes.chroot/etc/systemd/system/ || true
-
-# Copy LightDM auto-login configuration (CRITICAL for live session)
-echo "    Copying LightDM live session config..."
-docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/lightdm/lightdm.conf.d
-[ -f ./config/includes.chroot/etc/lightdm/lightdm.conf.d/50-taaos-live.conf ] && docker cp ./config/includes.chroot/etc/lightdm/lightdm.conf.d/50-taaos-live.conf "$CONTAINER_NAME":/build/config/includes.chroot/etc/lightdm/lightdm.conf.d/ || true
-
-# Copy autostart entries
-echo "    Copying autostart entries..."
-docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/xdg/autostart
-[ -d ./config/includes.chroot/etc/xdg/autostart ] && docker cp ./config/includes.chroot/etc/xdg/autostart/. "$CONTAINER_NAME":/build/config/includes.chroot/etc/xdg/autostart/ || true
-
-# Copy desktop shortcuts
-echo "    Copying desktop shortcuts..."
-docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/etc/skel/Desktop
-[ -f ./config/includes.chroot/etc/skel/Desktop/install-taaos.desktop ] && docker cp ./config/includes.chroot/etc/skel/Desktop/install-taaos.desktop "$CONTAINER_NAME":/build/config/includes.chroot/etc/skel/Desktop/ || true
+# Copy ENTIRE includes.chroot directory recursively (CRITICAL — all 40+ files)
+echo "    Copying includes.chroot (full recursive)..."
+if [ -d ./config/includes.chroot ]; then
+    docker cp ./config/includes.chroot/. "$CONTAINER_NAME":/build/config/includes.chroot/
+    echo "    ✓ includes.chroot copied successfully"
+else
+    echo "    ⚠ includes.chroot directory not found!"
+fi
 
 # Copy assets directory
 echo "    Copying assets..."

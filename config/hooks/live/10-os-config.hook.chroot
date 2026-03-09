@@ -389,12 +389,10 @@ cat > /usr/lib/taaos/post-install.sh << 'EOF'
 # TaaOS Post-Installation Configuration
 # Runs after Calamares completes installation
 
-set -e
-
 echo "[TaaOS] Running post-installation configuration..."
 
 # =========================================================================
-# STEP 1: Remove live-specific packages
+# STEP 1: Remove live-specific packages (may fail in chroot — tolerate)
 # =========================================================================
 echo "[TaaOS] Removing live-specific packages..."
 apt-get remove --purge -y \
@@ -409,7 +407,7 @@ apt-get remove --purge -y \
 # =========================================================================
 echo "[TaaOS] Removing Calamares installer..."
 apt-get remove --purge -y calamares calamares-settings-debian 2>/dev/null || true
-apt-get autoremove -y 2>/dev/null || true
+apt-get -q -y autoremove 2>/dev/null || true
 
 # Remove ALL installer desktop shortcuts
 rm -f /usr/share/applications/taaos-installer.desktop

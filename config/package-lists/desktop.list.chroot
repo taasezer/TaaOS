@@ -104,3 +104,9 @@ build-essential
 
 # Python Tkinter (Required for TaaOS Welcome Screen)
 python3-tk
+
+# X11 Utilities (xdpyinfo — Welcome screen display detection)
+x11-utils
+
+# Zenity (Fallback dialog for welcome screen)
+zenity

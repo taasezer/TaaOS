@@ -231,15 +231,14 @@ echo "[BRANDING] Configuring wallpaper..."
 # Create wallpaper directory
 mkdir -p /usr/share/backgrounds/taaos
 
-# STEP 1: Copy wallpaper from build assets (THIS WAS THE MISSING STEP)
-if [ -f /build/assets/wallpaper.png ]; then
+# STEP 1: Ensure wallpaper exists (includes.chroot should have placed it already)
+if [ -f /usr/share/backgrounds/taaos/wallpaper.png ]; then
+    echo "[BRANDING] Wallpaper found at target (from includes.chroot)"
+elif [ -f /build/assets/wallpaper.png ]; then
     cp /build/assets/wallpaper.png /usr/share/backgrounds/taaos/wallpaper.png
     echo "[BRANDING] Wallpaper copied from /build/assets/"
-elif [ -f /usr/share/backgrounds/taaos/wallpaper.png ]; then
-    echo "[BRANDING] Wallpaper already exists at target"
 else
     echo "[BRANDING] WARNING: No wallpaper found! Generating fallback..."
-    # Generate a dark TaaOS-branded fallback wallpaper
     if command -v convert &> /dev/null; then
         convert -size 1920x1080 \
             -define gradient:direction=South \
@@ -280,30 +279,20 @@ echo "[BRANDING] Panel configuration skipped (using pre-configured file)"
 # =============================================================================
 echo "[BRANDING] Injecting OS Logo into Whisker Menu and LightDM..."
 
-# STEP 1: Ensure logo exists at target paths
+# STEP 1: Ensure logo exists at target paths (includes.chroot should have placed it)
 mkdir -p /usr/share/pixmaps
 mkdir -p /usr/share/icons
 
-if [ -f /build/assets/logo.png ]; then
+if [ -f /usr/share/pixmaps/taaos-logo.png ]; then
+    echo "[BRANDING] Logo found at target (from includes.chroot)"
+    # Ensure icons copy exists too
+    cp -n /usr/share/pixmaps/taaos-logo.png /usr/share/icons/taaos-logo.png 2>/dev/null || true
+elif [ -f /build/assets/logo.png ]; then
     cp /build/assets/logo.png /usr/share/pixmaps/taaos-logo.png
     cp /build/assets/logo.png /usr/share/icons/taaos-logo.png
     echo "[BRANDING] Logo copied from /build/assets/"
-elif [ -f /usr/share/pixmaps/taaos-logo.png ]; then
-    echo "[BRANDING] Logo already exists at target"
 else
-    echo "[BRANDING] WARNING: Logo not found! Generating fallback..."
-    if command -v convert &> /dev/null; then
-        convert -size 128x128 xc:transparent \
-            -fill '#cc0000' -gravity center -pointsize 64 -font Helvetica-Bold \
-            -annotate +0+0 "T" \
-            /usr/share/pixmaps/taaos-logo.png 2>/dev/null || \
-        convert -size 128x128 xc:'#cc0000' /usr/share/pixmaps/taaos-logo.png 2>/dev/null || true
-        cp /usr/share/pixmaps/taaos-logo.png /usr/share/icons/taaos-logo.png 2>/dev/null || true
-    else
-        # Last resort: use a system icon
-        cp /usr/share/icons/hicolor/48x48/apps/calamares.png /usr/share/pixmaps/taaos-logo.png 2>/dev/null || touch /usr/share/pixmaps/taaos-logo.png
-        cp /usr/share/pixmaps/taaos-logo.png /usr/share/icons/taaos-logo.png 2>/dev/null || true
-    fi
+    echo "[BRANDING] WARNING: Logo not found! Using system default..."
 fi
 
 # Configure Whisker Menu to use TaaOS Logo
