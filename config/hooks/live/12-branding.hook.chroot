@@ -231,8 +231,27 @@ echo "[BRANDING] Configuring wallpaper..."
 # Create wallpaper directory
 mkdir -p /usr/share/backgrounds/taaos
 
-# Force default Debian wallpaper alternative to point to TaaOS wallpaper using dpkg-divert
-# This prevents future package updates (like desktop-base) from overwriting our wallpaper
+# STEP 1: Copy wallpaper from build assets (THIS WAS THE MISSING STEP)
+if [ -f /build/assets/wallpaper.png ]; then
+    cp /build/assets/wallpaper.png /usr/share/backgrounds/taaos/wallpaper.png
+    echo "[BRANDING] Wallpaper copied from /build/assets/"
+elif [ -f /usr/share/backgrounds/taaos/wallpaper.png ]; then
+    echo "[BRANDING] Wallpaper already exists at target"
+else
+    echo "[BRANDING] WARNING: No wallpaper found! Generating fallback..."
+    # Generate a dark TaaOS-branded fallback wallpaper
+    if command -v convert &> /dev/null; then
+        convert -size 1920x1080 \
+            -define gradient:direction=South \
+            gradient:'#1a1a2e'-'#0a0a14' \
+            -fill '#cc0000' -gravity center -pointsize 72 \
+            -annotate +0+0 "TaaOS" \
+            /usr/share/backgrounds/taaos/wallpaper.png 2>/dev/null || \
+        convert -size 1920x1080 xc:'#1a1a2e' /usr/share/backgrounds/taaos/wallpaper.png 2>/dev/null || true
+    fi
+fi
+
+# STEP 2: Force default Debian wallpaper alternative to point to TaaOS wallpaper
 if [ -f /usr/share/backgrounds/taaos/wallpaper.png ]; then
     # Divert the default Debian wallpaper
     dpkg-divert --add --rename --divert /usr/share/desktop-base/active-theme/wallpaper/contents/images/1920x1080.svg.real /usr/share/desktop-base/active-theme/wallpaper/contents/images/1920x1080.svg || true
@@ -241,6 +260,10 @@ if [ -f /usr/share/backgrounds/taaos/wallpaper.png ]; then
     # Also enforce traditional alternatives
     ln -sf /usr/share/backgrounds/taaos/wallpaper.png /etc/alternatives/desktop-background || true
     ln -sf /usr/share/backgrounds/taaos/wallpaper.png /usr/share/images/desktop-base/default || true
+    
+    echo "[BRANDING] Wallpaper enforced via dpkg-divert and alternatives"
+else
+    echo "[BRANDING] ERROR: Wallpaper still missing after all attempts!"
 fi
 
 echo "[BRANDING] Wallpaper configuration complete"
@@ -257,9 +280,30 @@ echo "[BRANDING] Panel configuration skipped (using pre-configured file)"
 # =============================================================================
 echo "[BRANDING] Injecting OS Logo into Whisker Menu and LightDM..."
 
+# STEP 1: Ensure logo exists at target paths
+mkdir -p /usr/share/pixmaps
+mkdir -p /usr/share/icons
+
 if [ -f /build/assets/logo.png ]; then
     cp /build/assets/logo.png /usr/share/pixmaps/taaos-logo.png
     cp /build/assets/logo.png /usr/share/icons/taaos-logo.png
+    echo "[BRANDING] Logo copied from /build/assets/"
+elif [ -f /usr/share/pixmaps/taaos-logo.png ]; then
+    echo "[BRANDING] Logo already exists at target"
+else
+    echo "[BRANDING] WARNING: Logo not found! Generating fallback..."
+    if command -v convert &> /dev/null; then
+        convert -size 128x128 xc:transparent \
+            -fill '#cc0000' -gravity center -pointsize 64 -font Helvetica-Bold \
+            -annotate +0+0 "T" \
+            /usr/share/pixmaps/taaos-logo.png 2>/dev/null || \
+        convert -size 128x128 xc:'#cc0000' /usr/share/pixmaps/taaos-logo.png 2>/dev/null || true
+        cp /usr/share/pixmaps/taaos-logo.png /usr/share/icons/taaos-logo.png 2>/dev/null || true
+    else
+        # Last resort: use a system icon
+        cp /usr/share/icons/hicolor/48x48/apps/calamares.png /usr/share/pixmaps/taaos-logo.png 2>/dev/null || touch /usr/share/pixmaps/taaos-logo.png
+        cp /usr/share/pixmaps/taaos-logo.png /usr/share/icons/taaos-logo.png 2>/dev/null || true
+    fi
 fi
 
 # Configure Whisker Menu to use TaaOS Logo

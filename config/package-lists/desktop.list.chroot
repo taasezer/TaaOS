@@ -101,3 +101,6 @@ neofetch
 
 # Build Tools (GCC, Make, etc.)
 build-essential
+
+# Python Tkinter (Required for TaaOS Welcome Screen)
+python3-tk
