@@ -149,6 +149,7 @@ create_natural_engine() {
 # =============================================================================
 # Translates natural language requests into Linux bash commands using Ollama.
 # Usage: natural "your request in plain English"
+# Features: Auto-sudo, file save, safety guardrails
 # =============================================================================
 
 import sys
@@ -160,16 +161,16 @@ try:
     from rich.console import Console
     from rich.panel import Panel
     from rich.syntax import Syntax
-    from rich.prompt import Confirm
+    from rich.prompt import Confirm, Prompt
     from rich.text import Text
+    from rich.markdown import Markdown
+    from rich import box as rich_box
 except ImportError as e:
     print(f"Error: Missing dependency - {e}")
     print("Please ensure ollama and rich are installed:")
     print("  pip3 install ollama rich requests")
     sys.exit(1)
 
-import subprocess
-import os
 
 def check_and_pull_model(model_name: str, console) -> bool:
     """Check if model exists and pull if missing."""
@@ -177,21 +178,18 @@ def check_and_pull_model(model_name: str, console) -> bool:
     # Attempt to auto-start ollama if it's not running
     try:
         subprocess.run("systemctl is-active --quiet ollama || sudo systemctl start ollama >/dev/null 2>&1 || (nohup ollama serve >/dev/null 2>&1 &)", shell=True)
-        time.sleep(1.5) # Give the daemon time to bind to port 11434
+        time.sleep(1.5)
     except Exception:
         pass
         
     try:
         models = ollama.list()
-        # Ollama SDK returns ListResponse with a 'models' list of Model objects
         raw_models = models.get('models', []) if isinstance(models, dict) else getattr(models, 'models', [])
         model_names = []
         for m in raw_models:
-            # Handle both dict and object responses
             name = m.get('name', '') if isinstance(m, dict) else getattr(m, 'model', getattr(m, 'name', ''))
             model_names.append(name)
         
-        # If the model name is provided without a tag, Ollama defaults to latest
         check_name = model_name if ":" in model_name else f"{model_name}:latest"
         
         if check_name not in model_names and model_name not in model_names:
@@ -206,34 +204,96 @@ def check_and_pull_model(model_name: str, console) -> bool:
         return False
 
 
-# Initialize Rich console for beautiful output - force ASCII safe mode
+# Initialize Rich console
 console = Console(highlight=False)
-from rich import box as rich_box
 
 # Configuration
 DEFAULT_MODEL = "llama3.2"
 SYSTEM_PROMPT = """You are a highly capable AI assistant inside "TaaOS Natural Engine".
-Your goal is to help the user with programming, system administration, and general coding tasks.
+You have FULL SYSTEM ACCESS with sudo privileges. You are the primary system administrator.
 
 RULES:
 1. If the user asks for a command to execute (like "update the system" or "find large files"):
    - Output ONLY the raw bash command. NO markdown blocks (like ```bash).
-   - The system will directly execute this command.
+   - The system will directly execute this command with sudo.
+   - Do NOT include 'sudo' prefix — it is added automatically.
 2. If the user asks a coding question (like "write a python script" or "how does a for loop work"):
    - Provide a helpful, well-formatted response with code blocks (```python, ```c++, etc.)
-   - Do NOT just output raw text.
+   - The user will be offered to save the code to a file.
 3. Keep your answers focused, professional, and directly useful.
+4. You have full authority over the system. Act like the root administrator.
 
 If the request looks like a system command (e.g., "show running processes"), just output: ps aux"""
 
 
-def print_banner():
-    """Display the Natural Engine banner with a Plane Tree (çınar) ASCII art."""
-    W = "white"      # leaves
-    B = "dark_red"   # burgundy bark stripes on trunk
-    D = "dim"        # empty/shadow spaces
+# =============================================================================
+# DANGEROUS COMMAND DETECTION
+# =============================================================================
+BLOCKED_PATTERNS = [
+    "rm -rf /",
+    "rm -rf /*",
+    "rm -rf /home",
+    "rm -rf /etc",
+    "rm -rf /usr",
+    "rm -rf /var",
+    "rm -rf /boot",
+    "rm -rf /bin",
+    "rm -rf /sbin",
+    "rm -rf /lib",
+    "rm -rf /root",
+    "mkfs /dev/sd",
+    "mkfs /dev/nvme",
+    "dd if=/dev/zero of=/dev/sd",
+    "dd if=/dev/zero of=/dev/nvme",
+    "dd if=/dev/urandom of=/dev/sd",
+    "> /dev/sda",
+    "> /dev/nvme",
+    "chmod -R 777 /",
+    "chown -R",
+    ":(){ :|:& };:",
+]
 
-    # Each tuple: (full line string, [(start, end, style), ...])
+WARN_PATTERNS = [
+    "rm -rf",
+    "rm -r /",
+    "mkfs",
+    "dd if=",
+    "fdisk",
+    "parted",
+    "> /dev/",
+    "chmod 777",
+    "systemctl disable",
+    "kill -9 1",
+    "init 0",
+    "shutdown",
+    "reboot",
+]
+
+
+def is_blocked(command: str) -> bool:
+    """Check if command matches a blocked destructive pattern."""
+    cmd_lower = command.lower().strip()
+    for pattern in BLOCKED_PATTERNS:
+        if pattern.lower() in cmd_lower:
+            return True
+    return False
+
+
+def is_dangerous(command: str) -> bool:
+    """Check if command matches a warning-level pattern."""
+    cmd_lower = command.lower().strip()
+    for pattern in WARN_PATTERNS:
+        if pattern.lower() in cmd_lower:
+            return True
+    return False
+
+
+def print_banner():
+    """Display the Natural Engine banner with a Plane Tree ASCII art."""
+    W = "white"
+    B = "dark_red"
+    D = "dim"
+
     tree = [
         ("    .  ' * '  .   * .  ' *  .  *  '  . *  '  .   ",
          [(0,4,D),(4,5,W),(5,7,D),(7,10,W),(10,13,D),(13,16,W),(16,18,D),(18,19,W),(19,22,D),(22,23,W),(23,26,D),(26,27,W),(27,30,D),(30,31,W),(31,34,D),(34,35,W),(35,50,D)]),
@@ -273,48 +333,42 @@ def print_banner():
     hdr.append("  TaaOS Natural Engine", style="bold magenta")
     hdr.append(" — Personal AI Assistant", style="dim")
     console.print(hdr)
+    sub = Text()
+    sub.append("  ⚡ Full System Access (sudo)", style="bold green")
+    sub.append("  |  ", style="dim")
+    sub.append("💾 Code Save", style="bold cyan")
+    console.print(sub)
     console.print()
 
 
 def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
     """Translate natural language to bash command using Ollama."""
     try:
-        # Ensure we have the model first
         check_and_pull_model(model, console)
         
         response = ollama.chat(
             model=model,
             messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": user_request
-                }
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_request}
             ],
-            options={
-                "temperature": 0.4,  # Moderate temp for mixed coding/command usage
-            }
+            options={"temperature": 0.4}
         )
         
-        # Extract the text
         command = response["message"]["content"].strip()
         
         # Determine if this is a general explanation/code writing or a strict bash command
         bash_command_mode = not ("```" in command or "def " in command or "\n" in command)
         
         if bash_command_mode:
-            # Clean up strict bash commands so they can execute
             command = command.replace("```bash", "").replace("```", "").strip()
             command = command.replace("`", "").strip()
             if (command.startswith('"') and command.endswith('"')) or \
                (command.startswith("'") and command.endswith("'")):
                 command = command[1:-1]
-            return command, True # True means it's an executable command
+            return command, True
         else:
-            return command, False # False means it's a code block or explanation
+            return command, False
 
     except ollama.ResponseError as e:
         console.print(f"[red]Error:[/red] Ollama response error - {e}")
@@ -324,6 +378,81 @@ def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
+
+
+def extract_code_blocks(content: str):
+    """Extract code blocks from markdown-formatted AI response."""
+    blocks = []
+    lines = content.split('\n')
+    in_block = False
+    current_lang = ""
+    current_code = []
+    
+    for line in lines:
+        if line.strip().startswith('```') and not in_block:
+            in_block = True
+            current_lang = line.strip().replace('```', '').strip()
+            current_code = []
+        elif line.strip() == '```' and in_block:
+            in_block = False
+            blocks.append((current_lang, '\n'.join(current_code)))
+        elif in_block:
+            current_code.append(line)
+    
+    return blocks
+
+
+def save_code_to_file(content: str, blocks: list):
+    """Offer to save code blocks to files."""
+    if not blocks:
+        return
+    
+    console.print()
+    console.print("[bold cyan]💾 Kod bloğu tespit edildi![/bold cyan]")
+    
+    for i, (lang, code) in enumerate(blocks):
+        # Suggest file extension based on language
+        ext_map = {
+            'python': '.py', 'py': '.py',
+            'javascript': '.js', 'js': '.js',
+            'typescript': '.ts', 'ts': '.ts',
+            'bash': '.sh', 'sh': '.sh',
+            'c': '.c', 'cpp': '.cpp', 'c++': '.cpp',
+            'java': '.java', 'go': '.go',
+            'rust': '.rs', 'html': '.html',
+            'css': '.css', 'sql': '.sql',
+            'ruby': '.rb', 'php': '.php',
+        }
+        suggested_ext = ext_map.get(lang.lower(), '.txt')
+        
+        if len(blocks) > 1:
+            console.print(f"  [dim]Blok {i+1}/{len(blocks)} ({lang or 'text'})[/dim]")
+        
+        save = Confirm.ask(f"  [bold yellow]Bu kodu dosyaya kaydetmek ister misiniz?[/bold yellow]", default=True)
+        
+        if save:
+            default_name = f"natural_output{suggested_ext}"
+            filepath = Prompt.ask(
+                f"  [cyan]Dosya yolu[/cyan]",
+                default=os.path.expanduser(f"~/{default_name}")
+            )
+            
+            try:
+                # Expand ~ and resolve path
+                filepath = os.path.expanduser(filepath)
+                os.makedirs(os.path.dirname(filepath) or '.', exist_ok=True)
+                
+                with open(filepath, 'w') as f:
+                    f.write(code + '\n')
+                
+                # Make executable if it's a script
+                if suggested_ext in ['.sh', '.py']:
+                    os.chmod(filepath, 0o755)
+                
+                console.print(f"  [bold green]✓ Kaydedildi: {filepath}[/bold green]")
+            except Exception as e:
+                console.print(f"  [red]Kaydetme hatası: {e}[/red]")
+
 
 def display_command(content: str, is_command: bool):
     """Display the generated command or code block."""
@@ -338,8 +467,6 @@ def display_command(content: str, is_command: bool):
         )
         console.print(panel)
     else:
-        # For general code and text, just use a different panel style
-        from rich.markdown import Markdown
         panel = Panel(
             Markdown(content),
             title="[bold blue] AI Response [/bold blue]",
@@ -348,21 +475,31 @@ def display_command(content: str, is_command: bool):
             padding=(1, 2)
         )
         console.print(panel)
+        
+        # Offer to save code blocks
+        blocks = extract_code_blocks(content)
+        if blocks:
+            save_code_to_file(content, blocks)
 
 
 def execute_command(command: str):
-    """Execute the command and stream output."""
+    """Execute the command with sudo and stream output."""
+    # Auto-prefix with sudo if not already present
+    if not command.strip().startswith("sudo "):
+        exec_command = f"sudo {command}"
+    else:
+        exec_command = command
+    
     console.print()
-    console.print("[bold blue]Executing...[/bold blue]")
+    console.print(f"[bold blue]Executing (with sudo)...[/bold blue]")
     console.print("─" * 50)
     
     try:
-        # Run the command with shell=True to support pipes, redirects, etc.
         result = subprocess.run(
-            command,
+            exec_command,
             shell=True,
             text=True,
-            capture_output=False  # Stream output directly to terminal
+            capture_output=False
         )
         
         console.print("─" * 50)
@@ -382,17 +519,20 @@ def main():
     """Main entry point for Natural Engine."""
     print_banner()
     
-    # Check for command line arguments
     if len(sys.argv) < 2:
         console.print("[yellow]Usage:[/yellow] natural \"your request in plain English\"")
         console.print()
         console.print("[dim]Examples:[/dim]")
         console.print('  natural "show me disk usage"')
         console.print('  natural "find all python files modified today"')
+        console.print('  natural "write a python flask hello world app"')
         console.print('  natural "list docker containers"')
+        console.print()
+        console.print("[dim]Features:[/dim]")
+        console.print("  ⚡ Commands run with sudo automatically")
+        console.print("  💾 Code responses can be saved to file")
         sys.exit(0)
     
-    # Get the user's request
     user_request = " ".join(sys.argv[1:])
     
     console.print(f"[dim]Translating:[/dim] {user_request}")
@@ -404,19 +544,26 @@ def main():
     display_command(content, is_command)
     
     if is_command:
-        # Check if the command is safe to run
-        dangerous_keywords = ["rm ", "mkfs", "dd ", "fdisk", "parted", "> /dev/"]
-        
-        is_dangerous = any(keyword in content.lower() for keyword in dangerous_keywords)
+        # SAFETY: Block absolutely destructive commands
+        if is_blocked(content):
+            console.print()
+            console.print("[bold red]🛑 ENGELLENDI: Bu komut kritik sistem dosyalarını yok edecek![/bold red]")
+            console.print("[bold red]   Bu komut Natural Engine tarafından çalıştırılamaz.[/bold red]")
+            return
         
         console.print()
-        if is_dangerous:
-            console.print("[bold red]⚠️  WARNING: This command appears potentially destructive![/bold red]")
-            
-        if Confirm.ask("[bold yellow]Execute this command?[/bold yellow]", default=not is_dangerous):
-            execute_command(content)
+        
+        if is_dangerous(content):
+            console.print("[bold red]⚠️  UYARI: Bu komut potansiyel olarak tehlikeli![/bold red]")
+            if not Confirm.ask("[bold yellow]Yine de çalıştırmak istiyor musunuz?[/bold yellow]", default=False):
+                console.print("[yellow]İptal edildi.[/yellow]")
+                return
         else:
-            console.print("[yellow]Execution cancelled.[/yellow]")
+            if not Confirm.ask("[bold yellow]Bu komutu çalıştırmak istiyor musunuz?[/bold yellow]", default=True):
+                console.print("[yellow]İptal edildi.[/yellow]")
+                return
+        
+        execute_command(content)
 
 
 if __name__ == "__main__":
