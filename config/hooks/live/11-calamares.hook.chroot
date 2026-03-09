@@ -134,6 +134,7 @@ sequence:
         - initramfs
         - grubcfg
         - bootloader
+        - shellprocess
         - umount
     - show:
         - finished
@@ -254,6 +255,22 @@ Keywords=Install;Installer;Setup;
 EOF
 
 # =============================================================================
+# SECTION 9: CONFIGURE SHELLPROCESS MODULE (POST-INSTALL CLEANUP)
+# =============================================================================
+echo "[CALAMARES] Configuring shellprocess module for post-install cleanup..."
+
+mkdir -p /etc/calamares/modules
+
+cat > /etc/calamares/modules/shellprocess.conf << 'EOF'
+---
+script:
+    - command: "/usr/lib/taaos/post-install.sh"
+      timeout: 300
+EOF
+
+echo "[CALAMARES] shellprocess module configured."
+
+# =============================================================================
 # COMPLETE
 # =============================================================================
 echo ""
@@ -266,4 +283,5 @@ echo "  - Disk partitioning (manual, automatic, alongside)"
 echo "  - LVM and encryption support"
 echo "  - User creation"
 echo "  - TaaOS branding"
+echo "  - Post-install cleanup (remove installer, live user)"
 echo ""

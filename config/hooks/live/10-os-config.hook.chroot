@@ -276,7 +276,10 @@ set -e
 
 echo "[TaaOS] Running post-installation configuration..."
 
-# Remove live-specific packages
+# =========================================================================
+# STEP 1: Remove live-specific packages
+# =========================================================================
+echo "[TaaOS] Removing live-specific packages..."
 apt-get remove --purge -y \
     live-boot \
     live-config \
@@ -284,13 +287,72 @@ apt-get remove --purge -y \
     live-boot-doc \
     2>/dev/null || true
 
+# =========================================================================
+# STEP 2: Remove Calamares installer completely
+# =========================================================================
+echo "[TaaOS] Removing Calamares installer..."
+apt-get remove --purge -y calamares calamares-settings-debian 2>/dev/null || true
+apt-get autoremove -y 2>/dev/null || true
+
+# Remove ALL installer desktop shortcuts
+rm -f /usr/share/applications/taaos-installer.desktop
+rm -f /usr/share/applications/calamares.desktop
+
+# Remove installer shortcut from ALL user desktops and skeleton
+rm -f /etc/skel/Desktop/install-taaos.desktop
+for user_home in /home/*/; do
+    rm -f "${user_home}Desktop/install-taaos.desktop" 2>/dev/null || true
+done
+
+# Remove Calamares configuration files
+rm -rf /etc/calamares
+
+echo "[TaaOS] Calamares installer removed."
+
+# =========================================================================
+# STEP 3: Remove the live 'engineer' user
+# =========================================================================
+echo "[TaaOS] Removing live 'engineer' user..."
+if id "engineer" >/dev/null 2>&1; then
+    # Kill any running processes first
+    pkill -u engineer 2>/dev/null || true
+    sleep 1
+    userdel -r engineer 2>/dev/null || true
+    echo "[TaaOS] User 'engineer' removed."
+else
+    echo "[TaaOS] User 'engineer' does not exist, skipping."
+fi
+
 # Remove live user if exists
 if id "live" >/dev/null 2>&1; then
     userdel -r live 2>/dev/null || true
 fi
 
-# Remove installer marker
+# =========================================================================
+# STEP 4: Fix sudoers — remove NOPASSWD for engineer
+# =========================================================================
+echo "[TaaOS] Securing sudo configuration..."
+if [ -f /etc/sudoers.d/taaos ]; then
+    # Rewrite sudoers to only keep the group rule, removing engineer NOPASSWD line
+    cat > /etc/sudoers.d/taaos << 'SUDOERS'
+# TaaOS sudo configuration
+# Allow members of group sudo to execute any command
+%sudo ALL=(ALL:ALL) ALL
+SUDOERS
+    chmod 440 /etc/sudoers.d/taaos
+fi
+
+echo "[TaaOS] Sudo configuration secured."
+
+# =========================================================================
+# STEP 5: Remove installer marker
+# =========================================================================
 rm -f /etc/taaos-live-installer
+
+# =========================================================================
+# STEP 6: System finalization
+# =========================================================================
+echo "[TaaOS] Finalizing system..."
 
 # Update grub
 update-grub
@@ -304,7 +366,10 @@ systemctl enable lightdm
 systemctl enable bluetooth 2>/dev/null || true
 systemctl enable cups 2>/dev/null || true
 
-echo "[TaaOS] Post-installation complete!"
+# Clean apt cache
+apt-get clean
+
+echo "[TaaOS] Post-installation complete! System is ready."
 EOF
 
 chmod +x /usr/lib/taaos/post-install.sh
