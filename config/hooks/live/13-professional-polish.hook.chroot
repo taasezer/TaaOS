@@ -119,4 +119,151 @@ if [ -f /usr/share/applications/calamares.desktop ]; then
     rm -f /usr/share/applications/calamares.desktop
 fi
 
+# =============================================================================
+# 5. DLL FILE HANDLER (Wine Integration)
+# =============================================================================
+echo "[POLISH] Setting up .dll file handler..."
+
+# Create intelligent DLL handler script
+cat > /usr/local/bin/taaos-dll-handler << 'DLL_EOF'
+#!/bin/bash
+# =============================================================================
+# TaaOS DLL Handler — Intelligent .dll File Processor
+# =============================================================================
+# Handles .dll files via Wine: register, unregister, inspect, or run.
+# Usage: taaos-dll-handler <file.dll> [action]
+# Actions: register | unregister | info | run (default: register)
+# =============================================================================
+
+set -e
+
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+DLL_FILE="$1"
+ACTION="${2:-register}"
+
+if [ -z "$DLL_FILE" ]; then
+    echo -e "${CYAN}TaaOS DLL Handler${NC}"
+    echo ""
+    echo "Kullanım: taaos-dll-handler <dosya.dll> [işlem]"
+    echo ""
+    echo "İşlemler:"
+    echo "  register    — DLL'i Wine'a kaydet (regsvr32)"
+    echo "  unregister  — DLL kaydını sil"
+    echo "  info        — DLL bilgilerini göster"
+    echo "  run         — DLL'i rundll32 ile çalıştır"
+    echo ""
+    echo "Örnek: taaos-dll-handler mylib.dll register"
+    exit 0
+fi
+
+if [ ! -f "$DLL_FILE" ]; then
+    echo -e "${RED}Hata: '$DLL_FILE' dosyası bulunamadı.${NC}"
+    exit 1
+fi
+
+# Ensure Wine prefix exists
+export WINEPREFIX="${HOME}/.wine"
+if [ ! -d "$WINEPREFIX" ]; then
+    echo -e "${YELLOW}Wine ortamı oluşturuluyor (ilk kullanım)...${NC}"
+    wineboot --init 2>/dev/null || true
+    echo -e "${GREEN}Wine ortamı hazır.${NC}"
+fi
+
+DLL_BASENAME=$(basename "$DLL_FILE")
+DLL_FULLPATH=$(realpath "$DLL_FILE")
+
+case "$ACTION" in
+    register)
+        echo -e "${CYAN}Kaydediliyor: ${DLL_BASENAME}${NC}"
+        # Copy to Wine system32
+        cp "$DLL_FULLPATH" "$WINEPREFIX/drive_c/windows/system32/" 2>/dev/null || true
+        wine regsvr32 "$DLL_BASENAME" 2>/dev/null
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ ${DLL_BASENAME} başarıyla kaydedildi.${NC}"
+        else
+            echo -e "${YELLOW}⚠ Kayıt sırasında uyarı oluştu (bazı DLL'ler kayıt gerektirmez).${NC}"
+        fi
+        ;;
+    unregister)
+        echo -e "${CYAN}Kayıt siliniyor: ${DLL_BASENAME}${NC}"
+        wine regsvr32 /u "$DLL_BASENAME" 2>/dev/null
+        echo -e "${GREEN}✓ ${DLL_BASENAME} kaydı silindi.${NC}"
+        ;;
+    info)
+        echo -e "${CYAN}DLL Bilgileri: ${DLL_BASENAME}${NC}"
+        echo "  Dosya: $DLL_FULLPATH"
+        echo "  Boyut: $(du -h "$DLL_FULLPATH" | cut -f1)"
+        echo "  Tür:   $(file -b "$DLL_FULLPATH")"
+        # Check if it's 32-bit or 64-bit
+        if file "$DLL_FULLPATH" | grep -q "PE32+"; then
+            echo "  Mimari: 64-bit (x86_64)"
+        elif file "$DLL_FULLPATH" | grep -q "PE32"; then
+            echo "  Mimari: 32-bit (x86)"
+        fi
+        ;;
+    run)
+        echo -e "${CYAN}Çalıştırılıyor: ${DLL_BASENAME}${NC}"
+        wine rundll32.exe "$DLL_FULLPATH" 2>/dev/null
+        ;;
+    *)
+        echo -e "${RED}Bilinmeyen işlem: $ACTION${NC}"
+        echo "Geçerli işlemler: register | unregister | info | run"
+        exit 1
+        ;;
+esac
+DLL_EOF
+
+chmod +x /usr/local/bin/taaos-dll-handler
+
+# Create .desktop entry for .dll files (double-click opens handler)
+mkdir -p /usr/share/applications
+cat > /usr/share/applications/taaos-dll.desktop << 'DESK_EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=TaaOS DLL Handler
+Name[tr]=TaaOS DLL İşleyici
+Comment=Register or run DLL files via Wine
+Comment[tr]=DLL dosyalarını Wine ile kaydet veya çalıştır
+Exec=xfce4-terminal -e "taaos-dll-handler %f"
+Icon=application-x-ms-dos-executable
+Terminal=false
+MimeType=application/x-ms-dos-executable;application/x-dosexec;application/vnd.microsoft.portable-executable;
+Categories=System;Utility;
+NoDisplay=true
+DESK_EOF
+
+# Create MIME type for .dll files
+mkdir -p /usr/share/mime/packages
+cat > /usr/share/mime/packages/taaos-dll.xml << 'MIME_EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-ms-dos-executable">
+    <comment>Windows DLL Library</comment>
+    <glob pattern="*.dll"/>
+    <glob pattern="*.DLL"/>
+  </mime-type>
+</mime-info>
+MIME_EOF
+
+# Set taaos-dll.desktop as default handler for .dll files
+mkdir -p /etc/skel/.local/share/applications
+cat > /etc/skel/.local/share/applications/mimeapps.list << 'MIMEAPPS_EOF'
+[Default Applications]
+application/x-ms-dos-executable=taaos-dll.desktop
+application/x-dosexec=taaos-dll.desktop
+application/vnd.microsoft.portable-executable=taaos-dll.desktop
+MIMEAPPS_EOF
+
+# Update MIME and desktop databases
+update-mime-database /usr/share/mime 2>/dev/null || true
+update-desktop-database /usr/share/applications 2>/dev/null || true
+
+echo "[POLISH] DLL handler configured (taaos-dll-handler command + double-click support)"
+
 echo "[POLISH] Professional touches applied successfully!"

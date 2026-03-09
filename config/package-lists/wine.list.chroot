@@ -1,0 +1,14 @@
+# =============================================================================
+# TaaOS Wine Minimal Package List
+# =============================================================================
+# Lightweight Wine installation for .dll file handling.
+# Only essential Wine packages — NOT the full Wine suite.
+# Location: config/package-lists/wine.list.chroot
+# =============================================================================
+
+# Wine core (32-bit and 64-bit support)
+wine
+wine64
+
+# Wine helper tools
+winetricks

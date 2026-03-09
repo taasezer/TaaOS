@@ -131,6 +131,7 @@ docker cp ./config/package-lists/engineering.list.chroot "$CONTAINER_NAME":/buil
 docker cp ./config/package-lists/themes.list.chroot "$CONTAINER_NAME":/build/config/package-lists/
 [ -f ./config/package-lists/professional.list.chroot ] && docker cp ./config/package-lists/professional.list.chroot "$CONTAINER_NAME":/build/config/package-lists/ || true
 [ -f ./config/package-lists/live.list.chroot ] && docker cp ./config/package-lists/live.list.chroot "$CONTAINER_NAME":/build/config/package-lists/ || true
+[ -f ./config/package-lists/wine.list.chroot ] && docker cp ./config/package-lists/wine.list.chroot "$CONTAINER_NAME":/build/config/package-lists/ || true
 
 # Copy hooks
 echo "    Copying hooks..."
