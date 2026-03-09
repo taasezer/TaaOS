@@ -179,6 +179,123 @@ chmod 440 /etc/sudoers.d/taaos
 getent group sudo >/dev/null || groupadd --system sudo
 
 # =============================================================================
+# SECTION 7.1: SYSTEM-WIDE SAFETY BARRIERS
+# =============================================================================
+echo "[OS-CONFIG] Installing TaaOS safety barriers..."
+
+cat > /etc/profile.d/taaos-safety.sh << 'SAFETY_EOF'
+#!/bin/bash
+# =============================================================================
+# TaaOS Safety Barriers — System-Wide Destructive Command Protection
+# =============================================================================
+# Loaded automatically via /etc/profile.d/ for all interactive shells.
+# Protects against accidental destruction of critical system directories.
+# =============================================================================
+
+# Protected system directories — NEVER allow recursive force-delete on these
+_TAAOS_PROTECTED_PATHS=("/" "/*" "/home" "/etc" "/usr" "/boot" "/bin" "/sbin" "/lib" "/lib64" "/var" "/root" "/opt" "/srv" "/proc" "/sys" "/dev" "/run" "/tmp")
+
+# Override 'rm' with a safety wrapper
+rm() {
+    local has_recursive=false
+    local has_force=false
+    local target_paths=()
+
+    # Parse arguments
+    for arg in "$@"; do
+        case "$arg" in
+            -rf|-fr|-r|-R|--recursive)
+                has_recursive=true
+                ;;
+            -f|--force)
+                has_force=true
+                ;;
+            -*)
+                # Check combined flags like -rfv
+                if [[ "$arg" == *r* ]] || [[ "$arg" == *R* ]]; then
+                    has_recursive=true
+                fi
+                if [[ "$arg" == *f* ]]; then
+                    has_force=true
+                fi
+                ;;
+            *)
+                target_paths+=("$arg")
+                ;;
+        esac
+    done
+
+    # Only check if recursive delete is requested
+    if $has_recursive; then
+        for target in "${target_paths[@]}"; do
+            # Resolve to absolute path
+            local resolved
+            resolved=$(realpath -m "$target" 2>/dev/null || echo "$target")
+
+            for protected in "${_TAAOS_PROTECTED_PATHS[@]}"; do
+                if [[ "$resolved" == "$protected" ]]; then
+                    echo ""
+                    echo -e "\033[1;31m🛑 TaaOS GÜVENLİK ENGELİ\033[0m"
+                    echo -e "\033[1;31m   ENGELLENDI: rm $* \033[0m"
+                    echo -e "\033[1;33m   Sebep: '$resolved' kritik bir sistem dizinidir.\033[0m"
+                    echo -e "\033[1;33m   Bu komut sisteminizi tamamen yok edebilir.\033[0m"
+                    echo ""
+                    echo -e "\033[0;36m   Eğer gerçekten bunu yapmak istiyorsanız:\033[0m"
+                    echo -e "\033[0;36m   /bin/rm $* \033[0m"
+                    echo ""
+                    return 1
+                fi
+            done
+        done
+    fi
+
+    # Safe to proceed — call real rm
+    command rm "$@"
+}
+
+# Block fork bombs in bash
+_taaos_check_forkbomb() {
+    local cmd="$1"
+    if [[ "$cmd" == *":()"* ]] && [[ "$cmd" == *":|:"* ]]; then
+        echo ""
+        echo -e "\033[1;31m🛑 TaaOS GÜVENLİK ENGELİ: Fork bomb tespit edildi!\033[0m"
+        return 1
+    fi
+}
+
+# Warn on dangerous dd commands
+dd() {
+    local output_device=""
+    for arg in "$@"; do
+        if [[ "$arg" == of=/dev/sd* ]] || [[ "$arg" == of=/dev/nvme* ]] || [[ "$arg" == of=/dev/vd* ]]; then
+            output_device="$arg"
+        fi
+    done
+
+    if [[ -n "$output_device" ]]; then
+        echo ""
+        echo -e "\033[1;31m⚠️  TaaOS UYARI: dd komutu bir disk cihazına yazıyor!\033[0m"
+        echo -e "\033[1;33m   Hedef: $output_device\033[0m"
+        echo -e "\033[1;33m   Bu işlem disk üzerindeki TÜM veriyi silecektir!\033[0m"
+        echo ""
+        read -p "   Devam etmek istediğinize emin misiniz? (evet/hayir): " confirm
+        if [[ "$confirm" != "evet" ]]; then
+            echo "   İptal edildi."
+            return 1
+        fi
+    fi
+
+    command dd "$@"
+}
+
+export -f rm dd 2>/dev/null || true
+SAFETY_EOF
+
+chmod 644 /etc/profile.d/taaos-safety.sh
+echo "[OS-CONFIG] Safety barriers installed at /etc/profile.d/taaos-safety.sh"
+
+
+# =============================================================================
 # SECTION 8: PACKAGE MANAGEMENT
 # =============================================================================
 echo "[OS-CONFIG] Configuring package management..."
