@@ -263,9 +263,10 @@ mkdir -p /etc/calamares/modules
 
 cat > /etc/calamares/modules/shellprocess.conf << 'EOF'
 ---
-script:
-    - "-dontChroot /usr/lib/taaos/post-install.sh"
+dontChroot: false
 timeout: 600
+script:
+    - "/usr/lib/taaos/post-install.sh"
 EOF
 
 echo "[CALAMARES] shellprocess module configured."
