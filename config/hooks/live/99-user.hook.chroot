@@ -249,7 +249,7 @@ XFWM4_EOF
 # SECTION 6: XFCE TERMINAL CONFIGURATION
 # =============================================================================
 create_terminal_config() {
-    log_theme "Creating XFCE Terminal config (Solarized Light)..."
+    log_theme "Creating XFCE Terminal config (TaaOS Dark)..."
 
     mkdir -p /etc/skel/.config/xfce4/terminal
 
@@ -259,7 +259,7 @@ MiscAlwaysShowTabs=FALSE
 MiscBell=FALSE
 MiscBellUrgent=FALSE
 MiscBordersDefault=TRUE
-MiscCursorBlinks=FALSE
+MiscCursorBlinks=TRUE
 MiscCursorShape=TERMINAL_CURSOR_SHAPE_BLOCK
 MiscDefaultGeometry=120x35
 MiscInheritGeometry=FALSE
@@ -289,23 +289,23 @@ ScrollingOnOutput=FALSE
 ScrollingOnKeystroke=TRUE
 TitleMode=TERMINAL_TITLE_REPLACE
 FontName=Fira Code 11
-ColorForeground=#657b83
-ColorBackground=#fdf6e3
-ColorCursor=#657b83
+ColorForeground=#F8F8F2
+ColorBackground=#000000
+ColorCursor=#F8F8F2
 ColorCursorUseDefault=FALSE
-ColorSelection=#93a1a1
+ColorSelection=#44475A
 ColorSelectionUseDefault=FALSE
-ColorBold=#073642
+ColorBold=#F8F8F2
 ColorBoldUseDefault=FALSE
-ColorPalette=#073642;#dc322f;#859900;#b58900;#268bd2;#d33682;#2aa198;#eee8d5;#002b36;#cb4b16;#586e75;#657b83;#839496;#6c71c4;#93a1a1;#fdf6e3
-TabActivityColor=#dc322f
-ColorBoldIsBright=FALSE
+ColorPalette=#000000;#FF5555;#50FA7B;#F1FA8C;#6272A4;#FF79C6;#8BE9FD;#F8F8F2;#44475A;#FF5555;#50FA7B;#FFB86C;#8BE9FD;#FF79C6;#8BE9FD;#FFFFFF
+TabActivityColor=#FF5555
+ColorBoldIsBright=TRUE
 ColorUseTheme=FALSE
 BackgroundMode=TERMINAL_BACKGROUND_SOLID
-BackgroundDarkness=0.950000
+BackgroundDarkness=1.000000
 TERMINALRC_EOF
 
-    log_success "terminalrc created with Solarized Light color scheme"
+    log_success "terminalrc created with TaaOS Dark (black) color scheme"
 }
 
 # =============================================================================
@@ -374,7 +374,7 @@ main() {
     echo "  Theme:     Materia-light"
     echo "  Icons:     Papirus"
     echo "  Font:      Fira Code"
-    echo "  Terminal:  Solarized Light"
+    echo "  Terminal:  TaaOS Dark (black)"
     echo "  ECC:       rasdaemon enabled"
     echo ""
 }
