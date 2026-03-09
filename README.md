@@ -53,6 +53,9 @@ TaaOS comes with the following languages and libraries:
 ### AI Assistant (Natural Engine)
 *   **Natural Engine**: A local AI assistant using the installed `python` and `ollama` infrastructure.
 *   **Usage**: Translates natural language requests into Bash commands by typing `natural "list files"` or `n "update system"` in the terminal.
+*   **Auto-Sudo**: All commands are automatically executed with `sudo` privileges — no manual prefix needed.
+*   **Code Save**: When Natural generates code, it automatically detects code blocks and offers to save them as files (15+ language extensions auto-detected).
+*   **Safety Guardrails**: Two-tier protection — destructive commands (`rm -rf /`, fork bombs) are hard-blocked; potentially dangerous commands trigger a confirmation prompt.
 
 ### DevOps and Container Management
 *   **Docker**: Docker Engine CE, Docker Buildx
@@ -70,14 +73,23 @@ TaaOS comes with the following languages and libraries:
 *   **Virtualization**: KVM/QEMU, Libvirt, Virt-Manager (Virtual Machine Management).
 *   **Network Analysis**: Wireshark, Nmap, Tcpdump, Htop, Btop, Iftop.
 *   **Self-Healing**: `taaos-update` utility to automatically fix broken packages, apply OS core patches from GitHub, and verify AI Engine status.
+*   **DLL Support**: `taaos-dll-handler` command to register, unregister, inspect, or run Windows .dll files via Wine. Double-click support in file manager.
 
 ### Desktop and Terminal
 *   **Desktop Environment**: XFCE4 (Customized, lightweight, and fast).
 *   **Welcome Screen**: Multilingual (Turkish/English) quick-start graphical guide on first boot.
-*   **Terminal Experience**: Dracula-styled terminal with pre-configured aliases (`ll`, `ports`, `update`) and customized Plane Tree (Çınar) Fastfetch system summary.
+*   **Terminal Experience**: Dracula-styled black terminal with pre-configured aliases (`ll`, `ports`, `update`) and customized Plane Tree (Çınar) Fastfetch system summary.
+*   **Terminal Emulators**: XFCE4-Terminal (default), Tilix (advanced split-pane terminal), tmux, screen.
+*   **Node.js REPL**: Dedicated Node.js interactive console launcher (`taaos-node-repl`).
+*   **Git GUI**: Gitg (GTK visual branch/commit browser), Gitk (history viewer), Tig (terminal interface).
 *   **Development Environment**: 
     *   **Visual Studio Code**: Pre-installed. (`vscode-extensions` command installs recommended extensions: Python, C#, Rust, Docker, Copilot, etc.)
     *   Vim, Nano, Micro editors.
+
+### Security
+*   **Safety Barriers**: System-wide protection against accidental destruction. `rm -rf /` and critical system directory deletions are blocked at the shell level.
+*   **dd Protection**: Writing to block devices (`/dev/sd*`, `/dev/nvme*`) requires explicit confirmation.
+*   **Post-Install Cleanup**: Calamares installer, desktop shortcut, and live user are automatically removed after installation.
 
 ## Build and Installation
 
@@ -98,7 +110,7 @@ TaaOS is built in a Docker-based isolated environment via the `build.sh` script.
     *   **Output**: When finished, `TaaOS.iso` file is created in the directory.
 
 ### Post-Installation Access
-*   **User**: `engineer` (Password is set during installation or `live` in live mode).
+*   **User**: Created during installation via Calamares installer.
 *   **n8n Panel**: `http://localhost:5678`
 *   **Portainer**: `http://localhost:9000`
 *   **Cockpit**: `https://localhost:9090`
@@ -158,8 +170,11 @@ TaaOS, aşağıdaki diller ve kütüphanelerle birlikte gelir:
     *   **Bash/Shell**: Modern Bash, betik araçları
 
 ### Yapay Zeka Asistanı (Natural Engine)
-*   **Natural Engine**: Sistemde yüklü olan `python` ve `ollama` altyapısını kullanan yerel yapay zeka asistanı. 
+*   **Natural Engine**: Sistemde yüklü olan `python` ve `ollama` altyapısını kullanan yerel yapay zeka asistanı.
 *   **Kullanım**: Terminalde `natural "dosyaları listele"` veya `n "sistemi güncelle"` yazarak doğal dildeki istekleri Bash komutlarına çevirir.
+*   **Otomatik Sudo**: Tüm komutlar otomatik olarak `sudo` ile çalıştırılır — manuel prefix gerekmez.
+*   **Kod Kaydetme**: Natural kod ürettiğinde otomatik olarak kod bloklarını algılar ve dosya olarak kaydetmeyi teklif eder (15+ dil uzantısı otomatik algılanır).
+*   **Güvenlik Korumaları**: İki kademeli koruma — yıkıcı komutlar (`rm -rf /`, fork bomb) tamamen engellenir; potansiyel tehlikeli komutlar onay ister.
 
 ### DevOps ve Konteyner Yönetimi
 *   **Docker**: Docker Engine CE, Docker Buildx
@@ -177,14 +192,23 @@ TaaOS, aşağıdaki diller ve kütüphanelerle birlikte gelir:
 *   **Sanallaştırma**: KVM/QEMU, Libvirt, Virt-Manager (Sanal Makine Yönetimi).
 *   **Ağ Analizi**: Wireshark, Nmap, Tcpdump, Htop, Btop, Iftop.
 *   **Otomatik Onarım**: `taaos-update` komutu ile kırık paket, sistem güncellemesi, GitHub bağımlı çekirdek yamaları ve Natural Engine sağlık kontrolünü tek tıkla yapma imkanı.
+*   **DLL Desteği**: `taaos-dll-handler` komutu ile Windows .dll dosyalarını Wine üzerinden kaydetme, silme, inceleme veya çalıştırma. Dosya yöneticisinde çift tıklama desteği.
 
 ### Masaüstü ve Terminal
 *   **Masaüstü Ortamı**: XFCE4 (Özelleştirilmiş, hafif ve hızlı).
 *   **Karşılama Ekranı**: İlk kurulumda açılan çok dilli (Türkçe/İngilizce) grafiksel rehber arayüzü.
 *   **Terminal Deneyimi**: Dracula temalı siyah arka plan, hazır komut kısayolları (`ll`, `ports`, `update`) ve özel TaaOS Çınar Ağacı (Fastfetch) sistem özeti.
+*   **Terminal Emülatörleri**: XFCE4-Terminal (varsayılan), Tilix (gelişmiş bölünmüş ekran), tmux, screen.
+*   **Node.js REPL**: Özel Node.js etkileşimli konsol başlatıcısı (`taaos-node-repl`).
+*   **Git GUI**: Gitg (GTK görsel dal/commit tarayıcı), Gitk (geçmiş görüntüleyici), Tig (terminal arayüzü).
 *   **Geliştirme Ortamı**: 
     *   **Visual Studio Code**: Önyüklü gelir. (`vscode-extensions` komutu ile önerilen eklentileri kurar: Python, C#, Rust, Docker, Copilot vb.)
     *   Vim, Nano, Micro editörleri.
+
+### Güvenlik
+*   **Güvenlik Bariyerleri**: Kazara yıkımı önleyen sistem genelinde koruma. `rm -rf /` ve kritik sistem dizini silme işlemleri kabuk seviyesinde engellenir.
+*   **dd Koruması**: Blok cihazlarına (`/dev/sd*`, `/dev/nvme*`) yazma işlemi açık onay gerektirir.
+*   **Kurulum Sonrası Temizlik**: Calamares yükleyici, masaüstü kısayolu ve live kullanıcı kurulumdan sonra otomatik olarak kaldırılır.
 
 ## Derleme ve Kurulum
 
@@ -205,7 +229,7 @@ TaaOS, `build.sh` betiği üzerinden Docker tabanlı izole bir ortamda derlenir.
     *   **Çıktı**: İşlem bittiğinde dizinde `TaaOS.iso` dosyası oluşur.
 
 ### Kurulum Sonrası Erişim
-*   **Kullanıcı**: `engineer` (Parola kurulum sırasında belirlenir veya live modda `live`).
+*   **Kullanıcı**: Calamares yükleyici aracılığıyla kurulum sırasında oluşturulur.
 *   **n8n Paneli**: `http://localhost:5678`
 *   **Portainer**: `http://localhost:9000`
 *   **Cockpit**: `https://localhost:9090`

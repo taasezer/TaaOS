@@ -325,6 +325,46 @@ default-user-image = /usr/share/pixmaps/taaos-logo.png
 EOF
 
 # =============================================================================
+# SECTION 7: TERMINAL APP LAUNCHERS (Node REPL, Git GUI)
+# =============================================================================
+echo "[BRANDING] Creating terminal application launchers..."
+
+# Node.js REPL launcher wrapper
+cat > /usr/local/bin/taaos-node-repl << 'NODE_EOF'
+#!/bin/bash
+echo ""
+echo -e "\033[1;32m  ⬢ TaaOS Node.js REPL\033[0m"
+echo -e "\033[0;36m  Node.js $(node --version 2>/dev/null || echo 'not found') | npm $(npm --version 2>/dev/null || echo 'not found')\033[0m"
+echo ""
+exec node -i
+NODE_EOF
+chmod +x /usr/local/bin/taaos-node-repl
+
+# Node.js REPL desktop entry
+cat > /usr/share/applications/taaos-node-repl.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Node.js REPL
+Name[tr]=Node.js Terminali
+Comment=Interactive Node.js JavaScript console
+Comment[tr]=Etkileşimli Node.js JavaScript konsolu
+Exec=xfce4-terminal -e "/usr/local/bin/taaos-node-repl"
+Icon=utilities-terminal
+Terminal=false
+Categories=Development;IDE;
+Keywords=node;javascript;js;repl;console;
+EOF
+
+# Git GUI (gitg) desktop entry with proper categorization
+if [ -f /usr/share/applications/gitg.desktop ]; then
+    # gitg already has a desktop entry, just ensure it's categorized properly
+    sed -i 's/Categories=.*/Categories=Development;RevisionControl;/' /usr/share/applications/gitg.desktop 2>/dev/null || true
+fi
+
+echo "[BRANDING] Terminal app launchers created (Node REPL, Git GUI)"
+
+# =============================================================================
 # COMPLETE
 # =============================================================================
 echo ""

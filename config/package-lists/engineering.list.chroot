@@ -85,3 +85,26 @@ tree
 # Archive Utilities
 zip
 unzip
+
+# =============================================================================
+# SECTION 5: TERMINAL EMULATORS & MULTIPLEXERS
+# =============================================================================
+
+# Tilix - Advanced GTK3 Terminal (Split panes, tabs, profiles)
+tilix
+
+# Screen - Terminal Multiplexer (tmux alternative)
+screen
+
+# Bash Completion - Enhanced tab completion
+bash-completion
+
+# =============================================================================
+# SECTION 6: GIT GUI & DEVELOPMENT TOOLS
+# =============================================================================
+
+# Gitg - GTK Git Repository Viewer (Visual branch/commit browser)
+gitg
+
+# Gitk - Tcl/Tk Git History Viewer
+gitk
