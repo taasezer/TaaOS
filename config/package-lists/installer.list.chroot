@@ -1,32 +1,8 @@
 # TaaOS Installer Packages
-# Calamares GUI installer and dependencies
+# Additional Calamares dependencies (core installer is in live.list.chroot)
 
-# Core installer
-calamares
-calamares-settings-debian
-
-# Qt/QML dependencies for Calamares
+# Qt/QML dependencies for Calamares UI
 qml-module-qtquick2
 qml-module-qtquick-controls
-qml-module-qtquick-controls2
 qml-module-qtquick-layouts
 qml-module-qtquick-window2
-
-# Partition tools
-gparted
-partitionmanager
-
-# Bootloader tools
-grub-efi-amd64
-grub-pc-bin
-os-prober
-
-# Filesystem tools
-dosfstools
-e2fsprogs
-btrfs-progs
-xfsprogs
-
-# System utilities
-rsync
-squashfs-tools

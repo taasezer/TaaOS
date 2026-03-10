@@ -1,16 +1,12 @@
 # TaaOS Performance Packages
 # Boot optimization and system performance
 
-# Preloading
-preload
-
 # Memory management
 earlyoom
 zram-tools
 
 # Faster package operations
 eatmydata
-apt-fast
 
 # CPU frequency management
 cpufrequtils
