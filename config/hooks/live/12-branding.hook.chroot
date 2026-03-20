@@ -222,6 +222,60 @@ Path=
 Terminal=false
 StartupNotify=true
 EOF
+# Construct BOTTOM DOCK launcher profiles (panel-2)
+mkdir -p /etc/xdg/xfce4/panel/launcher-20
+cat > /etc/xdg/xfce4/panel/launcher-20/dock-filemanager.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=File Manager
+Comment=Browse the file system
+Exec=thunar %F
+Icon=org.xfce.filemanager
+Terminal=false
+StartupNotify=true
+EOF
+
+mkdir -p /etc/xdg/xfce4/panel/launcher-21
+cat > /etc/xdg/xfce4/panel/launcher-21/dock-terminal.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Terminal
+Comment=Use the command line
+Exec=xfce4-terminal
+Icon=utilities-terminal
+Terminal=false
+StartupNotify=true
+EOF
+
+mkdir -p /etc/xdg/xfce4/panel/launcher-22
+cat > /etc/xdg/xfce4/panel/launcher-22/dock-browser.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Web Browser
+Comment=Browse the web
+Exec=x-www-browser %u
+Icon=web-browser
+Terminal=false
+StartupNotify=true
+EOF
+
+mkdir -p /etc/xdg/xfce4/panel/launcher-23
+cat > /etc/xdg/xfce4/panel/launcher-23/dock-texteditor.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Text Editor
+Comment=Edit text files
+Exec=mousepad %F
+Icon=org.xfce.mousepad
+Terminal=false
+StartupNotify=true
+EOF
+
+echo "[BRANDING] Bottom dock launchers created (File Manager, Terminal, Browser, Text Editor)"
 
 # =============================================================================
 # SECTION 3: WALLPAPER CONFIGURATION
