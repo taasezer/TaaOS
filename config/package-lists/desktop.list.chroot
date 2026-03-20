@@ -97,7 +97,7 @@ curl
 htop
 
 # System Information Display
-fastfetch
+neofetch
 
 # Video Player (Required for Welcome Video at boot)
 mpv

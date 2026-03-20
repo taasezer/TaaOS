@@ -90,9 +90,20 @@ alias ports="sudo netstat -tulanp"
 alias ll="ls -la"
 alias cls="clear"
 
+# Create TaaOS ASCII art for neofetch
+cat > /etc/taaos-ascii.txt << 'ASCII_EOF'
+${c1}  ████████╗ █████╗  █████╗  ██████╗ ███████╗
+${c1}  ╚══██╔══╝██╔══██╗██╔══██╗██╔═══██╗██╔════╝
+${c1}     ██║   ███████║███████║██║   ██║███████╗
+${c1}     ██║   ██╔══██║██╔══██║██║   ██║╚════██║
+${c1}     ██║   ██║  ██║██║  ██║╚██████╔╝███████║
+${c1}     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+ASCII_EOF
+
 # Display system info on shell startup (only for interactive shells)
-if [[ $- == *i* ]] && command -v fastfetch >/dev/null 2>&1; then
-    fastfetch --config /etc/fastfetch.jsonc
+if [[ $- == *i* ]] && command -v neofetch >/dev/null 2>&1; then
+    # --ascii_colors 1 sets the ascii art to Red (Rosso Corsa)
+    neofetch --source /etc/taaos-ascii.txt --ascii_colors 1 1 1 1 1 1
 fi
 EOF
 
