@@ -175,6 +175,43 @@ log_info "Adding filesystem support..."
 ./scripts/config --enable CONFIG_XFS_FS
 ./scripts/config --enable CONFIG_FUSE_FS
 
+# =============================================================================
+# Storage and Block Devices (CRITICAL for System Boot)
+# =============================================================================
+log_info "Adding storage device support..."
+
+# NVMe Support
+./scripts/config --enable CONFIG_NVME_CORE
+./scripts/config --enable CONFIG_BLK_DEV_NVME
+
+# SATA / AHCI Support
+./scripts/config --enable CONFIG_ATA
+./scripts/config --enable CONFIG_SATA_AHCI
+./scripts/config --enable CONFIG_SATA_MOBILE_LPM_POLICY
+
+# Device Mapper (Required for LVM, LUKS, Thin-provisioning, Snapshots)
+./scripts/config --enable CONFIG_MD
+./scripts/config --enable CONFIG_BLK_DEV_MD
+./scripts/config --enable CONFIG_BLK_DEV_DM
+./scripts/config --enable CONFIG_DM_CRYPT
+./scripts/config --enable CONFIG_DM_SNAPSHOT
+./scripts/config --enable CONFIG_DM_THIN_PROVISIONING
+./scripts/config --enable CONFIG_DM_CACHE
+./scripts/config --enable CONFIG_DM_WRITECACHE
+
+# USB and USB Storage (CRITICAL for Live USB Boot)
+./scripts/config --enable CONFIG_USB
+./scripts/config --enable CONFIG_USB_STORAGE
+./scripts/config --enable CONFIG_USB_UAS
+./scripts/config --enable CONFIG_USB_XHCI_HCD
+./scripts/config --enable CONFIG_USB_EHCI_HCD
+
+# Input Devices (HID, Keyboards, Mice)
+./scripts/config --enable CONFIG_INPUT_KEYBOARD
+./scripts/config --enable CONFIG_INPUT_MOUSE
+./scripts/config --enable CONFIG_HID_GENERIC
+./scripts/config --enable CONFIG_USB_HID
+
 # Disable signature verification (required for custom kernel)
 ./scripts/config --disable CONFIG_SYSTEM_TRUSTED_KEYS
 ./scripts/config --disable CONFIG_SYSTEM_REVOCATION_KEYS
