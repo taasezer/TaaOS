@@ -1,0 +1,58 @@
+{
+  "logo": {
+    "type": "none"
+  },
+  "display": {
+    "separator": "  ",
+    "color": {
+      "keys": "cyan"
+    }
+  },
+  "modules": [
+    {
+      "type": "custom",
+      "format": "\u001b[36m  ████████╗ █████╗  █████╗  ██████╗ ███████╗"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[36m  ╚══██╔══╝██╔══██╗██╔══██╗██╔═══██╗██╔════╝"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[36m     ██║   ███████║███████║██║   ██║███████╗"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[36m     ██║   ██╔══██║██╔══██║██║   ██║╚════██║"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[36m     ██║   ██║  ██║██║  ██║╚██████╔╝███████║"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[36m     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝"
+    },
+    "break",
+    "title",
+    "separator",
+    "os",
+    "host",
+    "kernel",
+    "uptime",
+    "packages",
+    "shell",
+    "display",
+    "de",
+    {
+      "type": "wm",
+      "key": "WM"
+    },
+    "terminal",
+    "cpu",
+    "gpu",
+    "memory",
+    "break",
+    "colors"
+  ]
+}

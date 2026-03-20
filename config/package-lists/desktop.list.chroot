@@ -97,7 +97,10 @@ curl
 htop
 
 # System Information Display
-neofetch
+fastfetch
+
+# Video Player (Required for Welcome Video at boot)
+mpv
 
 # Build Tools (GCC, Make, etc.)
 build-essential

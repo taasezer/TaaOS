@@ -523,10 +523,12 @@ mkdir -p /etc/lightdm
 cat > /etc/lightdm/lightdm-gtk-greeter.conf << 'EOF'
 [greeter]
 background = /usr/share/backgrounds/taaos/wallpaper.png
-theme-name = Materia-dark
+theme-name = TaaOS-Dark
 icon-theme-name = Papirus-Dark
 font-name = Fira Sans 10
 default-user-image = /usr/share/pixmaps/taaos-logo.png
+indicators = ~host;~spacer;~clock;~spacer;~session;~power
+position = 50%,center 50%,center
 EOF
 
 # =============================================================================

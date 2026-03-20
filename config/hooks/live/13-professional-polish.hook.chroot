@@ -282,4 +282,21 @@ update-desktop-database /usr/share/applications 2>/dev/null || true
 
 echo "[POLISH] DLL handler configured (taaos-dll-handler command + double-click support)"
 
+# =============================================================================
+# 6. DEFAULT SYSTEM APPLICATIONS
+# =============================================================================
+echo "[POLISH] Enforcing default system applications..."
+
+# Terminal
+if command -v xfce4-terminal >/dev/null 2>&1; then
+    update-alternatives --set x-terminal-emulator /usr/bin/xfce4-terminal 2>/dev/null || true
+fi
+
+# Browser (Assuming Firefox/Firefox-ESR is used)
+if command -v firefox >/dev/null 2>&1; then
+    update-alternatives --set x-www-browser /usr/bin/firefox 2>/dev/null || true
+elif command -v firefox-esr >/dev/null 2>&1; then
+    update-alternatives --set x-www-browser /usr/bin/firefox-esr 2>/dev/null || true
+fi
+
 echo "[POLISH] Professional touches applied successfully!"
