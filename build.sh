@@ -182,7 +182,11 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     
     # Convert Windows CRLF to Unix LF
     echo "Converting CRLF to LF..."
-    find . -type f \( -name "*.sh" -o -name "*.chroot" -o -name "*.binary" -o -name "*.list.*" \) -exec dos2unix {} \; 2>/dev/null || true
+    find . -type f \( -name "*.sh" -o -name "*.chroot" -o -name "*.binary" -o -name "*.list.*" -o -name "*.conf" -o -name "*.cfg" -o -name "*.py" -o -name "*.desktop" -o -name "*.service" -o -name "*.timer" \) -exec dos2unix {} \; 2>/dev/null || true
+    # CRITICAL: Convert ALL files in includes.chroot (many have no extension)
+    find config/includes.chroot -type f -exec dos2unix {} \; 2>/dev/null || true
+    # Convert scripts directory
+    find scripts -type f -exec dos2unix {} \; 2>/dev/null || true
 
     
     chmod +x *.sh
@@ -190,6 +194,10 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     # CRITICAL FIX: Ensure ALL hooks are executable! live-build drops hooks silently if they lack +x bit
     echo "Ensuring all hooks are executable..."
     find config/hooks -type f -exec chmod +x {} \; 2>/dev/null || true
+    # Ensure ALL scripts in includes.chroot are executable
+    find config/includes.chroot/usr/bin -type f -exec chmod +x {} \; 2>/dev/null || true
+    find config/includes.chroot/usr/local/bin -type f -exec chmod +x {} \; 2>/dev/null || true
+    find config/includes.chroot/usr/lib/taaos -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
     
     # Verify files
     echo "=== Files in /build ==="

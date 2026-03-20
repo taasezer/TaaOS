@@ -6,22 +6,25 @@
 # Creates a Timeshift snapshot for kernel/critical updates
 # =============================================================================
 
-set -euo pipefail
+# Skip during live-build / Docker build (not a real system yet)
+if [ -f /.dockerenv ] || [ -f /run/live/medium ] || [ ! -d /run/systemd/system ]; then
+    exit 0
+fi
 
 LOG_FILE="/var/log/taaos/snapshot.log"
 
 log() {
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    mkdir -p "$(dirname "$LOG_FILE")"
-    echo "[$timestamp] $*" >> "$LOG_FILE"
+    mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+    echo "[$timestamp] $*" >> "$LOG_FILE" 2>/dev/null || true
 }
 
 # Read package list from stdin (APT provides this)
-PACKAGES=$(cat)
+PACKAGES=$(cat 2>/dev/null || true)
 
 # Check if kernel package is being installed
-if echo "$PACKAGES" | grep -q "linux-image"; then
+if echo "$PACKAGES" | grep -q "linux-image" 2>/dev/null; then
     log "Kernel update detected, creating snapshot..."
     
     if command -v timeshift &> /dev/null; then
