@@ -104,9 +104,6 @@ fi
 
 # 4. Make UI scripts Executable and cleanup duplicates
 echo "[POLISH] Setting permissions for UI scripts and cleaning up..."
-if [ -f /usr/local/bin/taaos-welcome.py ]; then
-    chmod +x /usr/local/bin/taaos-welcome.py
-fi
 if [ -f /usr/local/bin/taaos-wallpaper-fix.sh ]; then
     chmod +x /usr/local/bin/taaos-wallpaper-fix.sh
 fi
@@ -128,11 +125,9 @@ rm -f /usr/share/applications/debian-installer.desktop 2>/dev/null || true
 echo "[POLISH] Setting executable permissions on TaaOS scripts..."
 
 # UI and helper scripts
-chmod +x /usr/local/bin/taaos-welcome.py 2>/dev/null || true
 chmod +x /usr/local/bin/taaos-wallpaper-fix.sh 2>/dev/null || true
 chmod +x /usr/local/bin/taaos-node-repl 2>/dev/null || true
 chmod +x /usr/local/bin/natural 2>/dev/null || true
-chmod +x /usr/lib/taaos/welcome.sh 2>/dev/null || true
 chmod +x /usr/lib/taaos/post-install.sh 2>/dev/null || true
 
 # Ensure ALL scripts in /usr/local/bin are executable

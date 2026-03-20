@@ -316,6 +316,18 @@ apt-get update 2>/dev/null || true
 # =============================================================================
 echo "[OS-CONFIG] Configuring kernel and boot..."
 
+# Configure GRUB for installed system (Plymouth splash on every boot)
+cat > /etc/default/grub << 'EOF'
+# TaaOS GRUB Configuration
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=5
+GRUB_DISTRIBUTOR="TaaOS"
+GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
+GRUB_CMDLINE_LINUX=""
+GRUB_GFXMODE=auto
+GRUB_GFXPAYLOAD_LINUX=keep
+EOF
+
 # Ensure initramfs is updated
 update-initramfs -u -k all 2>/dev/null || true
 
