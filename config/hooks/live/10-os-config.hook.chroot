@@ -455,22 +455,36 @@ rm -f /etc/lightdm/lightdm.conf.d/50-taaos-live.conf
 echo "[TaaOS] Calamares installer and all shortcuts removed."
 
 # =========================================================================
-# STEP 3: Remove the live 'engineer' user
+# STEP 3: Remove the live 'engineer' user (complete cleanup)
 # =========================================================================
 echo "[TaaOS] Removing live 'engineer' user..."
 if id "engineer" >/dev/null 2>&1; then
     # Kill any running processes first
     pkill -u engineer 2>/dev/null || true
     sleep 1
-    userdel -r engineer 2>/dev/null || true
+    # Remove the user and home directory
+    userdel -rf engineer 2>/dev/null || true
     echo "[TaaOS] User 'engineer' removed."
 else
     echo "[TaaOS] User 'engineer' does not exist, skipping."
 fi
 
+# Force-remove home directory if it still exists
+rm -rf /home/engineer 2>/dev/null || true
+
+# Remove any engineer-specific sudoers files
+rm -f /etc/sudoers.d/engineer 2>/dev/null || true
+rm -f /etc/sudoers.d/*engineer* 2>/dev/null || true
+# Strip any NOPASSWD lines referencing engineer from all sudoers files
+sed -i '/engineer.*NOPASSWD/d' /etc/sudoers.d/* 2>/dev/null || true
+
+# Remove crontab for engineer
+crontab -u engineer -r 2>/dev/null || true
+
 # Remove live user if exists
 if id "live" >/dev/null 2>&1; then
-    userdel -r live 2>/dev/null || true
+    userdel -rf live 2>/dev/null || true
+    rm -rf /home/live 2>/dev/null || true
 fi
 
 # =========================================================================
