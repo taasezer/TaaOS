@@ -409,20 +409,38 @@ echo "[TaaOS] Removing Calamares installer..."
 apt-get remove --purge -y calamares calamares-settings-debian 2>/dev/null || true
 apt-get -q -y autoremove 2>/dev/null || true
 
-# Remove ALL installer desktop shortcuts
+# Remove ALL installer desktop shortcuts (TaaOS + Debian + Calamares)
 rm -f /usr/share/applications/taaos-installer.desktop
 rm -f /usr/share/applications/calamares.desktop
+rm -f /usr/share/applications/debian-installer-launcher.desktop
+rm -f /usr/share/applications/install-debian.desktop
+rm -f /usr/share/applications/debian-installer.desktop
 
 # Remove installer shortcut from ALL user desktops and skeleton
 rm -f /etc/skel/Desktop/install-taaos.desktop
+rm -f "/etc/skel/Desktop/Install TaaOS.desktop"
+rm -f /etc/skel/Desktop/debian-installer-launcher.desktop
+rm -f "/etc/skel/Desktop/Install Debian.desktop"
+rm -f /etc/skel/Desktop/install-debian.desktop
 for user_home in /home/*/; do
     rm -f "${user_home}Desktop/install-taaos.desktop" 2>/dev/null || true
+    rm -f "${user_home}Desktop/Install TaaOS.desktop" 2>/dev/null || true
+    rm -f "${user_home}Desktop/debian-installer-launcher.desktop" 2>/dev/null || true
+    rm -f "${user_home}Desktop/Install Debian.desktop" 2>/dev/null || true
+    rm -f "${user_home}Desktop/install-debian.desktop" 2>/dev/null || true
 done
+
+# Wildcard sweep: remove ANY remaining installer-related .desktop files
+find /usr/share/applications -iname "*installer*" -delete 2>/dev/null || true
+find /usr/share/applications -iname "*calamares*" -delete 2>/dev/null || true
 
 # Remove Calamares configuration files
 rm -rf /etc/calamares
 
-echo "[TaaOS] Calamares installer removed."
+# Remove live-mode LightDM autologin (so installed system boots to login screen)
+rm -f /etc/lightdm/lightdm.conf.d/50-taaos-live.conf
+
+echo "[TaaOS] Calamares installer and all shortcuts removed."
 
 # =========================================================================
 # STEP 3: Remove the live 'engineer' user
