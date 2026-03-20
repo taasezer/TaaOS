@@ -6,14 +6,15 @@
     <value type="int" value="1"/>
     <value type="int" value="2"/>
     <!-- ============================================================ -->
-    <!-- PANEL 1: Top Bar (system tray, clock, menu) -->
+    <!-- PANEL 1: Top Bar — matches user's preferred classic layout -->
+    <!-- Layout: [Menu] [Launchers] [Pager 1234] | [Tasklist] | [Systray] [Volume] [Battery] [Notif] [Clock] -->
     <!-- ============================================================ -->
     <property name="panel-1" type="empty">
       <property name="position" type="string" value="p=6;x=0;y=0"/>
       <property name="length" type="uint" value="100"/>
       <property name="position-locked" type="bool" value="true"/>
       <property name="icon-size" type="uint" value="16"/>
-      <property name="size" type="uint" value="30"/>
+      <property name="size" type="uint" value="26"/>
       <property name="plugin-ids" type="array">
         <value type="int" value="1"/>
         <value type="int" value="2"/>
@@ -21,6 +22,7 @@
         <value type="int" value="4"/>
         <value type="int" value="5"/>
         <value type="int" value="6"/>
+        <value type="int" value="15"/>
         <value type="int" value="7"/>
         <value type="int" value="8"/>
         <value type="int" value="9"/>
@@ -35,7 +37,7 @@
         <value type="double" value="0.08"/>
         <value type="double" value="0.08"/>
         <value type="double" value="0.10"/>
-        <value type="double" value="0.8"/>
+        <value type="double" value="0.95"/>
       </property>
     </property>
     <!-- ============================================================ -->
@@ -71,7 +73,9 @@
   <!-- ============================================================ -->
   <property name="plugins" type="empty">
     <!-- === TOP BAR PLUGINS (panel-1) === -->
+    <!-- [Whisker Menu] -->
     <property name="plugin-1" type="string" value="whiskermenu"/>
+    <!-- [Launchers: Terminal, File Manager, Browser] -->
     <property name="plugin-2" type="string" value="separator">
       <property name="style" type="uint" value="0"/>
     </property>
@@ -90,32 +94,46 @@
         <value type="string" value="17336104443.desktop"/>
       </property>
     </property>
+    <!-- [Separator] -->
     <property name="plugin-6" type="string" value="separator">
-      <property name="style" type="uint" value="0"/>
+      <property name="style" type="uint" value="3"/>
     </property>
+    <!-- [Workspace Pager: 1 2 3 4] -->
+    <property name="plugin-15" type="string" value="pager">
+      <property name="rows" type="uint" value="1"/>
+      <property name="miniature-view" type="bool" value="false"/>
+      <property name="numbering" type="bool" value="true"/>
+    </property>
+    <!-- [Separator + Tasklist (open windows)] -->
     <property name="plugin-7" type="string" value="separator">
-      <property name="style" type="uint" value="1"/>
-      <property name="expand" type="bool" value="false"/>
+      <property name="style" type="uint" value="3"/>
     </property>
     <property name="plugin-8" type="string" value="tasklist">
       <property name="grouping" type="uint" value="1"/>
-      <property name="show-labels" type="bool" value="false"/>
+      <property name="show-labels" type="bool" value="true"/>
+      <property name="flat-buttons" type="bool" value="true"/>
     </property>
+    <!-- [Expanding Space] -->
     <property name="plugin-9" type="string" value="separator">
       <property name="expand" type="bool" value="true"/>
       <property name="style" type="uint" value="0"/>
     </property>
+    <!-- [System Tray] -->
     <property name="plugin-10" type="string" value="systray">
       <property name="square-icons" type="bool" value="true"/>
     </property>
+    <!-- [Volume] -->
     <property name="plugin-11" type="string" value="pulseaudio">
       <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
     </property>
+    <!-- [Battery/Power] -->
     <property name="plugin-12" type="string" value="power-manager-plugin"/>
+    <!-- [Notifications] -->
     <property name="plugin-13" type="string" value="notification-plugin"/>
+    <!-- [Clock: HH:MM format] -->
     <property name="plugin-14" type="string" value="clock">
       <property name="mode" type="uint" value="2"/>
-      <property name="digital-format" type="string" value="%b %d, %H:%M"/>
+      <property name="digital-format" type="string" value="%H:%M"/>
     </property>
     <!-- === BOTTOM DOCK PLUGINS (panel-2) === -->
     <property name="plugin-20" type="string" value="launcher">
