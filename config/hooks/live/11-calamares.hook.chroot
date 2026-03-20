@@ -207,13 +207,27 @@ cat > /etc/calamares/modules/bootloader.conf << 'EOF'
 efiBootLoader: "grub"
 kernel: "/vmlinuz"
 img: "/initrd.img"
-kernelLine: ", with Linux"
-fallbackKernelLine: ", with Linux (fallback initramfs)"
+kernelLine: ", with TaaOS Linux"
+fallbackKernelLine: ", with TaaOS Linux (fallback initramfs)"
+timeout: 5
 grubInstall: "grub-install"
 grubMkconfig: "grub-mkconfig"
 grubCfg: "/boot/grub/grub.cfg"
 grubProbe: "grub-probe"
 efiBootloaderId: "TaaOS"
+# BIOS/MBR installation path (critical for non-EFI VMs)
+installPath: "/boot/grub/i386-pc"
+EOF
+
+# Configure grubcfg module (kernel command line for installed system)
+echo "[CALAMARES] Configuring grubcfg module..."
+cat > /etc/calamares/modules/grubcfg.conf << 'EOF'
+---
+distributor: "TaaOS"
+keepDistributor: true
+default: "saved"
+timeout: 5
+kernelParams: [ "quiet", "splash" ]
 EOF
 
 # =============================================================================

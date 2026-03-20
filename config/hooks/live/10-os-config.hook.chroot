@@ -495,24 +495,90 @@ echo "[TaaOS] Sudo configuration secured."
 rm -f /etc/taaos-live-installer
 
 # =========================================================================
-# STEP 6: System finalization
+# STEP 6: GRUB Bootloader Finalization (CRITICAL for persistent install)
 # =========================================================================
-echo "[TaaOS] Finalizing system..."
+echo "[TaaOS] Finalizing bootloader configuration..."
 
-# Update grub
-update-grub
+# Auto-detect the boot disk (the disk where / is mounted)
+ROOT_PART=$(findmnt -no SOURCE / 2>/dev/null || mount | grep ' / ' | awk '{print $1}')
+BOOT_DISK=""
+
+if [ -n "$ROOT_PART" ]; then
+    # Strip partition number to get the disk (e.g., /dev/sda1 → /dev/sda)
+    BOOT_DISK=$(echo "$ROOT_PART" | sed 's/[0-9]*$//' | sed 's/p$//')
+    echo "[TaaOS] Detected root partition: $ROOT_PART"
+    echo "[TaaOS] Detected boot disk: $BOOT_DISK"
+fi
+
+# Write /etc/default/grub for TaaOS
+cat > /etc/default/grub << 'GRUBDEFAULT'
+# TaaOS GRUB Configuration
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=5
+GRUB_DISTRIBUTOR="TaaOS"
+GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
+GRUB_CMDLINE_LINUX=""
+GRUB_GFXMODE=auto
+GRUB_GFXPAYLOAD_LINUX=keep
+GRUBDEFAULT
+
+# Determine if we're in EFI or BIOS mode and re-install GRUB accordingly
+if [ -d /sys/firmware/efi ]; then
+    echo "[TaaOS] EFI mode detected — installing GRUB for EFI..."
+    # Find EFI partition
+    EFI_DIR="/boot/efi"
+    if [ ! -d "$EFI_DIR" ]; then
+        mkdir -p "$EFI_DIR"
+        # Try to mount EFI partition if not already mounted
+        EFI_PART=$(fdisk -l "$BOOT_DISK" 2>/dev/null | grep -i 'EFI' | awk '{print $1}')
+        if [ -n "$EFI_PART" ]; then
+            mount "$EFI_PART" "$EFI_DIR" 2>/dev/null || true
+        fi
+    fi
+    grub-install --target=x86_64-efi --efi-directory="$EFI_DIR" --bootloader-id=TaaOS --recheck 2>/dev/null || \
+    grub-install --target=x86_64-efi --efi-directory="$EFI_DIR" --bootloader-id=TaaOS --removable --recheck 2>/dev/null || \
+    echo "[TaaOS] WARNING: EFI GRUB install may have failed"
+else
+    echo "[TaaOS] BIOS/Legacy mode detected — installing GRUB for BIOS..."
+    if [ -n "$BOOT_DISK" ]; then
+        grub-install --target=i386-pc --recheck "$BOOT_DISK" 2>/dev/null || \
+        grub-install --recheck "$BOOT_DISK" 2>/dev/null || \
+        echo "[TaaOS] WARNING: BIOS GRUB install may have failed on $BOOT_DISK"
+    else
+        echo "[TaaOS] WARNING: Could not detect boot disk for GRUB installation"
+        # Fallback: try common disk names
+        for disk in /dev/sda /dev/vda /dev/nvme0n1; do
+            if [ -b "$disk" ]; then
+                echo "[TaaOS] Trying GRUB install on $disk..."
+                grub-install --target=i386-pc --recheck "$disk" 2>/dev/null && break || true
+            fi
+        done
+    fi
+fi
+
+# Generate GRUB config
+echo "[TaaOS] Generating GRUB configuration..."
+update-grub 2>/dev/null || grub-mkconfig -o /boot/grub/grub.cfg 2>/dev/null || true
+
+# Verify GRUB config was written
+if [ -f /boot/grub/grub.cfg ]; then
+    echo "[TaaOS] ✓ GRUB config successfully generated at /boot/grub/grub.cfg"
+    grep -c "menuentry" /boot/grub/grub.cfg | xargs -I{} echo "[TaaOS]   {} menu entries found"
+else
+    echo "[TaaOS] ✗ WARNING: /boot/grub/grub.cfg was NOT generated!"
+fi
 
 # Update initramfs
-update-initramfs -u -k all
+update-initramfs -u -k all 2>/dev/null || true
 
 # Enable all services for installed system
-systemctl enable NetworkManager
-systemctl enable lightdm
+systemctl enable NetworkManager 2>/dev/null || true
+systemctl enable lightdm 2>/dev/null || true
 systemctl enable bluetooth 2>/dev/null || true
 systemctl enable cups 2>/dev/null || true
 
 # Clean apt cache
-apt-get clean
+apt-get clean 2>/dev/null || true
 
 echo "[TaaOS] Post-installation complete! System is ready."
 EOF
