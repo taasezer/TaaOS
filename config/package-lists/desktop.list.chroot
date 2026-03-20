@@ -99,9 +99,6 @@ htop
 # System Information Display
 neofetch
 
-# Video Player (Required for Welcome Video at boot)
-mpv
-
 # Build Tools (GCC, Make, etc.)
 build-essential
 

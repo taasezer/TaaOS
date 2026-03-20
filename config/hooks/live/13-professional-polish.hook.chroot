@@ -77,20 +77,8 @@ if [ -s /tmp/fastfetch.deb ]; then
     rm -f /tmp/fastfetch.deb
 fi
 
-# 2. Append Custom Aliases & Fastfetch to system-wide bashrc
-echo "[POLISH] Injecting custom aliases and fastfetch into /etc/bash.bashrc..."
-
-cat >> /etc/bash.bashrc << 'EOF'
-
-# ==========================================
-# TaaOS Professional Terminal Settings
-# ==========================================
-alias update="sudo apt update && sudo apt upgrade -y"
-alias ports="sudo netstat -tulanp"
-alias ll="ls -la"
-alias cls="clear"
-
-# Create TaaOS ASCII art for neofetch
+# 2. Create TaaOS ASCII art file for neofetch (created ONCE here in the hook, not every terminal open)
+echo "[POLISH] Creating TaaOS ASCII art file for neofetch..."
 cat > /etc/taaos-ascii.txt << 'ASCII_EOF'
 ${c1}  ████████╗ █████╗  █████╗  ██████╗ ███████╗
 ${c1}  ╚══██╔══╝██╔══██╗██╔══██╗██╔═══██╗██╔════╝
@@ -100,12 +88,25 @@ ${c1}     ██║   ██║  ██║██║  ██║╚█████
 ${c1}     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
 ASCII_EOF
 
-# Display system info on shell startup (only for interactive shells)
+# 2b. Append Custom Aliases & neofetch call to system-wide bashrc
+echo "[POLISH] Injecting custom aliases and neofetch into /etc/bash.bashrc..."
+
+cat >> /etc/bash.bashrc << 'BASHRC_EOF'
+
+# ==========================================
+# TaaOS Professional Terminal Settings
+# ==========================================
+alias update="sudo apt update && sudo apt upgrade -y"
+alias ports="sudo netstat -tulanp"
+alias ll="ls -la"
+alias cls="clear"
+
+# Display TaaOS system info on shell startup (only for interactive shells)
 if [[ $- == *i* ]] && command -v neofetch >/dev/null 2>&1; then
     # --ascii_colors 1 sets the ascii art to Red (Rosso Corsa)
     neofetch --source /etc/taaos-ascii.txt --ascii_colors 1 1 1 1 1 1
 fi
-EOF
+BASHRC_EOF
 
 # 3. Configure Flatpak
 echo "[POLISH] Configuring Flatpak Ecosystem..."

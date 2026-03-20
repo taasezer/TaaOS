@@ -258,6 +258,9 @@ log_info "Adding storage device support..."
 ./scripts/config --enable CONFIG_VT
 ./scripts/config --enable CONFIG_VT_CONSOLE
 ./scripts/config --enable CONFIG_HW_CONSOLE
+./scripts/config --enable CONFIG_VGA_CONSOLE
+./scripts/config --enable CONFIG_DUMMY_CONSOLE
+./scripts/config --enable CONFIG_VT_HW_CONSOLE_BINDING
 
 # Graphics Support (Safe defaults for VMs)
 ./scripts/config --enable CONFIG_DRM

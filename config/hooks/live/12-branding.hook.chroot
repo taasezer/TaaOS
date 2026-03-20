@@ -51,25 +51,12 @@ logo_sprite = Sprite(logo_image);
 logo_sprite.SetX(Window.GetWidth() / 2 - logo_image.GetWidth() / 2);
 logo_sprite.SetY(Window.GetHeight() / 2 - logo_image.GetHeight() / 2 - 80);
 
-# ─── Welcome Greetings (multilingual fade animation) ─────────────────────
-# Greeting texts
-greetings[0] = "Hoş Geldin Mühendis";
-greetings[1] = "Welcome Engineer";
-greetings[2] = "Bienvenido Ingeniero";
-greetings[3] = "Bienvenue Ingénieur";
-greetings[4] = "Willkommen Ingenieur";
-
-greeting_count = 5;
-current_greeting = 0;
-greeting_alpha = 0.0;
-greeting_direction = 1;        # 1 = fading in, -1 = fading out
-greeting_hold_counter = 0;
-greeting_hold_time = 80;       # frames to hold at full opacity
-fade_speed = 0.02;             # alpha change per frame
-
-# Create greeting sprite
-greeting_sprite = Sprite();
-greeting_sprite.SetPosition(0, Window.GetHeight() / 2 + 40, 2);
+# ─── Welcome Greeting ─────────────────────────────────────────────────────
+greeting_text = "Hoşgeldin Mühendis";
+greeting_image = Image.Text(greeting_text, 0.9, 0.9, 0.9);
+greeting_sprite = Sprite(greeting_image);
+greeting_sprite.SetX(Window.GetWidth() / 2 - greeting_image.GetWidth() / 2);
+greeting_sprite.SetY(Window.GetHeight() / 2 + 40);
 
 # Subtitle sprite (always visible)
 subtitle_image = Image.Text("TaaOS — Professional Linux for Engineers", 0.4, 0.4, 0.5);
@@ -98,47 +85,7 @@ fun progress_callback(duration, progress) {
 }
 Plymouth.SetBootProgressFunction(progress_callback);
 
-# ─── Greeting Animation (called every frame via refresh) ─────────────────
-fun refresh_callback() {
-    # Fade in
-    if (greeting_direction == 1) {
-        greeting_alpha += fade_speed;
-        if (greeting_alpha >= 1.0) {
-            greeting_alpha = 1.0;
-            greeting_direction = 0;  # switch to hold
-            greeting_hold_counter = 0;
-        }
-    }
-    # Hold
-    if (greeting_direction == 0) {
-        greeting_hold_counter++;
-        if (greeting_hold_counter >= greeting_hold_time) {
-            greeting_direction = -1;  # switch to fade out
-        }
-    }
-    # Fade out
-    if (greeting_direction == -1) {
-        greeting_alpha -= fade_speed;
-        if (greeting_alpha <= 0.0) {
-            greeting_alpha = 0.0;
-            greeting_direction = 1;  # switch to fade in
-            current_greeting++;
-            if (current_greeting >= greeting_count) {
-                current_greeting = 0;
-            }
-        }
-    }
-
-    # Render the text with current alpha
-    greeting_text = greetings[current_greeting];
-    greeting_image = Image.Text(greeting_text, greeting_alpha, greeting_alpha, greeting_alpha);
-    greeting_sprite.SetImage(greeting_image);
-    greeting_sprite.SetX(Window.GetWidth() / 2 - greeting_image.GetWidth() / 2);
-}
-
-Plymouth.SetRefreshFunction(refresh_callback);
-
-# ─── System Messages ────────────────────────────────────────────────────
+# ─── System Messages ──────────────────────────────────────────────────────
 message_sprite = Sprite();
 message_sprite.SetPosition(Window.GetWidth() / 2 - 100, Window.GetHeight() / 2 + 180, 1);
 
@@ -146,6 +93,7 @@ fun message_callback(text) {
     my_image = Image.Text(text, 0.5, 0.5, 0.6);
     message_sprite.SetImage(my_image);
 }
+
 Plymouth.SetMessageFunction(message_callback);
 EOF
 
@@ -170,102 +118,6 @@ fi
 update-initramfs -u 2>/dev/null || true
 
 echo "[BRANDING] Plymouth configuration complete"
-
-# =============================================================================
-# SECTION 1.5: WELCOME VIDEO (plays before login screen)
-# =============================================================================
-echo "[BRANDING] Configuring welcome video service..."
-
-# Install mpv for video playback (lightweight, DRM/KMS capable)
-apt-get install -y --no-install-recommends mpv 2>/dev/null || true
-
-# Create the welcome video player script
-cat > /usr/lib/taaos/play-welcome-video.sh << 'VIDEO_SCRIPT'
-#!/bin/bash
-# =============================================================================
-# TaaOS Welcome Video Player
-# =============================================================================
-# Plays the welcome video once on first boot, before the login screen.
-# Uses mpv in DRM/KMS mode (no X server needed).
-# =============================================================================
-
-FLAG_FILE="/var/lib/taaos/.welcome-video-played"
-VIDEO_FILE="/usr/share/taaos/media/welcome.mp4"
-
-# Only play once
-if [ -f "$FLAG_FILE" ]; then
-    exit 0
-fi
-
-# Check if video exists
-if [ ! -f "$VIDEO_FILE" ]; then
-    echo "[TaaOS] Welcome video not found, skipping."
-    mkdir -p /var/lib/taaos
-    touch "$FLAG_FILE"
-    exit 0
-fi
-
-# We must quit plymouth first so it releases the DRM master, allowing mpv to play on the framebuffer
-if command -v plymouth >/dev/null 2>&1; then
-    plymouth quit --retain-splash
-    sleep 1
-fi
-
-# Play the video using mpv in DRM mode (framebuffer, no X needed)
-if command -v mpv >/dev/null 2>&1; then
-    # Try DRM first (modern), fallback to framebuffer
-    mpv --vo=drm --ao=null --no-audio \
-        --fs --really-quiet \
-        --no-input-default-bindings \
-        --input-vo-keyboard=no \
-        --untimed \
-        "$VIDEO_FILE" 2>/dev/null || \
-    mpv --vo=gpu --gpu-context=drm \
-        --ao=null --no-audio \
-        --fs --really-quiet \
-        "$VIDEO_FILE" 2>/dev/null || \
-    # Last resort: try fbdev
-    mpv --vo=sdl --ao=null --no-audio \
-        --fs --really-quiet \
-        "$VIDEO_FILE" 2>/dev/null || true
-fi
-
-# Mark as played
-mkdir -p /var/lib/taaos
-touch "$FLAG_FILE"
-
-# Small pause before login screen
-sleep 1
-VIDEO_SCRIPT
-
-chmod +x /usr/lib/taaos/play-welcome-video.sh
-
-# Create the systemd service (runs before LightDM)
-cat > /etc/systemd/system/taaos-welcome-video.service << 'SERVICE_EOF'
-[Unit]
-Description=TaaOS Welcome Video
-DefaultDependencies=no
-After=systemd-vconsole-setup.service plymouth-start.service
-Before=display-manager.service lightdm.service plymouth-quit.service plymouth-quit-wait.service
-ConditionPathExists=!/var/lib/taaos/.welcome-video-played
-
-[Service]
-Type=oneshot
-ExecStart=/usr/lib/taaos/play-welcome-video.sh
-TimeoutStartSec=30
-StandardInput=null
-StandardOutput=journal
-StandardError=journal
-RemainAfterExit=no
-
-[Install]
-WantedBy=graphical.target
-SERVICE_EOF
-
-# Enable the service
-systemctl enable taaos-welcome-video.service 2>/dev/null || true
-
-echo "[BRANDING] Welcome video service configured (plays once before login)"
 
 # =============================================================================
 # SECTION 2: XFCE THEME CONFIGURATION
