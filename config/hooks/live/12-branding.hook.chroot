@@ -205,6 +205,12 @@ if [ ! -f "$VIDEO_FILE" ]; then
     exit 0
 fi
 
+# We must quit plymouth first so it releases the DRM master, allowing mpv to play on the framebuffer
+if command -v plymouth >/dev/null 2>&1; then
+    plymouth quit --retain-splash
+    sleep 1
+fi
+
 # Play the video using mpv in DRM mode (framebuffer, no X needed)
 if command -v mpv >/dev/null 2>&1; then
     # Try DRM first (modern), fallback to framebuffer
@@ -239,8 +245,8 @@ cat > /etc/systemd/system/taaos-welcome-video.service << 'SERVICE_EOF'
 [Unit]
 Description=TaaOS Welcome Video
 DefaultDependencies=no
-Before=display-manager.service lightdm.service
-After=systemd-vconsole-setup.service plymouth-quit.service plymouth-quit-wait.service
+After=systemd-vconsole-setup.service plymouth-start.service
+Before=display-manager.service lightdm.service plymouth-quit.service plymouth-quit-wait.service
 ConditionPathExists=!/var/lib/taaos/.welcome-video-played
 
 [Service]
