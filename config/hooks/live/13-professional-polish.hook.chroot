@@ -13,7 +13,7 @@ echo "=============================================="
 echo "[POLISH] Applying TaaOS Professional Touches"
 echo "=============================================="
 
-# 1. TaaOS ASCII Logo for Fastfetch
+# 1. TaaOS ASCII Logo for neofetch (Rosso Corsa red, ${c1} is resolved by neofetch at runtime)
 echo "[POLISH] Creating TaaOS ASCII Logo..."
 cat > /etc/taaos-ascii.txt << 'EOF'
                #####################
@@ -78,15 +78,6 @@ if [ -s /tmp/fastfetch.deb ]; then
 fi
 
 # 2. Create TaaOS ASCII art file for neofetch (created ONCE here in the hook, not every terminal open)
-echo "[POLISH] Creating TaaOS ASCII art file for neofetch..."
-cat > /etc/taaos-ascii.txt << 'ASCII_EOF'
-${c1}  ████████╗ █████╗  █████╗  ██████╗ ███████╗
-${c1}  ╚══██╔══╝██╔══██╗██╔══██╗██╔═══██╗██╔════╝
-${c1}     ██║   ███████║███████║██║   ██║███████╗
-${c1}     ██║   ██╔══██║██╔══██║██║   ██║╚════██║
-${c1}     ██║   ██║  ██║██║  ██║╚██████╔╝███████║
-${c1}     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
-ASCII_EOF
 
 # 2b. Append Custom Aliases & neofetch call to system-wide bashrc
 echo "[POLISH] Injecting custom aliases and neofetch into /etc/bash.bashrc..."

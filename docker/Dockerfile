@@ -61,7 +61,6 @@ RUN apt-get install -y --no-install-recommends \
     libelf-dev \
     libudev-dev \
     pciutils \
-    ibutils \
     bc \
     rsync \
     kmod \

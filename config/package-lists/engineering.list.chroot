@@ -60,6 +60,10 @@ python3-venv
 # Go Programming Language
 golang-go
 
+# Rust Programming Language & Package Manager
+rustc
+cargo
+
 # Java Development Kit (OpenJDK)
 default-jdk
 

@@ -223,7 +223,27 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     
     # Run live-build config
     echo "=== PHASE B: Live-Build Config ==="
+    
+    # CRITICAL: Backup custom files BEFORE lb config — it can reset config/ directory
+    echo "    Backing up custom package-lists and hooks before lb config..."
+    mkdir -p /tmp/taaos-backup/package-lists
+    mkdir -p /tmp/taaos-backup/hooks
+    cp -a config/package-lists/. /tmp/taaos-backup/package-lists/ 2>/dev/null || true
+    cp -a config/hooks/live/. /tmp/taaos-backup/hooks/ 2>/dev/null || true
+    
     ./init_config.sh
+    
+    # CRITICAL: Restore custom files AFTER lb config — in case lb config wiped them
+    echo "    Restoring custom package-lists and hooks after lb config..."
+    mkdir -p config/package-lists config/hooks/live
+    cp -a /tmp/taaos-backup/package-lists/. config/package-lists/ 2>/dev/null || true
+    cp -a /tmp/taaos-backup/hooks/. config/hooks/live/ 2>/dev/null || true
+    # Re-ensure all hooks are executable after restore
+    find config/hooks -type f -exec chmod +x {} \; 2>/dev/null || true
+    echo "    === Final package lists ==="
+    ls -la config/package-lists/
+    echo "    === Final hooks ==="
+    ls -la config/hooks/live/
     
     # Build ISO
     echo "=== PHASE C: Building ISO ==="
