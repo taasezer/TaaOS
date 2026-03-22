@@ -387,9 +387,21 @@ EOF
 mkdir -p /var/log/taaos
 
 # =============================================================================
-# SECTION 11: INSTALLER INTEGRATION
+# SECTION 11: INSTALLER INTEGRATION & LIVE ENVIRONMENT CLEANUP
 # =============================================================================
-echo "[OS-CONFIG] Configuring installer integration..."
+echo "[OS-CONFIG] Configuring installer integration and cleaning Live desktop..."
+
+# Aggressive cleanup of the Live environment desktop
+# This prevents install-debian or calamares shortcuts from showing up on the desktop
+echo "[OS-CONFIG] Removing installer shortcuts from Live skeleton..."
+rm -f /etc/skel/Desktop/*.desktop 2>/dev/null || true
+rm -f /usr/share/applications/debian-installer-launcher.desktop 2>/dev/null || true
+rm -f /usr/share/applications/install-debian.desktop 2>/dev/null || true
+# Ensure Calamares is present for installation but NOT on the desktop automatically
+rm -f /usr/share/applications/calamares.desktop 2>/dev/null || true
+
+# Purge debian-installer-launcher completely as we use Calamares
+apt-get remove --purge -y debian-installer-launcher 2>/dev/null || true
 
 # Create installer marker
 touch /etc/taaos-live-installer

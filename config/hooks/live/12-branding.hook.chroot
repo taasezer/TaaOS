@@ -243,18 +243,7 @@ Terminal=false
 StartupNotify=true
 EOF
 # Construct BOTTOM DOCK launcher profiles (panel-2)
-mkdir -p /etc/xdg/xfce4/panel/launcher-20
-cat > /etc/xdg/xfce4/panel/launcher-20/dock-filemanager.desktop << 'EOF'
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=File Manager
-Comment=Browse the file system
-Exec=thunar %F
-Icon=org.xfce.filemanager
-Terminal=false
-StartupNotify=true
-EOF
+# plugin-20 is 'showdesktop', so no launcher directory needed for it.
 
 mkdir -p /etc/xdg/xfce4/panel/launcher-21
 cat > /etc/xdg/xfce4/panel/launcher-21/dock-terminal.desktop << 'EOF'
@@ -270,7 +259,20 @@ StartupNotify=true
 EOF
 
 mkdir -p /etc/xdg/xfce4/panel/launcher-22
-cat > /etc/xdg/xfce4/panel/launcher-22/dock-browser.desktop << 'EOF'
+cat > /etc/xdg/xfce4/panel/launcher-22/dock-filemanager.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=File Manager
+Comment=Browse the file system
+Exec=thunar %F
+Icon=org.xfce.filemanager
+Terminal=false
+StartupNotify=true
+EOF
+
+mkdir -p /etc/xdg/xfce4/panel/launcher-23
+cat > /etc/xdg/xfce4/panel/launcher-23/dock-browser.desktop << 'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -282,20 +284,33 @@ Terminal=false
 StartupNotify=true
 EOF
 
-mkdir -p /etc/xdg/xfce4/panel/launcher-23
-cat > /etc/xdg/xfce4/panel/launcher-23/dock-texteditor.desktop << 'EOF'
+mkdir -p /etc/xdg/xfce4/panel/launcher-24
+cat > /etc/xdg/xfce4/panel/launcher-24/dock-appfinder.desktop << 'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Text Editor
-Comment=Edit text files
-Exec=mousepad %F
-Icon=org.xfce.mousepad
+Name=App Finder
+Comment=Find and launch applications
+Exec=xfce4-appfinder
+Icon=org.xfce.appfinder
 Terminal=false
 StartupNotify=true
 EOF
 
-echo "[BRANDING] Bottom dock launchers created (File Manager, Terminal, Browser, Text Editor)"
+mkdir -p /etc/xdg/xfce4/panel/launcher-25
+cat > /etc/xdg/xfce4/panel/launcher-25/dock-home.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Home
+Comment=Open your home folder
+Exec=thunar ~/
+Icon=user-home
+Terminal=false
+StartupNotify=true
+EOF
+
+echo "[BRANDING] Bottom dock launchers created (Terminal, File Manager, Browser, App Finder, Home)"
 
 # =============================================================================
 # SECTION 3: WALLPAPER CONFIGURATION

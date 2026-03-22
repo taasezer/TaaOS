@@ -45,7 +45,9 @@
     <!-- ============================================================ -->
     <property name="panel-2" type="empty">
       <property name="position" type="string" value="p=8;x=0;y=0"/>
-      <property name="length" type="uint" value="100"/>
+      <!-- Make it a compact "island" dock instead of full-width -->
+      <property name="length" type="uint" value="1"/>
+      <property name="length-adjust" type="bool" value="true"/>
       <property name="position-locked" type="bool" value="true"/>
       <property name="icon-size" type="uint" value="32"/>
       <property name="size" type="uint" value="48"/>
@@ -56,8 +58,6 @@
         <value type="int" value="23"/>
         <value type="int" value="24"/>
         <value type="int" value="25"/>
-        <value type="int" value="26"/>
-        <value type="int" value="27"/>
       </property>
       <property name="background-style" type="uint" value="1"/>
       <property name="background-rgba" type="array">
@@ -136,11 +136,7 @@
       <property name="digital-format" type="string" value="%H:%M"/>
     </property>
     <!-- === BOTTOM DOCK PLUGINS (panel-2) === -->
-    <property name="plugin-20" type="string" value="launcher">
-      <property name="items" type="array">
-        <value type="string" value="dock-filemanager.desktop"/>
-      </property>
-    </property>
+    <property name="plugin-20" type="string" value="showdesktop"/>
     <property name="plugin-21" type="string" value="launcher">
       <property name="items" type="array">
         <value type="string" value="dock-terminal.desktop"/>
@@ -148,28 +144,23 @@
     </property>
     <property name="plugin-22" type="string" value="launcher">
       <property name="items" type="array">
-        <value type="string" value="dock-browser.desktop"/>
+        <value type="string" value="dock-filemanager.desktop"/>
       </property>
     </property>
     <property name="plugin-23" type="string" value="launcher">
       <property name="items" type="array">
-        <value type="string" value="dock-texteditor.desktop"/>
+        <value type="string" value="dock-browser.desktop"/>
       </property>
     </property>
-    <property name="plugin-24" type="string" value="separator">
-      <property name="expand" type="bool" value="true"/>
-      <property name="style" type="uint" value="0"/>
+    <property name="plugin-24" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="dock-appfinder.desktop"/>
+      </property>
     </property>
-    <property name="plugin-25" type="string" value="tasklist">
-      <property name="grouping" type="uint" value="1"/>
-      <property name="show-labels" type="bool" value="true"/>
-      <property name="flat-buttons" type="bool" value="true"/>
-      <property name="show-handle" type="bool" value="false"/>
+    <property name="plugin-25" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="dock-home.desktop"/>
+      </property>
     </property>
-    <property name="plugin-26" type="string" value="separator">
-      <property name="expand" type="bool" value="true"/>
-      <property name="style" type="uint" value="0"/>
-    </property>
-    <property name="plugin-27" type="string" value="showdesktop"/>
   </property>
 </channel>
