@@ -44,6 +44,7 @@ lightdm
 # XFCE4 Additional Plugins and Tools
 xfce4-goodies
 polybar
+plank
 
 # Terminal Emulator
 xfce4-terminal
@@ -102,6 +103,9 @@ neofetch
 
 # Build Tools (GCC, Make, etc.)
 build-essential
+git
+sassc
+libglib2.0-dev-bin
 
 # Python Tkinter (Required for TaaOS Welcome Screen)
 python3-tk

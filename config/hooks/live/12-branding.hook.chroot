@@ -127,12 +127,45 @@ echo "[BRANDING] Configuring XFCE theme..."
 # Create default XFCE settings
 mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml
 
+echo "[BRANDING] Downloading and installing custom themes (WhiteSur GTK, WhiteSur Icons, Capitaine Cursors)..."
+
+cd /tmp
+
+# 1. WhiteSur GTK Theme
+if [ ! -d "/usr/share/themes/WhiteSur-Dark" ]; then
+    git clone https://github.com/vinceliuice/WhiteSur-gtk-theme.git --depth=1 || true
+    if [ -d "WhiteSur-gtk-theme" ]; then
+        cd WhiteSur-gtk-theme
+        ./install.sh -c dark -a alt -m -d /usr/share/themes || echo "WhiteSur GTK install failed"
+        cd ..
+        rm -rf WhiteSur-gtk-theme
+    fi
+fi
+
+# 2. WhiteSur Icon Theme
+if [ ! -d "/usr/share/icons/WhiteSur-dark" ]; then
+    git clone https://github.com/vinceliuice/WhiteSur-icon-theme.git --depth=1 || true
+    if [ -d "WhiteSur-icon-theme" ]; then
+        cd WhiteSur-icon-theme
+        ./install.sh -d /usr/share/icons -a || echo "WhiteSur Icons install failed"
+        cd ..
+        rm -rf WhiteSur-icon-theme
+    fi
+fi
+
+# 3. Capitaine Cursors
+if [ ! -d "/usr/share/icons/capitaine-cursors" ]; then
+    wget -qO- https://github.com/keeferrourke/capitaine-cursors/releases/download/r4/capitaine-cursors-r4.tar.gz | tar -xzC /usr/share/icons/ || echo "Capitaine cursors download failed"
+fi
+
+cd /
+
 # XFCE Settings - Window Manager (xfwm4)
 cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfwm4" version="1.0">
   <property name="general" type="empty">
-    <property name="theme" type="string" value="Materia-dark"/>
+    <property name="theme" type="string" value="WhiteSur-Dark"/>
     <property name="title_font" type="string" value="Fira Sans Bold 10"/>
     <property name="button_layout" type="string" value="O|HMC"/>
   </property>
@@ -144,13 +177,34 @@ cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xsettings" version="1.0">
   <property name="Net" type="empty">
-    <property name="ThemeName" type="string" value="Materia-dark"/>
-    <property name="IconThemeName" type="string" value="Papirus-Dark"/>
+    <property name="ThemeName" type="string" value="WhiteSur-Dark"/>
+    <property name="IconThemeName" type="string" value="WhiteSur-dark"/>
   </property>
   <property name="Gtk" type="empty">
     <property name="FontName" type="string" value="Fira Sans 10"/>
     <property name="MonospaceFontName" type="string" value="Fira Code 10"/>
-    <property name="CursorThemeName" type="string" value="Adwaita"/>
+    <property name="CursorThemeName" type="string" value="capitaine-cursors"/>
+  </property>
+</channel>
+EOF
+
+# XFCE Settings - Keyboard shortcuts (Fix Alt-Tab)
+cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-keyboard-shortcuts" version="1.0">
+  <property name="commands" type="empty">
+    <property name="custom" type="empty">
+      <property name="&lt;Alt&gt;F2" type="string" value="xfce4-appfinder --collapsed"/>
+      <property name="&lt;Alt&gt;F3" type="string" value="xfce4-appfinder"/>
+      <property name="&lt;Primary&gt;&lt;Alt&gt;t" type="string" value="xfce4-terminal"/>
+    </property>
+  </property>
+  <property name="xfwm4" type="empty">
+    <property name="custom" type="empty">
+      <property name="&lt;Alt&gt;Tab" type="string" value="cycle_windows_key"/>
+      <property name="&lt;Shift&gt;&lt;Alt&gt;Tab" type="string" value="cycle_reverse_windows_key"/>
+      <property name="&lt;Super&gt;Tab" type="string" value="switch_window_key"/>
+    </property>
   </property>
 </channel>
 EOF
@@ -227,7 +281,7 @@ separator-foreground = ${colors.disabled}
 font-0 = "Fira Sans:weight=bold:size=11;2"
 font-1 = "Fira Code:size=11;2"
 
-modules-left = xworkspaces xwindow
+modules-left = menu xworkspaces xwindow
 modules-center = date
 modules-right = pulseaudio memory cpu tray
 
@@ -238,6 +292,13 @@ enable-ipc = true
 tray-position = right
 tray-padding = 4
 tray-background = ${colors.background}
+
+[module/menu]
+type = custom/text
+content = "  Aplikasyonlar "
+content-foreground = ${colors.primary}
+content-padding = 1
+click-left = xfce4-popup-whiskermenu
 
 [module/xworkspaces]
 type = internal/xworkspaces
@@ -295,11 +356,15 @@ EOF
 cat > /etc/skel/.config/polybar/launch.sh << 'EOF'
 #!/usr/bin/env bash
 
-# Terminate already running bar instances
-killall -q polybar
+# Terminate already running bar instances and tray apps
+killall -q polybar blueman-applet plank xfce4-panel
 
 # Wait until the processes have been shut down
 while pgrep -u $UID -x polybar >/dev/null; do sleep 1; done
+
+# Launch tray and dock apps
+blueman-applet & disown
+plank & disown
 
 # Launch TaaOS Polybar
 polybar taaos 2>&1 | tee -a /tmp/polybar.log & disown
@@ -331,72 +396,95 @@ Comment=Starts the native TaaOS Polybar
 EOF
 
 # Construct BOTTOM DOCK launcher profiles (panel-2)
-# plugin-20 is 'showdesktop', so no launcher directory needed for it.
-
-mkdir -p /etc/xdg/xfce4/panel/launcher-21
-cat > /etc/xdg/xfce4/panel/launcher-21/dock-terminal.desktop << 'EOF'
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Terminal
-Comment=Use the command line
-Exec=xfce4-terminal
-Icon=utilities-terminal
-Terminal=false
-StartupNotify=true
+# Construct BOTTOM DOCK (Plank) WhiteSur Theme
+echo "[BRANDING] Configuring Plank with WhiteSur theme..."
+mkdir -p /usr/share/plank/themes/WhiteSur
+cat > /usr/share/plank/themes/WhiteSur/dock.theme << 'EOF'
+[PlankTheme]
+TopRoundness=15
+BottomRoundness=15
+LineWidth=1
+OuterStrokeColor=0;;0;;0;;40
+FillStartColor=30;;30;;34;;200
+FillEndColor=30;;30;;34;;200
+InnerStrokeColor=255;;255;;255;;20
 EOF
 
-mkdir -p /etc/xdg/xfce4/panel/launcher-22
-cat > /etc/xdg/xfce4/panel/launcher-22/dock-filemanager.desktop << 'EOF'
+# Fallback Internet Browser Desktop File
+cat > /usr/share/applications/taaos-browser.desktop << 'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=File Manager
-Comment=Browse the file system
-Exec=thunar %F
-Icon=system-file-manager
-Terminal=false
-StartupNotify=true
-EOF
-
-mkdir -p /etc/xdg/xfce4/panel/launcher-23
-cat > /etc/xdg/xfce4/panel/launcher-23/dock-browser.desktop << 'EOF'
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Web Browser
+Name=Internet
 Comment=Browse the web
 Exec=x-www-browser %u
 Icon=web-browser
 Terminal=false
-StartupNotify=true
+Categories=Network;WebBrowser;
 EOF
 
-mkdir -p /etc/xdg/xfce4/panel/launcher-24
-cat > /etc/xdg/xfce4/panel/launcher-24/dock-appfinder.desktop << 'EOF'
+# Fallback VSCode Desktop File (in case 'code' package isn't installed yet, to prevent missing icon)
+cat > /usr/share/applications/code.desktop << 'EOF'
 [Desktop Entry]
-Version=1.0
+Name=Visual Studio Code
+Comment=Code Editing. Redefined.
+GenericName=Text Editor
+Exec=code %F
+Icon=com.visualstudio.code
 Type=Application
-Name=App Finder
-Comment=Find and launch applications
-Exec=xfce4-appfinder
-Icon=system-search
-Terminal=false
-StartupNotify=true
+StartupNotify=false
+StartupWMClass=Code
+Categories=TextEditor;Development;IDE;
 EOF
 
-mkdir -p /etc/xdg/xfce4/panel/launcher-25
-cat > /etc/xdg/xfce4/panel/launcher-25/dock-home.desktop << 'EOF'
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Home
-Comment=Open your home folder
-Exec=thunar ~/
-Icon=user-home
-Terminal=false
-StartupNotify=true
+# Plank Settings & Launchers
+mkdir -p /etc/skel/.config/plank/dock1/launchers
+
+# 1. Dosya Gezgini (Thunar)
+cat > /etc/skel/.config/plank/dock1/launchers/thunar.dockitem << 'EOF'
+[PlankDockItemPreferences]
+Launcher=file:///usr/share/applications/thunar.desktop
 EOF
+
+# 2. Terminal (Xfce4-terminal)
+cat > /etc/skel/.config/plank/dock1/launchers/terminal.dockitem << 'EOF'
+[PlankDockItemPreferences]
+Launcher=file:///usr/share/applications/xfce4-terminal.desktop
+EOF
+
+# 3. Internet (Browser)
+cat > /etc/skel/.config/plank/dock1/launchers/internet.dockitem << 'EOF'
+[PlankDockItemPreferences]
+Launcher=file:///usr/share/applications/taaos-browser.desktop
+EOF
+
+# 4. Araç Arama Listeleme Uygulaması (Xfce4-appfinder)
+cat > /etc/skel/.config/plank/dock1/launchers/appfinder.dockitem << 'EOF'
+[PlankDockItemPreferences]
+Launcher=file:///usr/share/applications/xfce4-appfinder.desktop
+EOF
+
+# 5. VSCode
+cat > /etc/skel/.config/plank/dock1/launchers/vscode.dockitem << 'EOF'
+[PlankDockItemPreferences]
+Launcher=file:///usr/share/applications/code.desktop
+EOF
+
+# Plank Dock Global Settings
+cat > /etc/skel/.config/plank/dock1/settings << 'EOF'
+[PlankDockPreferences]
+Appearance='WhiteSur'
+Position=3
+Offset=0
+Alignment=3
+IconSize=48
+ZoomEnabled=true
+ZoomPercent=150
+HideMode=1
+EOF
+
+echo "[BRANDING] Bottom dock (Plank WhiteSur) launchers configured"
+
 
 echo "[BRANDING] Bottom dock launchers created (Terminal, File Manager, Browser, App Finder, Home)"
 

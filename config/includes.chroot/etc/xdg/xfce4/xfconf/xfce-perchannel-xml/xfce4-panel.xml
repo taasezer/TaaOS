@@ -3,72 +3,8 @@
 <channel name="xfce4-panel" version="1.0">
   <property name="configver" type="int" value="2"/>
   <property name="panels" type="array">
-    <value type="int" value="2"/>
-    <!-- ============================================================ -->
-    <!-- PANEL 1: Top Bar — matches user's preferred classic layout -->
-    <!-- Layout: [Menu] [Launchers] [Pager 1234] | [Tasklist] | [Systray] [Volume] [Battery] [Notif] [Clock] -->
-    <!-- ============================================================ -->
-    <!-- XFCE Top Panel (panel-1) has been removed in favor of Polybar -->
-    <!-- ============================================================ -->
-    <!-- ============================================================ -->
-    <!-- PANEL 2: Bottom Dock (launchers + running apps) -->
-    <!-- ============================================================ -->
-    <property name="panel-2" type="empty">
-      <property name="position" type="string" value="p=8;x=0;y=0"/>
-      <!-- Make it a compact "island" dock instead of full-width -->
-      <property name="length" type="uint" value="1"/>
-      <property name="length-adjust" type="bool" value="true"/>
-      <property name="position-locked" type="bool" value="true"/>
-      <property name="icon-size" type="uint" value="32"/>
-      <property name="size" type="uint" value="48"/>
-      <property name="plugin-ids" type="array">
-        <value type="int" value="20"/>
-        <value type="int" value="21"/>
-        <value type="int" value="22"/>
-        <value type="int" value="23"/>
-        <value type="int" value="24"/>
-        <value type="int" value="25"/>
-      </property>
-      <property name="background-style" type="uint" value="1"/>
-      <property name="background-rgba" type="array">
-        <value type="double" value="0.06"/>
-        <value type="double" value="0.06"/>
-        <value type="double" value="0.08"/>
-        <value type="double" value="0.90"/>
-      </property>
-    </property>
+    <!-- No XFCE panels used. Polybar handles top, Plank handles bottom. -->
   </property>
-  <!-- ============================================================ -->
-  <!-- PLUGIN DEFINITIONS -->
-  <!-- ============================================================ -->
   <property name="plugins" type="empty">
-    <!-- === TOP BAR PLUGINS FOR XFCE HAVE BEEN REMOVED (POLYBAR USED) === -->
-    <!-- === BOTTOM DOCK PLUGINS (panel-2) === -->
-    <property name="plugin-20" type="string" value="showdesktop"/>
-    <property name="plugin-21" type="string" value="launcher">
-      <property name="items" type="array">
-        <value type="string" value="dock-terminal.desktop"/>
-      </property>
-    </property>
-    <property name="plugin-22" type="string" value="launcher">
-      <property name="items" type="array">
-        <value type="string" value="dock-filemanager.desktop"/>
-      </property>
-    </property>
-    <property name="plugin-23" type="string" value="launcher">
-      <property name="items" type="array">
-        <value type="string" value="dock-browser.desktop"/>
-      </property>
-    </property>
-    <property name="plugin-24" type="string" value="launcher">
-      <property name="items" type="array">
-        <value type="string" value="dock-appfinder.desktop"/>
-      </property>
-    </property>
-    <property name="plugin-25" type="string" value="launcher">
-      <property name="items" type="array">
-        <value type="string" value="dock-home.desktop"/>
-      </property>
-    </property>
   </property>
 </channel>
