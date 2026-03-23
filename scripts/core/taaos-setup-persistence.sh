@@ -22,7 +22,11 @@ fi
 # CONFIGURATION
 # =============================================================================
 CALAMARES_BIN="/usr/bin/calamares"
-PERSISTENT_USB_SCRIPT="${SCRIPT_DIR}/taaos-create-persistent-usb.sh"
+PERSISTENT_USB_SCRIPT="$(command -v taaos-create-persistent-usb || echo "${SCRIPT_DIR}/taaos-create-persistent-usb.sh")"
+# If installed without .sh in the same directory, use that
+if [[ ! -x "$PERSISTENT_USB_SCRIPT" && -x "${SCRIPT_DIR}/taaos-create-persistent-usb" ]]; then
+    PERSISTENT_USB_SCRIPT="${SCRIPT_DIR}/taaos-create-persistent-usb"
+fi
 
 # =============================================================================
 # HELPER FUNCTIONS

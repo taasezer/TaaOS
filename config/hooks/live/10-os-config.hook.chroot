@@ -13,6 +13,36 @@ echo "[OS-CONFIG] TaaOS Full OS Configuration"
 echo "=============================================="
 
 # =============================================================================
+# SECTION 0: TAAOS SYSTEM COMMANDS INSTALLATION
+# =============================================================================
+echo "[OS-CONFIG] Installing core TaaOS system commands from /build/scripts/system..."
+if [ -d "/build/scripts/system" ]; then
+    for script in /build/scripts/system/*.sh; do
+        if [ -f "$script" ]; then
+            filename=$(basename -- "$script")
+            cmdname="${filename%.sh}"
+            echo "  -> Installing $cmdname"
+            cp "$script" "/usr/local/bin/$cmdname"
+            chmod +x "/usr/local/bin/$cmdname"
+        fi
+    done
+else
+    echo "[OS-CONFIG] WARNING: /build/scripts/system not found. TaaOS custom commands will be missing!"
+fi
+
+if [ -d "/build/scripts/core" ]; then
+    for script in /build/scripts/core/taaos-*.sh; do
+        if [ -f "$script" ]; then
+            filename=$(basename -- "$script")
+            cmdname="${filename%.sh}"
+            echo "  -> Installing persistence tools: $cmdname"
+            cp "$script" "/usr/local/bin/$cmdname"
+            chmod +x "/usr/local/bin/$cmdname"
+        fi
+    done
+fi
+
+# =============================================================================
 # SECTION 1: SYSTEM IDENTITY
 # =============================================================================
 echo "[OS-CONFIG] Setting up system identity..."

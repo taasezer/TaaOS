@@ -33,7 +33,8 @@ show_menu() {
     echo "  [5] System Administration"
     echo "  [6] Troubleshooting"
     echo "  [7] TaaOS Commands"
-    echo "  [8] FAQ"
+    echo "  [8] TaaOS AI Assistant"
+    echo "  [9] FAQ"
     echo "  [0] Search Documentation"
     echo "  [q] Exit"
     echo ""
@@ -349,8 +350,48 @@ show_commands() {
   taaos-rescue                Recovery menu
   taaos-health-check          System health
 
+## AI Assistant
+  natural-engine              Start TaaOS Natural Engine
+
 ## Help
   taaos-help                  This help system
+EOF
+}
+
+show_natural_engine() {
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}  TAAOS AI ASSISTANT (NATURAL ENGINE)${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    cat << 'EOF'
+# TaaOS Natural Engine
+
+TaaOS comes with a built-in AI assistant powered by Ollama. It can convert
+natural language into safe, executable bash commands, explain commands,
+and provide interactive terminal coaching.
+
+## Basic Usage
+Type what you want to do in plain English (or Turkish):
+```bash
+natural-engine "show me my large files"
+natural-engine "açık portları listele"
+```
+
+## Chat & Explain
+```bash
+natural-engine chat           # Start an interactive AI chat session
+natural-engine explain "ls -la" # Explain what a linux command does
+```
+
+## Advanced Settings & Models
+You can change the AI model using the --model flag. (Default is 'phi').
+If the model doesn't exist, TaaOS will automatically download it.
+```bash
+natural-engine --model llama2 "how to secure ssh?"
+natural-engine --model codellama chat
+```
 EOF
 }
 
@@ -422,7 +463,8 @@ main() {
             5) show_sysadmin ;;
             6) show_troubleshooting ;;
             7) show_commands ;;
-            8) show_faq ;;
+            8) show_natural_engine ;;
+            9) show_faq ;;
             0) search_docs ;;
             q|Q|"") break ;;
             *) echo "Invalid option" ;;
@@ -447,10 +489,11 @@ if [[ "${1:-}" != "" ]]; then
         trouble*|fix) show_troubleshooting ;;
         cmd|command*) show_commands ;;
         faq) show_faq ;;
+        ai|natural|natural-engine) show_natural_engine ;;
         search) shift; search_docs "$@" ;;
         --help|-h) 
             echo "Usage: taaos-help [topic]"
-            echo "Topics: start, pkg, dev, docker, sys, trouble, cmd, faq, search"
+            echo "Topics: start, pkg, dev, docker, sys, trouble, cmd, ai, faq, search"
             ;;
         *) main ;;
     esac

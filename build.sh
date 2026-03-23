@@ -152,12 +152,14 @@ docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.binary
 
 # Copy scripts directory (all subdirectories)
 echo "    Copying scripts..."
-docker exec "$CONTAINER_NAME" mkdir -p /build/scripts/ux /build/scripts/performance /build/scripts/security /build/scripts/devops /build/scripts/core
+docker exec "$CONTAINER_NAME" mkdir -p /build/scripts/ux /build/scripts/performance /build/scripts/security /build/scripts/devops /build/scripts/core /build/scripts/system /build/scripts/lib
 [ -d ./scripts/ux ] && docker cp ./scripts/ux/. "$CONTAINER_NAME":/build/scripts/ux/ || true
 [ -d ./scripts/performance ] && docker cp ./scripts/performance/. "$CONTAINER_NAME":/build/scripts/performance/ || true
 [ -d ./scripts/security ] && docker cp ./scripts/security/. "$CONTAINER_NAME":/build/scripts/security/ || true
 [ -d ./scripts/devops ] && docker cp ./scripts/devops/. "$CONTAINER_NAME":/build/scripts/devops/ || true
 [ -d ./scripts/core ] && docker cp ./scripts/core/. "$CONTAINER_NAME":/build/scripts/core/ || true
+[ -d ./scripts/system ] && docker cp ./scripts/system/. "$CONTAINER_NAME":/build/scripts/system/ || true
+[ -d ./scripts/lib ] && docker cp ./scripts/lib/. "$CONTAINER_NAME":/build/scripts/lib/ || true
 
 # Copy ENTIRE includes.chroot directory recursively (CRITICAL — all 40+ files)
 echo "    Copying includes.chroot (full recursive)..."

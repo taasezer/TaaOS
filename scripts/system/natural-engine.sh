@@ -266,28 +266,39 @@ EOF
 # =============================================================================
 show_help() {
     cat << 'EOF'
-TaaOS Natural Engine - AI-Powered Command Assistant
+======================================================================
+           TAAOS NATURAL ENGINE - AI COMMAND ASSISTANT                
+======================================================================
 
 USAGE:
-  natural <query>           Convert natural language to command
-  natural chat              Start interactive chat
-  natural explain <cmd>     Explain a command
-  natural --model <name>    Use specific Ollama model
-  natural --help            Show this help
+  natural-engine <query>           Convert natural language to command
+  natural-engine chat              Start interactive AI terminal chat
+  natural-engine explain <cmd>     Explain a complex Linux command
+  natural-engine --model <name>    Use specific Ollama model (e.g. llama2)
+
+OPTIONS:
+  --model, -m <name>    Changes the AI model for the current request.
+                        If the model is not on your disk, TaaOS will
+                        automatically download it for you.
+  --chat, -c            Launch full-screen chat mode.
+  --explain, -e         Provide a deep-dive explanation of a command.
+  --clear               Clear your AI conversation history.
+  --help, -h            Show this help text.
 
 EXAMPLES:
-  natural "show disk usage"
-  natural "list docker containers"
-  natural chat
-  natural explain "find . -name '*.log' -mtime +7 -delete"
+  natural-engine "bana belleği en çok tüketen 5 programı göster"
+  natural-engine chat
+  natural-engine explain "find / -name '*.log' -type f -delete"
+  natural-engine --model codellama "write a python script to ping google"
 
 ENVIRONMENT:
-  TAAOS_AI_MODEL    Set default model (default: phi)
+  TAAOS_AI_MODEL        Set default model persistently (default: phi)
 
-MODELS:
-  phi               Fast, lightweight (recommended)
-  llama2            More capable, slower
-  codellama         Code-focused
+RECOMMENDED MODELS:
+  phi                   Super fast, lightweight (Default)
+  llama2                More capable, slower, needs more RAM
+  codellama             Expert at writing code
+======================================================================
 EOF
 }
 
