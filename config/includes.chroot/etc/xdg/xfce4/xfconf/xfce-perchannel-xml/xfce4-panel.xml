@@ -3,37 +3,13 @@
 <channel name="xfce4-panel" version="1.0">
   <property name="configver" type="int" value="2"/>
   <property name="panels" type="array">
-    <value type="int" value="1"/>
     <value type="int" value="2"/>
     <!-- ============================================================ -->
     <!-- PANEL 1: Top Bar — matches user's preferred classic layout -->
     <!-- Layout: [Menu] [Launchers] [Pager 1234] | [Tasklist] | [Systray] [Volume] [Battery] [Notif] [Clock] -->
     <!-- ============================================================ -->
-    <property name="panel-1" type="empty">
-      <property name="position" type="string" value="p=6;x=0;y=0"/>
-      <property name="length" type="uint" value="100"/>
-      <property name="position-locked" type="bool" value="true"/>
-      <property name="icon-size" type="uint" value="16"/>
-      <property name="size" type="uint" value="32"/>
-      <property name="plugin-ids" type="array">
-        <value type="int" value="1"/>
-        <value type="int" value="15"/>
-        <value type="int" value="9"/>
-        <value type="int" value="14"/>
-        <value type="int" value="99"/>
-        <value type="int" value="10"/>
-        <value type="int" value="11"/>
-        <value type="int" value="12"/>
-        <value type="int" value="13"/>
-      </property>
-      <property name="background-style" type="uint" value="1"/>
-      <property name="background-rgba" type="array">
-        <value type="double" value="0.0"/>
-        <value type="double" value="0.0"/>
-        <value type="double" value="0.0"/>
-        <value type="double" value="0.0"/>
-      </property>
-    </property>
+    <!-- XFCE Top Panel (panel-1) has been removed in favor of Polybar -->
+    <!-- ============================================================ -->
     <!-- ============================================================ -->
     <!-- PANEL 2: Bottom Dock (launchers + running apps) -->
     <!-- ============================================================ -->
@@ -66,42 +42,7 @@
   <!-- PLUGIN DEFINITIONS -->
   <!-- ============================================================ -->
   <property name="plugins" type="empty">
-    <!-- === TOP BAR PLUGINS (panel-1) === -->
-    <!-- [Whisker Menu] -->
-    <property name="plugin-1" type="string" value="whiskermenu"/>
-    <!-- [Workspace Pager: 1 2 3 4] -->
-    <property name="plugin-15" type="string" value="pager">
-      <property name="rows" type="uint" value="1"/>
-      <property name="miniature-view" type="bool" value="false"/>
-      <property name="numbering" type="bool" value="true"/>
-    </property>
-    <!-- [Expanding Space 1] -->
-    <property name="plugin-9" type="string" value="separator">
-      <property name="expand" type="bool" value="true"/>
-      <property name="style" type="uint" value="0"/>
-    </property>
-    <!-- [Clock: HH:MM format] -->
-    <property name="plugin-14" type="string" value="clock">
-      <property name="mode" type="uint" value="2"/>
-      <property name="digital-format" type="string" value="%H:%M"/>
-    </property>
-    <!-- [Expanding Space 2] -->
-    <property name="plugin-99" type="string" value="separator">
-      <property name="expand" type="bool" value="true"/>
-      <property name="style" type="uint" value="0"/>
-    </property>
-    <!-- [System Tray] -->
-    <property name="plugin-10" type="string" value="systray">
-      <property name="square-icons" type="bool" value="true"/>
-    </property>
-    <!-- [Volume] -->
-    <property name="plugin-11" type="string" value="pulseaudio">
-      <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
-    </property>
-    <!-- [Battery/Power] -->
-    <property name="plugin-12" type="string" value="power-manager-plugin"/>
-    <!-- [Notifications] -->
-    <property name="plugin-13" type="string" value="notification-plugin"/>
+    <!-- === TOP BAR PLUGINS FOR XFCE HAVE BEEN REMOVED (POLYBAR USED) === -->
     <!-- === BOTTOM DOCK PLUGINS (panel-2) === -->
     <property name="plugin-20" type="string" value="showdesktop"/>
     <property name="plugin-21" type="string" value="launcher">

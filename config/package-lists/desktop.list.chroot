@@ -43,6 +43,7 @@ lightdm
 
 # XFCE4 Additional Plugins and Tools
 xfce4-goodies
+polybar
 
 # Terminal Emulator
 xfce4-terminal
