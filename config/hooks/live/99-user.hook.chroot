@@ -104,8 +104,8 @@ create_xsettings_config() {
 
 <channel name="xsettings" version="1.0">
   <property name="Net" type="empty">
-    <property name="ThemeName" type="string" value="Materia-light"/>
-    <property name="IconThemeName" type="string" value="Papirus"/>
+    <property name="ThemeName" type="string" value="WhiteSur-Dark"/>
+    <property name="IconThemeName" type="string" value="WhiteSur-dark"/>
     <property name="DoubleClickTime" type="int" value="400"/>
     <property name="DoubleClickDistance" type="int" value="5"/>
     <property name="DndDragThreshold" type="int" value="8"/>
@@ -134,7 +134,7 @@ create_xsettings_config() {
     <property name="MenuImages" type="bool" value="true"/>
     <property name="ButtonImages" type="bool" value="true"/>
     <property name="MenuBarAccel" type="string" value="F10"/>
-    <property name="CursorThemeName" type="string" value=""/>
+    <property name="CursorThemeName" type="string" value="capitaine-cursors"/>
     <property name="CursorThemeSize" type="int" value="0"/>
     <property name="DecorationLayout" type="string" value="menu:minimize,maximize,close"/>
   </property>
@@ -210,7 +210,7 @@ create_xfwm4_config() {
     <property name="snap_to_border" type="bool" value="true"/>
     <property name="snap_to_windows" type="bool" value="false"/>
     <property name="snap_width" type="int" value="10"/>
-    <property name="theme" type="string" value="Materia-light"/>
+    <property name="theme" type="string" value="WhiteSur-Dark"/>
     <property name="tile_on_move" type="bool" value="true"/>
     <property name="title_alignment" type="string" value="center"/>
     <property name="title_font" type="string" value="Fira Code Bold 9"/>
@@ -371,8 +371,8 @@ main() {
     echo ""
     echo "  User:      engineer (password: engineer)"
     echo "  Groups:    sudo, docker, video"
-    echo "  Theme:     Materia-light"
-    echo "  Icons:     Papirus"
+    echo "  Theme:     WhiteSur-Dark"
+    echo "  Icons:     WhiteSur-dark"
     echo "  Font:      Fira Code"
     echo "  Terminal:  TaaOS Dark (black)"
     echo "  ECC:       rasdaemon enabled"

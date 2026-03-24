@@ -295,10 +295,10 @@ tray-background = ${colors.background}
 
 [module/menu]
 type = custom/text
-content = "  Aplikasyonlar "
+content = "  TaaOS "
 content-foreground = ${colors.primary}
 content-padding = 1
-click-left = xfce4-popup-whiskermenu
+click-left = rofi -show drun -show-icons
 
 [module/xworkspaces]
 type = internal/xworkspaces

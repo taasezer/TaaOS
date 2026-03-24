@@ -45,6 +45,7 @@ lightdm
 xfce4-goodies
 polybar
 plank
+rofi
 
 # Terminal Emulator
 xfce4-terminal
