@@ -199,8 +199,9 @@ def check_and_pull_model(model_name: str, console) -> bool:
             return True
         return True
     except Exception as e:
-        console.print(f"[bold red]Ollama connection failed:[/bold red] {e}")
-        console.print("[yellow]Run:[/yellow] ollama serve &")
+        console.print(f"[bold red]Ollama connection or model download failed:[/bold red] {e}")
+        console.print("[yellow]Tip 1:[/yellow] Make sure Ollama service is running (`systemctl start ollama`)")
+        console.print(f"[yellow]Tip 2:[/yellow] Check your internet connection to pull the '{model}' model.")
         return False
 
 
@@ -344,7 +345,10 @@ def print_banner():
 def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
     """Translate natural language to bash command using Ollama."""
     try:
-        check_and_pull_model(model, console)
+        # Halt execution if model is not available and cannot be pulled
+        if not check_and_pull_model(model, console):
+            console.print("[bold red]Hata:[/bold red] Yapay Zeka modeli yüklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.")
+            sys.exit(1)
         
         response = ollama.chat(
             model=model,

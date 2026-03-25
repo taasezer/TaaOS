@@ -1,0 +1,24 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Quick Help Menu
+# =============================================================================
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${CYAN}==============================================${NC}"
+echo -e "${GREEN}  TaaOS Komutları - Hızlı Yardım Menüsü${NC}"
+echo -e "${CYAN}==============================================${NC}"
+echo ""
+echo -e "  ${GREEN}taaos-update${NC}      Sistemi ve Flatpak paketlerini otomatik günceller."
+echo -e "  ${GREEN}taaos-help${NC}        Bu yardım menüsünü gösterir."
+echo -e "  ${GREEN}taaos-ai${NC}          (veya 'natural') TaaOS Yapay Zeka Asistanını başlatır."
+echo -e "  ${GREEN}natural \"mesaj\"${NC}   Yapay zekaya terminal komutu yazdırır (Örn: natural \"sistemi temizle\")."
+echo ""
+echo -e "${CYAN}Ek Kısayollar:${NC}"
+echo -e "  ${GREEN}update${NC}            APT paketlerini hızlıca günceller."
+echo -e "  ${GREEN}ports${NC}             Açık portları listeler."
+echo -e "  ${GREEN}ll${NC}                Dosyaları ayrıntılı listeler."
+echo ""
