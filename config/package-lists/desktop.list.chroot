@@ -106,7 +106,7 @@ neofetch
 build-essential
 git
 sassc
-libglib2.0-dev-bin
+libglib2.0-bin
 
 # Python Tkinter (Required for TaaOS Welcome Screen)
 python3-tk
