@@ -184,11 +184,11 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     
     # Convert Windows CRLF to Unix LF
     echo "Converting CRLF to LF..."
-    find . -type f \( -name "*.sh" -o -name "*.chroot" -o -name "*.binary" -o -name "*.list.*" -o -name "*.conf" -o -name "*.cfg" -o -name "*.py" -o -name "*.desktop" -o -name "*.service" -o -name "*.timer" \) -exec dos2unix {} \; 2>/dev/null || true
+    find . -type f \( -name "*.sh" -o -name "*.chroot" -o -name "*.binary" -o -name "*.list.*" -o -name "*.conf" -o -name "*.cfg" -o -name "*.py" -o -name "*.desktop" -o -name "*.service" -o -name "*.timer" \) -exec dos2unix {} \; 2>/dev/null || echo "[WARN] dos2unix conversion had issues for some source files (continuing)"
     # CRITICAL: Convert ALL files in includes.chroot (many have no extension)
-    find config/includes.chroot -type f -exec dos2unix {} \; 2>/dev/null || true
+    find config/includes.chroot -type f -exec dos2unix {} \; 2>/dev/null || echo "[WARN] dos2unix conversion had issues for includes.chroot files (continuing)"
     # Convert scripts directory
-    find scripts -type f -exec dos2unix {} \; 2>/dev/null || true
+    find scripts -type f -exec dos2unix {} \; 2>/dev/null || echo "[WARN] dos2unix conversion had issues for scripts files (continuing)"
 
     
     chmod +x *.sh

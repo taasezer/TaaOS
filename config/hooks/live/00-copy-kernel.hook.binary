@@ -141,6 +141,7 @@ else
 fi
 
 # Copy shim (signed bootloader)
+shim_found=false
 for shim in \
     "${SHIM_PREFIX}/usr/lib/shim/shimx64.efi.signed" \
     "${SHIM_PREFIX}/usr/lib/shim/shimx64.efi" \
@@ -152,9 +153,13 @@ do
         cp -v "$shim" "${EFI_OUT}/BOOTX64.EFI"
         cp -v "$shim" "${EFI_OUT}/bootx64.efi"
         echo "[LIVE-HOOK] Copied shim: $shim"
+        shim_found=true
         break
     fi
 done
+if [ "$shim_found" = false ]; then
+    echo "[LIVE-HOOK] WARNING: No EFI shim bootloader found! UEFI boot may not work."
+fi
 
 # Copy GRUB EFI binary
 for grub in \

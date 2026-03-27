@@ -3,7 +3,7 @@
 
 # Natural Engine shortcuts
 alias n='natural'
-alias natural='/usr/bin/natural-engine'
+alias natural='/usr/local/bin/natural'
 alias nchat='natural chat'
 alias nexplain='natural explain'
 

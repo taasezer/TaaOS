@@ -103,11 +103,20 @@ if [ -f /build/assets/logo.png ]; then
 fi
 
 # Create simple progress bar images
-convert -size 200x16 xc:'#1a1a2e' -fill '#333355' -draw "roundrectangle 0,0 199,15 5,5" /usr/share/plymouth/themes/taaos/progress_box.png 2>/dev/null || \
-echo "ImageMagick not available, using fallback progress bar"
+if command -v convert &> /dev/null; then
+    convert -size 200x16 xc:'#1a1a2e' -fill '#333355' -draw "roundrectangle 0,0 199,15 5,5" /usr/share/plymouth/themes/taaos/progress_box.png 2>/dev/null || true
+    convert -size 196x12 xc:'#4cc9f0' -draw "roundrectangle 0,0 195,11 4,4" /usr/share/plymouth/themes/taaos/progress_bar.png 2>/dev/null || true
+fi
 
-convert -size 196x12 xc:'#4cc9f0' -draw "roundrectangle 0,0 195,11 4,4" /usr/share/plymouth/themes/taaos/progress_bar.png 2>/dev/null || \
-echo "ImageMagick not available, using fallback progress bar"
+# Ensure progress bar images exist (fallback: create minimal 1x1 PNGs if ImageMagick failed)
+if [ ! -f /usr/share/plymouth/themes/taaos/progress_box.png ]; then
+    printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\x10\x15\x15\x05\x00\x00\x12\x00\x05\x97\xe7\x93\xc4\x00\x00\x00\x00IEND\xaeB`\x82' > /usr/share/plymouth/themes/taaos/progress_box.png
+    echo "[BRANDING] Created fallback progress_box.png (ImageMagick not available)"
+fi
+if [ ! -f /usr/share/plymouth/themes/taaos/progress_bar.png ]; then
+    printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82' > /usr/share/plymouth/themes/taaos/progress_bar.png
+    echo "[BRANDING] Created fallback progress_bar.png (ImageMagick not available)"
+fi
 
 # Set TaaOS as default Plymouth theme
 if command -v plymouth-set-default-theme &> /dev/null; then
@@ -783,8 +792,8 @@ mkdir -p /etc/lightdm
 cat > /etc/lightdm/lightdm-gtk-greeter.conf << 'EOF'
 [greeter]
 background = /usr/share/backgrounds/taaos/wallpaper.png
-theme-name = TaaOS-Dark
-icon-theme-name = Papirus-Dark
+theme-name = WhiteSur-Dark
+icon-theme-name = WhiteSur-dark
 font-name = Fira Sans 10
 default-user-image = /usr/share/pixmaps/taaos-logo.png
 indicators = ~host;~spacer;~clock;~spacer;~session;~power

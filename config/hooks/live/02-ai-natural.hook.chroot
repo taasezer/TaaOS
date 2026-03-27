@@ -201,7 +201,7 @@ def check_and_pull_model(model_name: str, console) -> bool:
     except Exception as e:
         console.print(f"[bold red]Ollama connection or model download failed:[/bold red] {e}")
         console.print("[yellow]Tip 1:[/yellow] Make sure Ollama service is running (`systemctl start ollama`)")
-        console.print(f"[yellow]Tip 2:[/yellow] Check your internet connection to pull the '{model}' model.")
+        console.print(f"[yellow]Tip 2:[/yellow] Check your internet connection to pull the '{model_name}' model.")
         return False
 
 

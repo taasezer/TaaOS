@@ -162,7 +162,7 @@ EOF
     read -p "Execute? [y/N]: " confirm
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
         echo -e "${BLUE}Executing...${NC}"
-        eval "$response"
+        bash -c "$response"
     fi
     
     save_conversation "$query" "$response"

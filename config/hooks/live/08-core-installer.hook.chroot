@@ -1,28 +1,13 @@
 #!/bin/bash
 # =============================================================================
-# TaaOS Core Installer Hook
+# TaaOS Core Installer Hook — DEPRECATED
 # =============================================================================
-# Runs Calamares installer setup
+# This hook is intentionally empty.
+# Calamares configuration is handled by: 11-calamares.hook.chroot
+# which delegates to: scripts/core/setup-calamares.sh
+#
+# This file is kept to prevent live-build from regenerating it,
+# but does NO work to avoid running setup-calamares.sh twice.
 # =============================================================================
 
-set -e
-
-echo "=============================================="
-echo "  TaaOS Core Installer Hook"
-echo "=============================================="
-
-SCRIPT_BASE="/build/scripts/core"
-
-# Execute Calamares setup
-if [ -f "${SCRIPT_BASE}/setup-calamares.sh" ]; then
-    echo "[HOOK] Running Calamares installer setup..."
-    chmod +x "${SCRIPT_BASE}/setup-calamares.sh"
-    bash "${SCRIPT_BASE}/setup-calamares.sh"
-else
-    echo "[HOOK] Warning: Calamares script not found"
-fi
-
-echo ""
-echo "=============================================="
-echo "  Core Installer Hook - COMPLETE!"
-echo "=============================================="
+echo "[08-HOOK] Skipped (Calamares handled by 11-calamares.hook.chroot)"

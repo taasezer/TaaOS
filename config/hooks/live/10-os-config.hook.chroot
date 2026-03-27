@@ -158,9 +158,8 @@ systemctl enable bluetooth.service 2>/dev/null || true
 # Enable printing (CUPS)
 systemctl enable cups.service 2>/dev/null || true
 
-# Enable sound
+# Enable sound (PulseAudio is a user-level service, starts automatically per-session)
 systemctl enable alsa-restore.service 2>/dev/null || true
-systemctl enable pulseaudio.service 2>/dev/null || true
 
 # =============================================================================
 # SECTION 6: SYSTEM SERVICES
@@ -170,14 +169,13 @@ echo "[OS-CONFIG] Configuring system services..."
 # Enable cron
 systemctl enable cron.service
 
-# Enable log rotation
-systemctl enable logrotate.timer
+# Enable log rotation (timer may not exist on all Debian versions — cron fallback)
+systemctl enable logrotate.timer 2>/dev/null || true
 
 # Enable man-db
 systemctl enable man-db.service 2>/dev/null || true
 
-# Enable fstrim for SSDs
-systemctl enable fstrim.timer 2>/dev/null || true
+# Note: fstrim.timer already enabled in SECTION 2 above
 
 # Enable swap
 systemctl enable swap.target 2>/dev/null || true

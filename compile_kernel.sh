@@ -339,9 +339,14 @@ KERNEL_VERSION=$(make kernelversion)
 log_info "Kernel version: ${KERNEL_VERSION}"
 
 # Build .deb packages
-make -j"${NPROC}" bindeb-pkg \
+log_info "Building .deb packages (this may take a while)..."
+if ! make -j"${NPROC}" bindeb-pkg \
     LOCALVERSION="-taaos" \
-    KDEB_PKGVERSION="${KERNEL_VERSION}-taaos"
+    KDEB_PKGVERSION="${KERNEL_VERSION}-taaos"; then
+    log_error "Kernel package build failed! Check output above for details."
+    log_error "Common causes: missing dependencies, disk space, or config issues."
+    exit 1
+fi
 
 log_success "Debian packages created!"
 

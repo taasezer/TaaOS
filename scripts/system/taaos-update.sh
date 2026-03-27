@@ -53,7 +53,7 @@ check_root() {
 }
 
 check_dependencies() {
-    local deps=("curl" "jq" "sha256sum" "wget")
+    local deps=("curl" "jq" "wget")
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" &> /dev/null; then
             log_error "Required command not found: $dep"
@@ -61,6 +61,21 @@ check_dependencies() {
             exit 1
         fi
     done
+    # Check for sha256sum or shasum (portability)
+    if ! command -v sha256sum &> /dev/null && ! command -v shasum &> /dev/null; then
+        log_error "Required command not found: sha256sum (or shasum)"
+        log_info "Install with: apt install coreutils"
+        exit 1
+    fi
+}
+
+# Portable sha256 wrapper
+compute_sha256() {
+    if command -v sha256sum &> /dev/null; then
+        sha256sum "$1" | awk '{print $1}'
+    else
+        shasum -a 256 "$1" | awk '{print $1}'
+    fi
 }
 
 check_network() {
@@ -232,7 +247,7 @@ perform_update() {
     local expected_checksum
     local actual_checksum
     expected_checksum=$(jq -r '.checksum.sha256' /tmp/taaos-version.json)
-    actual_checksum=$(sha256sum "$UPDATE_CACHE/update.tar.gz" | awk '{print $1}')
+    actual_checksum=$(compute_sha256 "$UPDATE_CACHE/update.tar.gz")
     
     if [[ "$expected_checksum" != "$actual_checksum" ]] && [[ "$expected_checksum" != "null" ]]; then
         log_error "Checksum mismatch! Update package may be corrupted."

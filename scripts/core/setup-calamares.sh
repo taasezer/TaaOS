@@ -85,6 +85,9 @@ sequence:
     - networkcfg
     - hwclock
     - services-systemd
+    - packages
+    - initramfscfg
+    - initramfs
     - grubcfg
     - bootloader
     - shellprocess
@@ -296,13 +299,23 @@ LOCALECFG_CONF
 kernelUtc: true
 HWCLOCK_CONF
 
+    # Unpackfs module — CRITICAL: tells Calamares where to find the live filesystem
+    cat > /etc/calamares/modules/unpackfs.conf << 'UNPACKFS_CONF'
+---
+unpack:
+    -   source: "/run/live/medium/live/filesystem.squashfs"
+        sourcefs: "squashfs"
+        destination: ""
+UNPACKFS_CONF
+
     # Post-installation Cleanup Module (shellprocess)
     cat > /etc/calamares/modules/shellprocess.conf << 'SHELLPROCESS_CONF'
 ---
-# TaaOS Cleanup Module
+# TaaOS Post-Install Cleanup Module
 dontChroot: false
-timeout: 300
+timeout: 600
 script:
+    - "/usr/lib/taaos/post-install.sh"
     - "-rm -f /home/*/Desktop/install-taaos.desktop"
     - "-rm -f /home/*/Desktop/taaos-installer.desktop"
     - "-rm -f /etc/skel/Desktop/install-taaos.desktop"
@@ -334,15 +347,15 @@ componentName: taaos
 strings:
     productName:         TaaOS
     shortProductName:    TaaOS
-    version:             1.0
-    shortVersion:        1.0
-    versionedName:       TaaOS 1.0
-    shortVersionedName:  TaaOS 1.0
+    version:             1.0.0
+    shortVersion:        1.0.0
+    versionedName:       TaaOS 1.0.0
+    shortVersionedName:  TaaOS 1.0.0
     bootloaderEntryName: TaaOS
-    productUrl:          https://github.com/taaos
-    supportUrl:          https://github.com/taaos/issues
-    knownIssuesUrl:      https://github.com/taaos/issues
-    releaseNotesUrl:     https://github.com/taaos/releases
+    productUrl:          https://github.com/taasezer/TaaOS
+    supportUrl:          https://github.com/taasezer/TaaOS/issues
+    knownIssuesUrl:      https://github.com/taasezer/TaaOS/issues
+    releaseNotesUrl:     https://github.com/taasezer/TaaOS/releases
 
 images:
     productLogo:         "logo.png"
