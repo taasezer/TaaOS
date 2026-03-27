@@ -96,6 +96,11 @@ preload
 zram-tools
 earlyoom
 
+# UX Polish (Compositor, Notifications, Desktop Widget)
+picom
+dunst
+conky-all
+
 # =============================================================================
 # SECTION 5: BASE UTILITIES
 # =============================================================================

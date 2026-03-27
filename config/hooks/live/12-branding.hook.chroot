@@ -412,6 +412,200 @@ Name=Polybar
 Comment=Starts the native TaaOS Polybar
 EOF
 
+# =============================================================================
+# PICOM COMPOSITOR (blur, shadows, transitions)
+# =============================================================================
+echo "[BRANDING] Configuring Picom compositor..."
+mkdir -p /etc/skel/.config/picom
+cat > /etc/skel/.config/picom/picom.conf << 'EOF'
+# TaaOS Picom Compositor
+backend = "glx";
+
+# Shadows
+shadow = true;
+shadow-radius = 12;
+shadow-offset-x = -5;
+shadow-offset-y = -5;
+shadow-opacity = 0.3;
+shadow-exclude = [
+  "class_g = 'Polybar'",
+  "class_g = 'Plank'",
+  "_GTK_FRAME_EXTENTS@:c"
+];
+
+# Fading / Transitions
+fading = true;
+fade-in-step = 0.06;
+fade-out-step = 0.06;
+fade-delta = 5;
+
+# Opacity
+inactive-opacity = 0.95;
+frame-opacity = 1.0;
+inactive-opacity-override = false;
+focus-exclude = [
+  "class_g = 'Polybar'",
+  "class_g = 'Rofi'"
+];
+
+# Blur (frosted glass effect for Polybar)
+blur-method = "dual_kawase";
+blur-strength = 6;
+blur-background = true;
+blur-background-exclude = [
+  "class_g = 'Plank'"
+];
+
+# Corners
+corner-radius = 8;
+rounded-corners-exclude = [
+  "class_g = 'Polybar'",
+  "class_g = 'Plank'"
+];
+
+# VSync
+vsync = true;
+EOF
+
+cat > /etc/skel/.config/autostart/picom.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Exec=picom --config $HOME/.config/picom/picom.conf -b
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Picom
+Comment=TaaOS Compositor
+EOF
+
+# =============================================================================
+# DUNST NOTIFICATION DAEMON
+# =============================================================================
+echo "[BRANDING] Configuring Dunst notification daemon..."
+mkdir -p /etc/skel/.config/dunst
+cat > /etc/skel/.config/dunst/dunstrc << 'EOF'
+[global]
+    monitor = 0
+    follow = mouse
+    width = 350
+    height = 100
+    origin = top-right
+    offset = 12x40
+    notification_limit = 5
+    progress_bar = true
+    indicate_hidden = yes
+    transparency = 15
+    separator_height = 2
+    padding = 12
+    horizontal_padding = 14
+    frame_width = 2
+    frame_color = "#cccccc"
+    separator_color = frame
+    sort = yes
+    font = Fira Sans 10
+    markup = full
+    format = "<b>%s</b>\n%b"
+    alignment = left
+    show_age_threshold = 30
+    word_wrap = yes
+    corner_radius = 10
+    icon_position = left
+    max_icon_size = 48
+    mouse_left_click = close_current
+    mouse_right_click = close_all
+
+[urgency_low]
+    background = "#f0f0f0"
+    foreground = "#333333"
+    frame_color = "#cccccc"
+    timeout = 5
+
+[urgency_normal]
+    background = "#ffffff"
+    foreground = "#222222"
+    frame_color = "#aaaaaa"
+    timeout = 8
+
+[urgency_critical]
+    background = "#cc0000"
+    foreground = "#ffffff"
+    frame_color = "#880000"
+    timeout = 0
+EOF
+
+cat > /etc/skel/.config/autostart/dunst.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Exec=dunst
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Dunst
+Comment=TaaOS Notification Daemon
+EOF
+
+# =============================================================================
+# CONKY DESKTOP SYSTEM MONITOR
+# =============================================================================
+echo "[BRANDING] Configuring Conky desktop widget..."
+mkdir -p /etc/skel/.config/conky
+cat > /etc/skel/.config/conky/conky.conf << 'CONKY_EOF'
+conky.config = {
+    alignment = 'top_right',
+    background = true,
+    double_buffer = true,
+    own_window = true,
+    own_window_type = 'desktop',
+    own_window_transparent = true,
+    own_window_argb_visual = true,
+    own_window_hints = 'undecorated,below,sticky,skip_taskbar,skip_pager',
+    update_interval = 2.0,
+    gap_x = 20,
+    gap_y = 50,
+    minimum_width = 220,
+    use_xft = true,
+    font = 'Fira Sans:size=10',
+    default_color = 'white',
+    color1 = 'ffffff',
+    color2 = 'cccccc',
+    color3 = '999999',
+};
+
+conky.text = [[
+${color1}${font Fira Sans:bold:size=14}TaaOS${font}${color3} ${hr 1}
+${color2}Uptime: ${color1}${uptime_short}
+${color2}Kernel: ${color1}${kernel}
+
+${color1}${font Fira Sans:bold:size=11}CPU${font}${color3} ${hr 1}
+${color2}${cpu}% ${cpubar 6}
+${color2}${top name 1} ${alignr}${top cpu 1}%
+
+${color1}${font Fira Sans:bold:size=11}RAM${font}${color3} ${hr 1}
+${color2}${memperc}% ${membar 6}
+${color2}${mem} / ${memmax}
+
+${color1}${font Fira Sans:bold:size=11}DISK${font}${color3} ${hr 1}
+${color2}/ ${alignr}${fs_used /} / ${fs_size /}
+${color2}${fs_bar 6 /}
+
+${color1}${font Fira Sans:bold:size=11}NET${font}${color3} ${hr 1}
+${color2}Up: ${upspeed} ${alignr}Down: ${downspeed}
+]];
+CONKY_EOF
+
+cat > /etc/skel/.config/autostart/conky.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Exec=bash -c "sleep 3 && conky -c $HOME/.config/conky/conky.conf"
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Conky
+Comment=TaaOS Desktop System Monitor
+EOF
+
+echo "[BRANDING] UX polish configured (Picom + Dunst + Conky)"
+
 # Construct BOTTOM DOCK launcher profiles (panel-2)
 # Construct BOTTOM DOCK (Plank) WhiteSur Theme
 echo "[BRANDING] Configuring Plank with WhiteSur theme..."
