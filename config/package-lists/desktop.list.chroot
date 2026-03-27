@@ -84,6 +84,18 @@ smartmontools
 # Hardware Sensor Monitoring (CPU temp, fan speeds, voltages)
 lm-sensors
 
+# VirtualBox Guest Additions (dynamic display scaling)
+virtualbox-guest-utils
+virtualbox-guest-x11
+
+# PulseAudio Volume Control (GUI)
+pavucontrol
+
+# Performance Optimization
+preload
+zram-tools
+earlyoom
+
 # =============================================================================
 # SECTION 5: BASE UTILITIES
 # =============================================================================

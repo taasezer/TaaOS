@@ -1,0 +1,111 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Performance Tuning Hook
+# =============================================================================
+# Configures zRAM, earlyoom, preload, and tmpfiles.d for optimal performance.
+# Location: config/hooks/live/14-performance-tuning.hook.chroot
+# =============================================================================
+
+set -e
+
+echo "=============================================="
+echo "[PERF] TaaOS Performance Tuning"
+echo "=============================================="
+
+# =============================================================================
+# 1. zRAM — Compressed RAM Swap
+# =============================================================================
+echo "[PERF] Configuring zRAM compressed swap..."
+
+cat > /etc/default/zramswap << 'EOF'
+# TaaOS zRAM Configuration
+# Uses 50% of total RAM as compressed swap
+ALGO=zstd
+PERCENT=50
+PRIORITY=100
+EOF
+
+systemctl enable zramswap 2>/dev/null || true
+echo "[PERF] zRAM configured (50% RAM, zstd compression)"
+
+# =============================================================================
+# 2. earlyoom — Early OOM Killer
+# =============================================================================
+echo "[PERF] Configuring earlyoom (prevents system freeze on low memory)..."
+
+mkdir -p /etc/default
+cat > /etc/default/earlyoom << 'EOF'
+# TaaOS earlyoom Configuration
+# Kill processes when RAM falls below 5% or swap below 10%
+EARLYOOM_ARGS="-r 3600 -m 5 -s 10 --avoid '(^|/)(init|Xorg|xfwm4|polybar|plank)$' --prefer '(^|/)(cc1|cc1plus|rustc|nodejs)$' -n"
+EOF
+
+systemctl enable earlyoom 2>/dev/null || true
+echo "[PERF] earlyoom configured (5% RAM / 10% swap threshold)"
+
+# =============================================================================
+# 3. Preload — Adaptive Application Preloading
+# =============================================================================
+echo "[PERF] Enabling preload daemon..."
+systemctl enable preload 2>/dev/null || true
+echo "[PERF] preload enabled (will learn usage patterns automatically)"
+
+# =============================================================================
+# 4. tmpfiles.d — Automatic /tmp Cleanup
+# =============================================================================
+echo "[PERF] Configuring automatic /tmp cleanup rules..."
+
+mkdir -p /etc/tmpfiles.d
+cat > /etc/tmpfiles.d/taaos-cleanup.conf << 'EOF'
+# TaaOS Temporary File Cleanup Rules
+# Format: Type Path Mode User Group Age
+# Clean /tmp files older than 3 days
+d /tmp 1777 root root 3d
+# Clean /var/tmp files older than 7 days
+d /var/tmp 1777 root root 7d
+# Clean user cache files older than 14 days
+D /home/*/. cache/thumbnails 0755 - - 14d
+EOF
+
+echo "[PERF] tmpfiles.d cleanup rules configured"
+
+# =============================================================================
+# 5. Kernel I/O Scheduler & Swappiness Tuning
+# =============================================================================
+echo "[PERF] Configuring kernel performance parameters..."
+
+cat > /etc/sysctl.d/99-taaos-performance.conf << 'EOF'
+# TaaOS Kernel Performance Tuning
+
+# Reduce swap tendency (0-100, lower = less swap usage)
+vm.swappiness = 10
+
+# Increase inotify watchers (for IDEs like VSCode)
+fs.inotify.max_user_watches = 524288
+
+# Reduce disk write delay for better responsiveness
+vm.dirty_ratio = 10
+vm.dirty_background_ratio = 5
+
+# Improve network performance
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+EOF
+
+echo "[PERF] Kernel sysctl parameters configured"
+
+# =============================================================================
+# COMPLETE
+# =============================================================================
+echo ""
+echo "=============================================="
+echo "[PERF] Performance Tuning Complete!"
+echo "=============================================="
+echo ""
+echo "Configured:"
+echo "  - zRAM (50% RAM, zstd compression)"
+echo "  - earlyoom (5% RAM / 10% swap threshold)"
+echo "  - preload (adaptive app preloading)"
+echo "  - tmpfiles.d (/tmp 3d, /var/tmp 7d cleanup)"
+echo "  - Kernel tuning (swappiness=10, inotify=524288)"
+echo ""
