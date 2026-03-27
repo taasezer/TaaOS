@@ -1,0 +1,76 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS System Doctor — Health Report
+# =============================================================================
+
+GREEN='\033[1;32m'
+RED='\033[1;31m'
+CYAN='\033[1;36m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${CYAN}==============================================${NC}"
+echo -e "${GREEN}  TaaOS Sistem Doktoru${NC}"
+echo -e "${CYAN}==============================================${NC}"
+echo ""
+
+# 1. Disk
+echo -e "${YELLOW}[DISK]${NC}"
+df -h / | tail -1 | awk '{printf "  Kullanılan: %s / %s (%s dolu)\n", $3, $2, $5}'
+DISK_PCT=$(df / | tail -1 | awk '{gsub(/%/,""); print $5}')
+if [ "$DISK_PCT" -gt 90 ]; then
+    echo -e "  ${RED}⚠ DİKKAT: Disk %90'dan fazla dolu!${NC}"
+elif [ "$DISK_PCT" -gt 75 ]; then
+    echo -e "  ${YELLOW}⚠ Disk %75'ten fazla dolu${NC}"
+else
+    echo -e "  ${GREEN}✓ Disk durumu iyi${NC}"
+fi
+
+# 2. RAM
+echo -e "\n${YELLOW}[RAM]${NC}"
+free -h | awk '/Mem:/ {printf "  Kullanılan: %s / %s\n", $3, $2}'
+free | awk '/Mem:/ {pct=int($3/$2*100); if(pct>90) printf "  \033[1;31m⚠ RAM %90+ kullanımda!\033[0m\n"; else printf "  \033[1;32m✓ RAM durumu iyi (%d%%)\033[0m\n", pct}'
+
+# 3. CPU Load
+echo -e "\n${YELLOW}[CPU]${NC}"
+LOAD=$(cat /proc/loadavg | awk '{print $1}')
+CORES=$(nproc)
+echo "  Yük: $LOAD (${CORES} çekirdek)"
+if (( $(echo "$LOAD > $CORES" | bc -l 2>/dev/null || echo 0) )); then
+    echo -e "  ${RED}⚠ CPU aşırı yük altında!${NC}"
+else
+    echo -e "  ${GREEN}✓ CPU durumu iyi${NC}"
+fi
+
+# 4. Services
+echo -e "\n${YELLOW}[SERVİSLER]${NC}"
+for svc in ufw ollama docker NetworkManager fail2ban earlyoom; do
+    if systemctl is-enabled "$svc" 2>/dev/null | grep -q "enabled"; then
+        STATUS=$(systemctl is-active "$svc" 2>/dev/null)
+        if [ "$STATUS" = "active" ]; then
+            echo -e "  ${GREEN}●${NC} $svc: aktif"
+        else
+            echo -e "  ${YELLOW}○${NC} $svc: $STATUS"
+        fi
+    fi
+done
+
+# 5. Updates
+echo -e "\n${YELLOW}[GÜNCELLEMELER]${NC}"
+UPDATES=$(apt-get -s upgrade 2>/dev/null | grep -c "^Inst" || echo "0")
+if [ "$UPDATES" -gt 0 ]; then
+    echo -e "  ${YELLOW}⚠ $UPDATES güncelleme bekliyor${NC}"
+    echo -e "  Çalıştır: ${CYAN}taaos-update${NC}"
+else
+    echo -e "  ${GREEN}✓ Sistem güncel${NC}"
+fi
+
+# 6. Uptime
+echo -e "\n${YELLOW}[SİSTEM]${NC}"
+echo "  Uptime: $(uptime -p | sed 's/up //')"
+echo "  Kernel: $(uname -r)"
+
+echo ""
+echo -e "${CYAN}==============================================${NC}"
+echo -e "  Rapor zamanı: $(date '+%Y-%m-%d %H:%M:%S')"
+echo -e "${CYAN}==============================================${NC}"

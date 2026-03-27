@@ -64,7 +64,7 @@ d /tmp 1777 root root 3d
 # Clean /var/tmp files older than 7 days
 d /var/tmp 1777 root root 7d
 # Clean user cache files older than 14 days
-D /home/*/. cache/thumbnails 0755 - - 14d
+D /home/*/.cache/thumbnails 0755 - - 14d
 EOF
 
 echo "[PERF] tmpfiles.d cleanup rules configured"

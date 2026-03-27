@@ -470,12 +470,12 @@ EOF
 cat > /etc/skel/.config/autostart/picom.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
-Exec=picom --config $HOME/.config/picom/picom.conf -b
+Exec=bash -c "if lspci 2>/dev/null | grep -qi virtualbox; then picom --backend xrender --vsync -b; else picom --config $HOME/.config/picom/picom.conf -b; fi"
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
 Name=Picom
-Comment=TaaOS Compositor
+Comment=TaaOS Compositor (auto-detects VM)
 EOF
 
 # =============================================================================
