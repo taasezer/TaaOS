@@ -77,7 +77,36 @@ configure_firewall() {
 }
 
 # =============================================================================
-# SECTION 2: INTEGRITY & REPAIR TOOLS
+# SECTION 2: FAIL2BAN (SSH Brute-Force Protection)
+# =============================================================================
+configure_fail2ban() {
+    log_shield "Configuring fail2ban SSH protection..."
+
+    apt-get install -y --no-install-recommends fail2ban
+
+    # Create local jail config (overrides default without modifying jail.conf)
+    cat > /etc/fail2ban/jail.local << 'EOF'
+[DEFAULT]
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+backend  = auto
+
+[sshd]
+enabled  = true
+port     = ssh
+filter   = sshd
+logpath  = /var/log/auth.log
+maxretry = 3
+bantime  = 2h
+EOF
+
+    systemctl enable fail2ban 2>/dev/null || true
+    log_success "fail2ban configured (SSH: 3 attempts -> 2h ban)"
+}
+
+# =============================================================================
+# SECTION 3: INTEGRITY & REPAIR TOOLS
 # =============================================================================
 install_integrity_tools() {
     log_shield "Installing Integrity & Repair Tools..."
@@ -343,6 +372,9 @@ main() {
     echo ""
 
     configure_firewall
+    echo ""
+
+    configure_fail2ban
     echo ""
 
     install_integrity_tools
