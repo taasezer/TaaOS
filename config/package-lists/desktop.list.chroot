@@ -85,8 +85,8 @@ smartmontools
 lm-sensors
 
 # VirtualBox Guest Additions (dynamic display scaling)
-virtualbox-guest-utils
-virtualbox-guest-x11
+# Removed: Not available in Debian 12 Bookworm, using built-in kernel modules instead
+# Consider adding spice-vdagent if further VM integration is needed
 
 # PulseAudio Volume Control (GUI)
 pavucontrol
