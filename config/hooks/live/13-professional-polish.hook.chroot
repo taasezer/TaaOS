@@ -133,10 +133,7 @@ if [ -f /usr/local/bin/taaos-update ]; then
     chmod +x /usr/local/bin/taaos-update
 fi
 
-# Remove the default Calamares and Debian installer icons from the main menu so only TaaOS Kurulumu remains
-if [ -f /usr/share/applications/calamares.desktop ]; then
-    rm -f /usr/share/applications/calamares.desktop
-fi
+# Remove the default Debian installer icons from the main menu
 rm -f /usr/share/applications/debian-installer-launcher.desktop 2>/dev/null || true
 rm -f /usr/share/applications/install-debian.desktop 2>/dev/null || true
 rm -f /usr/share/applications/debian-installer.desktop 2>/dev/null || true

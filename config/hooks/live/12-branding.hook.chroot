@@ -293,7 +293,7 @@ font-2 = "Noto Sans Symbols 2:size=12;3"
 
 modules-left = menu xworkspaces xwindow
 modules-center = date
-modules-right = pulseaudio bluetooth memory cpu tray
+modules-right = pulseaudio bluetooth memory cpu powermenu tray
 
 cursor-click = pointer
 cursor-scroll = ns-resize
@@ -371,6 +371,12 @@ date-alt = %Y-%m-%d %H:%M:%S
 label = %date%
 label-foreground = ${colors.foreground}
 
+[module/powermenu]
+type = custom/text
+content = " ⏻ "
+content-foreground = ${colors.alert}
+click-left = xfce4-session-logout &
+
 [settings]
 screenchange-reload = true
 pseudo-transparency = true
@@ -419,6 +425,41 @@ NoDisplay=false
 X-GNOME-Autostart-enabled=true
 Name=Polybar
 Comment=Starts the native TaaOS Polybar
+EOF
+
+# =============================================================================
+# TAAOS DISPLAY WATCHER (Dynamic Resolution Resizing)
+# =============================================================================
+echo "[BRANDING] Configuring Display Watcher script..."
+cat > /usr/local/bin/taaos-display-watcher << 'EOF'
+#!/bin/bash
+# TaaOS Display Watcher
+# Restarts UI components when screen resolution changes
+
+old_res=$(xrandr | grep '*' | awk '{print $1}')
+while true; do
+    sleep 2
+    new_res=$(xrandr | grep '*' | awk '{print $1}')
+    if [ "$old_res" != "$new_res" ]; then
+        if [ -f "$HOME/.config/polybar/launch.sh" ]; then
+            bash "$HOME/.config/polybar/launch.sh"
+        fi
+        old_res="$new_res"
+    fi
+done
+EOF
+chmod +x /usr/local/bin/taaos-display-watcher
+
+mkdir -p /etc/skel/.config/autostart
+cat > /etc/skel/.config/autostart/taaos-display-watcher.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Exec=taaos-display-watcher
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=TaaOS Display Watcher
+Comment=Restarts UI components on resolution change
 EOF
 
 # =============================================================================
@@ -553,67 +594,7 @@ Name=Dunst
 Comment=TaaOS Notification Daemon
 EOF
 
-# =============================================================================
-# CONKY DESKTOP SYSTEM MONITOR
-# =============================================================================
-echo "[BRANDING] Configuring Conky desktop widget..."
-mkdir -p /etc/skel/.config/conky
-cat > /etc/skel/.config/conky/conky.conf << 'CONKY_EOF'
-conky.config = {
-    alignment = 'top_right',
-    background = true,
-    double_buffer = true,
-    own_window = true,
-    own_window_type = 'desktop',
-    own_window_transparent = true,
-    own_window_argb_visual = true,
-    own_window_hints = 'undecorated,below,sticky,skip_taskbar,skip_pager',
-    update_interval = 2.0,
-    gap_x = 20,
-    gap_y = 50,
-    minimum_width = 220,
-    use_xft = true,
-    font = 'Fira Sans:size=10',
-    default_color = 'white',
-    color1 = 'ffffff',
-    color2 = 'cccccc',
-    color3 = '999999',
-};
-
-conky.text = [[
-${color1}${font Fira Sans:bold:size=14}TaaOS${font}${color3} ${hr 1}
-${color2}Uptime: ${color1}${uptime_short}
-${color2}Kernel: ${color1}${kernel}
-
-${color1}${font Fira Sans:bold:size=11}CPU${font}${color3} ${hr 1}
-${color2}${cpu}% ${cpubar 6}
-${color2}${top name 1} ${alignr}${top cpu 1}%
-
-${color1}${font Fira Sans:bold:size=11}RAM${font}${color3} ${hr 1}
-${color2}${memperc}% ${membar 6}
-${color2}${mem} / ${memmax}
-
-${color1}${font Fira Sans:bold:size=11}DISK${font}${color3} ${hr 1}
-${color2}/ ${alignr}${fs_used /} / ${fs_size /}
-${color2}${fs_bar 6 /}
-
-${color1}${font Fira Sans:bold:size=11}NET${font}${color3} ${hr 1}
-${color2}Up: ${upspeed} ${alignr}Down: ${downspeed}
-]];
-CONKY_EOF
-
-cat > /etc/skel/.config/autostart/conky.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Exec=bash -c "sleep 3 && conky -c $HOME/.config/conky/conky.conf"
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-Name=Conky
-Comment=TaaOS Desktop System Monitor
-EOF
-
-echo "[BRANDING] UX polish configured (Picom + Dunst + Conky)"
+echo "[BRANDING] UX polish configured (Picom + Dunst)"
 
 # Construct BOTTOM DOCK launcher profiles (panel-2)
 # Construct BOTTOM DOCK (Plank) WhiteSur Theme

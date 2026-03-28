@@ -420,13 +420,16 @@ mkdir -p /var/log/taaos
 echo "[OS-CONFIG] Configuring installer integration and cleaning Live desktop..."
 
 # Aggressive cleanup of the Live environment desktop
-# This prevents install-debian or calamares shortcuts from showing up on the desktop
-echo "[OS-CONFIG] Removing installer shortcuts from Live skeleton..."
-rm -f /etc/skel/Desktop/*.desktop 2>/dev/null || true
+# Remove default Debian installer shortcuts
+echo "[OS-CONFIG] Removing Debian installer shortcuts from Live skeleton..."
 rm -f /usr/share/applications/debian-installer-launcher.desktop 2>/dev/null || true
 rm -f /usr/share/applications/install-debian.desktop 2>/dev/null || true
-# Ensure Calamares is present for installation but NOT on the desktop automatically
-rm -f /usr/share/applications/calamares.desktop 2>/dev/null || true
+
+# Ensure TaaOS Installer (Calamares) is clearly visible on the Desktop
+echo "[OS-CONFIG] Setting up Calamares (Install TaaOS) shortcut on the Desktop..."
+mkdir -p /etc/skel/Desktop
+cp /usr/share/applications/calamares.desktop /etc/skel/Desktop/install-taaos.desktop 2>/dev/null || true
+chmod +x /etc/skel/Desktop/install-taaos.desktop 2>/dev/null || true
 
 # Purge debian-installer-launcher completely as we use Calamares
 apt-get remove --purge -y debian-installer-launcher 2>/dev/null || true
@@ -468,21 +471,14 @@ rm -f /usr/share/applications/debian-installer-launcher.desktop
 rm -f /usr/share/applications/install-debian.desktop
 rm -f /usr/share/applications/debian-installer.desktop
 
-# Remove installer shortcut from ALL user desktops and skeleton
-rm -f /etc/skel/Desktop/install-taaos.desktop
-rm -f "/etc/skel/Desktop/Install TaaOS.desktop"
-rm -f /etc/skel/Desktop/debian-installer-launcher.desktop
-rm -f "/etc/skel/Desktop/Install Debian.desktop"
-rm -f /etc/skel/Desktop/install-debian.desktop
-for user_home in /home/*/; do
-    rm -f "${user_home}Desktop/install-taaos.desktop" 2>/dev/null || true
-    rm -f "${user_home}Desktop/Install TaaOS.desktop" 2>/dev/null || true
-    rm -f "${user_home}Desktop/debian-installer-launcher.desktop" 2>/dev/null || true
-    rm -f "${user_home}Desktop/Install Debian.desktop" 2>/dev/null || true
-    rm -f "${user_home}Desktop/install-debian.desktop" 2>/dev/null || true
-done
+# Remove installer shortcut from skeleton and user homes (Masaüstü / Desktop)
+rm -f /etc/skel/Desktop/install-taaos.desktop 2>/dev/null || true
+rm -f /etc/skel/Desktop/Install\ TaaOS.desktop 2>/dev/null || true
 
-# Wildcard sweep: remove ANY remaining installer-related .desktop files
+# Wildcard sweep: remove ANY remaining installer-related .desktop files across ALL user directories
+find /home/ -type f \( -iname "*installer*.desktop" -o -iname "install-taaos.desktop" -o -iname "calamares.desktop" \) -delete 2>/dev/null || true
+find /etc/skel/ -type f \( -iname "*installer*.desktop" -o -iname "install-taaos.desktop" -o -iname "calamares.desktop" \) -delete 2>/dev/null || true
+find /root/ -type f \( -iname "*installer*.desktop" -o -iname "install-taaos.desktop" -o -iname "calamares.desktop" \) -delete 2>/dev/null || true
 find /usr/share/applications -iname "*installer*" -delete 2>/dev/null || true
 find /usr/share/applications -iname "*calamares*" -delete 2>/dev/null || true
 
