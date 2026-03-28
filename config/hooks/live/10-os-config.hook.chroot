@@ -157,7 +157,7 @@ systemctl enable bluetooth.service 2>/dev/null || true
 
 # Enable VM guest services (auto-detect and enable the right one)
 echo "[OS-CONFIG] Enabling VM guest services..."
-# VirtualBox Guest Additions
+# VirtualBox: guest additions services (only if installed from ISO)
 systemctl enable vboxadd.service 2>/dev/null || true
 systemctl enable vboxadd-service.service 2>/dev/null || true
 # SPICE VDAgent (QEMU/KVM)
@@ -165,7 +165,7 @@ systemctl enable spice-vdagentd.service 2>/dev/null || true
 # QEMU Guest Agent
 systemctl enable qemu-guest-agent.service 2>/dev/null || true
 
-# Ensure VirtualBox kernel modules are loaded at boot
+# Ensure VirtualBox in-kernel modules are loaded at boot
 if [ -f /etc/modules ]; then
     for mod in vboxguest vboxsf vboxvideo; do
         grep -q "^${mod}$" /etc/modules 2>/dev/null || echo "$mod" >> /etc/modules
