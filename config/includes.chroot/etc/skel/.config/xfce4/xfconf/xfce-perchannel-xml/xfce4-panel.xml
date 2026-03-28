@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<channel name="xfce4-panel" version="1.0">
+  <!-- TaaOS: XFCE panel is DISABLED — Polybar is used instead -->
+  <property name="configver" type="int" value="2"/>
+  <property name="panels" type="array">
+    <!-- Empty array = no XFCE panels at all -->
+  </property>
+</channel>

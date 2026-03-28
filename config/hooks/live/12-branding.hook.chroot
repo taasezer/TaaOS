@@ -260,8 +260,43 @@ EOF
 echo "[BRANDING] XFCE theme configuration complete"
 
 # Ensure custom panel setup configuration is present
-echo "[BRANDING] Installing required xfce panel plugins..."
+echo "[BRANDING] Installing required panel plugins..."
 apt-get install -y --no-install-recommends xfce4-whiskermenu-plugin xfce4-pulseaudio-plugin pavucontrol || true
+
+# CRITICAL: Verify Polybar is installed
+if ! command -v polybar &> /dev/null; then
+    echo "[BRANDING] WARNING: Polybar not found after apt install! Attempting manual install..."
+    apt-get update
+    apt-get install -y polybar || {
+        echo "[BRANDING] Polybar apt install failed. Trying GitHub release..."
+        POLYBAR_VER="3.7.2"
+        wget -qO /tmp/polybar.deb "https://github.com/polybar/polybar/releases/download/${POLYBAR_VER}/polybar_${POLYBAR_VER}_amd64.deb" 2>/dev/null || true
+        if [ -f /tmp/polybar.deb ]; then
+            dpkg -i /tmp/polybar.deb 2>/dev/null || apt-get install -f -y 2>/dev/null || true
+            rm -f /tmp/polybar.deb
+        fi
+    }
+    if command -v polybar &> /dev/null; then
+        echo "[BRANDING] ✓ Polybar installed successfully"
+    else
+        echo "[BRANDING] ✗ CRITICAL: Polybar could not be installed!"
+    fi
+else
+    echo "[BRANDING] ✓ Polybar is already installed"
+fi
+
+# CRITICAL: Disable XFCE's built-in panel to prevent conflict with Polybar
+echo "[BRANDING] Disabling XFCE built-in panel (replaced by Polybar)..."
+mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml
+cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml << 'PANELXML'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-panel" version="1.0">
+  <property name="configver" type="int" value="2"/>
+  <property name="panels" type="array">
+  </property>
+</channel>
+PANELXML
+echo "[BRANDING] XFCE panel disabled via xfce4-panel.xml"
 
 # Set up TaaOS Native Polybar
 mkdir -p /etc/skel/.config/polybar
@@ -385,21 +420,36 @@ EOF
 cat > /etc/skel/.config/polybar/launch.sh << 'EOF'
 #!/usr/bin/env bash
 
-# Terminate already running bar instances and tray apps
-killall -q polybar blueman-applet plank xfce4-panel
+# ==========================================================
+# TaaOS Polybar Launcher
+# ==========================================================
 
-# Wait until the processes have been shut down
-while pgrep -u $UID -x polybar >/dev/null; do sleep 1; done
+# Kill conflicting panel processes
+killall -q polybar 2>/dev/null
+killall -q xfce4-panel 2>/dev/null
 
-# Launch tray and dock apps
-blueman-applet & disown
-plank & disown
+# Wait for polybar to fully exit
+while pgrep -u $UID -x polybar >/dev/null 2>&1; do sleep 0.5; done
+
+# Kill XFCE panel again (it may respawn)
+sleep 1
+killall -q xfce4-panel 2>/dev/null
+
+# Launch tray and dock apps (only if not already running)
+pgrep -x blueman-applet >/dev/null 2>&1 || (blueman-applet & disown) 2>/dev/null
+pgrep -x plank >/dev/null 2>&1 || (plank & disown) 2>/dev/null
 
 # Ensure Ollama service is running
 sudo systemctl start ollama 2>/dev/null || (nohup ollama serve >/dev/null 2>&1 &) || true
 
-# Launch TaaOS Polybar
-polybar taaos 2>&1 | tee -a /tmp/polybar.log & disown
+# Launch TaaOS Polybar (with retry)
+if command -v polybar &> /dev/null; then
+    polybar taaos 2>&1 | tee -a /tmp/polybar.log & disown
+    echo "[TaaOS] Polybar started"
+else
+    echo "[TaaOS] WARNING: Polybar not found, falling back to xfce4-panel"
+    xfce4-panel & disown
+fi
 EOF
 chmod +x /etc/skel/.config/polybar/launch.sh
 
@@ -428,21 +478,57 @@ Comment=Starts the native TaaOS Polybar
 EOF
 
 # =============================================================================
-# TAAOS DISPLAY WATCHER (Dynamic Resolution Resizing)
+# TAAOS DISPLAY WATCHER (Dynamic Resolution + VirtualBox Support)
 # =============================================================================
 echo "[BRANDING] Configuring Display Watcher script..."
 cat > /usr/local/bin/taaos-display-watcher << 'EOF'
 #!/bin/bash
-# TaaOS Display Watcher
-# Restarts UI components when screen resolution changes
+# ==========================================================
+# TaaOS Display Watcher — Dynamic Resolution for VMs
+# ==========================================================
+# Handles: VirtualBox, QEMU/SPICE, VMware, bare metal
+# ==========================================================
 
-old_res=$(xrandr | grep '*' | awk '{print $1}')
+# Wait for X11 to be fully ready
+for i in $(seq 1 30); do
+    if xrandr &>/dev/null; then break; fi
+    sleep 1
+done
+
+# Detect VM type and start the right guest agent
+if lspci 2>/dev/null | grep -qi 'virtualbox\|vbox'; then
+    echo "[TaaOS] VirtualBox detected — starting VBoxClient"
+    # Try VBoxClient for seamless display resizing
+    if command -v VBoxClient &>/dev/null; then
+        VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
+        VBoxClient --clipboard 2>/dev/null || true
+        VBoxClient --draganddrop 2>/dev/null || true
+        VBoxClient --seamless 2>/dev/null || true
+    fi
+elif lspci 2>/dev/null | grep -qi 'vmware'; then
+    echo "[TaaOS] VMware detected"
+    vmware-user-suid-wrapper 2>/dev/null || true
+elif lspci 2>/dev/null | grep -qi 'qxl\|virtio.*gpu\|spice'; then
+    echo "[TaaOS] QEMU/SPICE detected"
+    # spice-vdagent handles this automatically if installed
+fi
+
+# Resolution monitoring loop — restart Polybar on resolution changes
+old_res=$(xrandr 2>/dev/null | grep '\*' | awk '{print $1}' | head -1)
 while true; do
-    sleep 2
-    new_res=$(xrandr | grep '*' | awk '{print $1}')
-    if [ "$old_res" != "$new_res" ]; then
+    sleep 3
+    new_res=$(xrandr 2>/dev/null | grep '\*' | awk '{print $1}' | head -1)
+
+    # If resolution changed, adapt the UI
+    if [ -n "$new_res" ] && [ "$old_res" != "$new_res" ]; then
+        echo "[TaaOS] Resolution changed: $old_res -> $new_res"
+
+        # Apply best-fit resolution
+        xrandr --auto 2>/dev/null || true
+
+        # Restart Polybar to fit new width
         if [ -f "$HOME/.config/polybar/launch.sh" ]; then
-            bash "$HOME/.config/polybar/launch.sh"
+            bash "$HOME/.config/polybar/launch.sh" &
         fi
         old_res="$new_res"
     fi
@@ -454,12 +540,12 @@ mkdir -p /etc/skel/.config/autostart
 cat > /etc/skel/.config/autostart/taaos-display-watcher.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
-Exec=taaos-display-watcher
+Exec=bash -c "sleep 3 && taaos-display-watcher"
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
 Name=TaaOS Display Watcher
-Comment=Restarts UI components on resolution change
+Comment=Dynamic resolution + VirtualBox display support
 EOF
 
 # =============================================================================

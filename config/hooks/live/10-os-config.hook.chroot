@@ -155,6 +155,23 @@ systemctl enable cpufrequtils.service 2>/dev/null || true
 # Enable bluetooth
 systemctl enable bluetooth.service 2>/dev/null || true
 
+# Enable VM guest services (auto-detect and enable the right one)
+echo "[OS-CONFIG] Enabling VM guest services..."
+# VirtualBox Guest Additions
+systemctl enable vboxadd.service 2>/dev/null || true
+systemctl enable vboxadd-service.service 2>/dev/null || true
+# SPICE VDAgent (QEMU/KVM)
+systemctl enable spice-vdagentd.service 2>/dev/null || true
+# QEMU Guest Agent
+systemctl enable qemu-guest-agent.service 2>/dev/null || true
+
+# Ensure VirtualBox kernel modules are loaded at boot
+if [ -f /etc/modules ]; then
+    for mod in vboxguest vboxsf vboxvideo; do
+        grep -q "^${mod}$" /etc/modules 2>/dev/null || echo "$mod" >> /etc/modules
+    done
+fi
+
 # Enable printing (CUPS)
 systemctl enable cups.service 2>/dev/null || true
 
@@ -428,7 +445,26 @@ rm -f /usr/share/applications/install-debian.desktop 2>/dev/null || true
 # Ensure TaaOS Installer (Calamares) is clearly visible on the Desktop
 echo "[OS-CONFIG] Setting up Calamares (Install TaaOS) shortcut on the Desktop..."
 mkdir -p /etc/skel/Desktop
-cp /usr/share/applications/calamares.desktop /etc/skel/Desktop/install-taaos.desktop 2>/dev/null || true
+# Use our custom installer desktop entry (created by setup-calamares.sh)
+if [ -f /usr/share/applications/taaos-installer.desktop ]; then
+    cp /usr/share/applications/taaos-installer.desktop /etc/skel/Desktop/install-taaos.desktop
+elif [ -f /usr/share/applications/calamares.desktop ]; then
+    cp /usr/share/applications/calamares.desktop /etc/skel/Desktop/install-taaos.desktop
+else
+    # Create a fallback desktop entry
+    cat > /etc/skel/Desktop/install-taaos.desktop << 'FALLBACK_DESKTOP'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install TaaOS
+Comment=Install TaaOS to your system
+Icon=calamares
+Exec=sudo /usr/local/bin/taaos-install
+Categories=System;
+Terminal=false
+StartupNotify=true
+FALLBACK_DESKTOP
+fi
 chmod +x /etc/skel/Desktop/install-taaos.desktop 2>/dev/null || true
 
 # Purge debian-installer-launcher completely as we use Calamares

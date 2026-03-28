@@ -84,9 +84,14 @@ smartmontools
 # Hardware Sensor Monitoring (CPU temp, fan speeds, voltages)
 lm-sensors
 
-# VirtualBox Guest Additions (dynamic display scaling)
-# Removed: Not available in Debian 12 Bookworm, using built-in kernel modules instead
-# Consider adding spice-vdagent if further VM integration is needed
+# VM Guest Support (dynamic display scaling, clipboard, drag & drop)
+# VirtualBox Guest Additions (available in non-free)
+virtualbox-guest-utils
+virtualbox-guest-x11
+
+# SPICE/QEMU Guest Support (for KVM/QEMU VMs)
+spice-vdagent
+qemu-guest-agent
 
 # PulseAudio Volume Control (GUI)
 pavucontrol

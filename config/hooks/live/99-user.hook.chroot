@@ -325,9 +325,11 @@ copy_configs_to_user() {
 # CLEANUP
 # =============================================================================
 cleanup() {
-    log_info "Cleaning up..."
-    apt-get clean
-    rm -rf /var/lib/apt/lists/*
+    log_info "Cleaning up temporary files..."
+    # NOTE: Do NOT run apt-get clean or rm apt/lists here!
+    # This hook runs DURING the build — deleting apt cache would break
+    # subsequent hooks and live-build steps. Final cleanup is done by lb build.
+    rm -rf /tmp/taaos-* 2>/dev/null || true
     log_success "Cleanup completed"
 }
 

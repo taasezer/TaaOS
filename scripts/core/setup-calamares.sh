@@ -300,6 +300,52 @@ kernelUtc: true
 HWCLOCK_CONF
 
     # Unpackfs module — CRITICAL: tells Calamares where to find the live filesystem
+    # Use dynamic detection script to find correct squashfs path
+    cat > /usr/lib/taaos/fix-unpackfs.sh << 'UNPACKFS_SCRIPT'
+#!/bin/bash
+# Dynamically find the squashfs and write unpackfs.conf
+SQUASHFS=""
+for path in \
+    /run/live/medium/live/filesystem.squashfs \
+    /run/live/rootfs/filesystem.squashfs \
+    /usr/lib/live/mount/rootfs/filesystem.squashfs \
+    /lib/live/mount/medium/live/filesystem.squashfs \
+    /cdrom/live/filesystem.squashfs; do
+    if [ -f "$path" ]; then
+        SQUASHFS="$path"
+        break
+    fi
+done
+
+# Fallback: search for any squashfs
+if [ -z "$SQUASHFS" ]; then
+    SQUASHFS=$(find /run /lib /usr/lib /cdrom 2>/dev/null -name 'filesystem.squashfs' -type f | head -1)
+fi
+
+if [ -n "$SQUASHFS" ]; then
+    echo "[TaaOS] Found squashfs at: $SQUASHFS"
+    cat > /etc/calamares/modules/unpackfs.conf << DYNCONF
+---
+unpack:
+    -   source: "$SQUASHFS"
+        sourcefs: "squashfs"
+        destination: ""
+DYNCONF
+else
+    echo "[TaaOS] ERROR: No squashfs found!"
+    # Write a sensible default
+    cat > /etc/calamares/modules/unpackfs.conf << DYNCONF
+---
+unpack:
+    -   source: "/run/live/medium/live/filesystem.squashfs"
+        sourcefs: "squashfs"
+        destination: ""
+DYNCONF
+fi
+UNPACKFS_SCRIPT
+    chmod +x /usr/lib/taaos/fix-unpackfs.sh
+
+    # Write a static default (will be overridden at launch time)
     cat > /etc/calamares/modules/unpackfs.conf << 'UNPACKFS_CONF'
 ---
 unpack:
@@ -546,16 +592,31 @@ SLIDESHOW_QML
 create_desktop_entry() {
     echo "[INSTALLER] Creating desktop entry..."
     
-    # Desktop entry for installer
+    # Create Calamares launcher wrapper (fixes unpackfs + runs calamares)
+    cat > /usr/local/bin/taaos-install << 'WRAPPER_SCRIPT'
+#!/bin/bash
+# TaaOS Installer Launcher
+# Fixes unpackfs.conf dynamically then launches Calamares
+echo "[TaaOS] Preparing installer..."
+if [ -f /usr/lib/taaos/fix-unpackfs.sh ]; then
+    sudo /usr/lib/taaos/fix-unpackfs.sh
+fi
+exec sudo calamares "$@"
+WRAPPER_SCRIPT
+    chmod +x /usr/local/bin/taaos-install
+
+    # Desktop entry for installer — uses our wrapper instead of pkexec
     mkdir -p /usr/share/applications
     cat > /usr/share/applications/taaos-installer.desktop << 'INSTALLER_DESKTOP'
 [Desktop Entry]
 Version=1.0
 Type=Application
 Name=Install TaaOS
+Name[tr]=TaaOS Kur
 Comment=Install TaaOS to your system
+Comment[tr]=TaaOS'u sisteminize kurun
 Icon=calamares
-Exec=pkexec calamares
+Exec=sudo /usr/local/bin/taaos-install
 Categories=System;
 Terminal=false
 StartupNotify=true
