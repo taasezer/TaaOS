@@ -285,6 +285,46 @@ else
     echo "[BRANDING] ✓ Polybar is already installed"
 fi
 
+# =============================================================================
+# VIRTUALBOX GUEST ADDITIONS (from Debian Fasttrack repo)
+# =============================================================================
+echo "[BRANDING] Installing VirtualBox Guest Additions for auto-resize..."
+
+# Add Debian Fasttrack repository temporarily
+if ! dpkg -l virtualbox-guest-utils 2>/dev/null | grep -q "^ii"; then
+    echo "[BRANDING] Adding Debian Fasttrack repository..."
+    cat > /etc/apt/sources.list.d/fasttrack.list << 'FTREPO'
+deb http://fasttrack.debian.net/debian-fasttrack/ bookworm-fasttrack main contrib
+deb http://fasttrack.debian.net/debian-fasttrack/ bookworm-backports-staging main contrib
+FTREPO
+    
+    # Import Fasttrack keyring
+    apt-get update 2>/dev/null || true
+    apt-get install -y fasttrack-archive-keyring 2>/dev/null || {
+        # Manual key import if package fails
+        wget -qO- https://fasttrack.debian.net/debian-fasttrack/fasttrack-archive-key.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/fasttrack.gpg 2>/dev/null || true
+    }
+    apt-get update 2>/dev/null || true
+    
+    # Install VirtualBox Guest Additions
+    apt-get install -y virtualbox-guest-utils virtualbox-guest-x11 2>/dev/null || {
+        echo "[BRANDING] Fasttrack VBox install failed — VBoxClient won't be available"
+        echo "[BRANDING] Display watcher will use xrandr polling instead"
+    }
+    
+    # Remove Fasttrack repo (keep system clean, packages already installed)
+    rm -f /etc/apt/sources.list.d/fasttrack.list
+    apt-get update 2>/dev/null || true
+    
+    if command -v VBoxClient &>/dev/null; then
+        echo "[BRANDING] ✓ VirtualBox Guest Additions installed (VBoxClient available)"
+    else
+        echo "[BRANDING] ✗ VBoxClient not available — using xrandr polling fallback"
+    fi
+else
+    echo "[BRANDING] ✓ VirtualBox Guest Additions already installed"
+fi
+
 # CRITICAL: Disable XFCE's built-in panel to prevent conflict with Polybar
 echo "[BRANDING] Disabling XFCE built-in panel (replaced by Polybar)..."
 mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml
@@ -322,9 +362,9 @@ module-margin = 1
 separator = |  
 separator-foreground = ${colors.disabled}
 
-font-0 = "Fira Sans:weight=regular:size=10;3"
+font-0 = "Open Sans:weight=regular:size=10;3"
 font-1 = "Fira Code:size=10;3"
-font-2 = "Noto Sans Symbols 2:size=12;3"
+font-2 = "Noto Sans:size=12;3"
 
 modules-left = menu xworkspaces xwindow
 modules-center = date
@@ -477,6 +517,19 @@ Name=Polybar
 Comment=Starts the native TaaOS Polybar
 EOF
 
+# CRITICAL: Also add system-wide XDG autostart (more reliable than user-level)
+mkdir -p /etc/xdg/autostart
+cat > /etc/xdg/autostart/taaos-polybar.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Exec=bash -c "sleep 2 && $HOME/.config/polybar/launch.sh"
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=TaaOS Polybar
+Comment=TaaOS top panel (system-wide autostart)
+EOF
+
 # =============================================================================
 # TAAOS DISPLAY WATCHER (Dynamic Resolution + VirtualBox Support)
 # =============================================================================
@@ -484,57 +537,145 @@ echo "[BRANDING] Configuring Display Watcher script..."
 cat > /usr/local/bin/taaos-display-watcher << 'EOF'
 #!/bin/bash
 # ==========================================================
-# TaaOS Display Watcher — Dynamic Resolution for VMs
-# ==========================================================
-# Handles: VirtualBox, QEMU/SPICE, VMware, bare metal
+# TaaOS Display Watcher — VirtualBox Auto-Resize + Dynamic UI
 # ==========================================================
 
-# Wait for X11 to be fully ready
+LOG="/tmp/taaos-display.log"
+echo "[TaaOS Display] Starting... $(date)" > "$LOG"
+
+# Wait for X11 and desktop to be fully ready
 for i in $(seq 1 30); do
     if xrandr &>/dev/null; then break; fi
     sleep 1
 done
+sleep 2
 
-# Detect VM type and start the right guest agent
-if lspci 2>/dev/null | grep -qi 'virtualbox\|vbox'; then
-    echo "[TaaOS] VirtualBox detected — starting VBoxClient"
-    # Try VBoxClient for seamless display resizing
+# ── Detect VM type and start guest agents ──
+if lspci 2>/dev/null | grep -qi 'virtualbox\|vbox\|InnoTek'; then
+    echo "[TaaOS Display] VirtualBox detected" >> "$LOG"
+    
+    # Try VBoxClient if available (from guest additions)
     if command -v VBoxClient &>/dev/null; then
+        echo "[TaaOS Display] Starting VBoxClient services" >> "$LOG"
         VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
         VBoxClient --clipboard 2>/dev/null || true
         VBoxClient --draganddrop 2>/dev/null || true
-        VBoxClient --seamless 2>/dev/null || true
+    else
+        echo "[TaaOS Display] VBoxClient not found — using xrandr polling" >> "$LOG"
     fi
+
+    # Force initial best resolution
+    sleep 1
+    xrandr --auto 2>/dev/null
+    
 elif lspci 2>/dev/null | grep -qi 'vmware'; then
-    echo "[TaaOS] VMware detected"
+    echo "[TaaOS Display] VMware detected" >> "$LOG"
     vmware-user-suid-wrapper 2>/dev/null || true
+    
 elif lspci 2>/dev/null | grep -qi 'qxl\|virtio.*gpu\|spice'; then
-    echo "[TaaOS] QEMU/SPICE detected"
-    # spice-vdagent handles this automatically if installed
+    echo "[TaaOS Display] QEMU/SPICE detected" >> "$LOG"
 fi
 
-# Resolution monitoring loop — restart Polybar on resolution changes
-old_res=$(xrandr 2>/dev/null | grep '\*' | awk '{print $1}' | head -1)
+# ── Helper: get current resolution ──
+get_res() {
+    xrandr 2>/dev/null | grep '\*' | awk '{print $1}' | head -1
+}
+
+# ── Helper: get primary output name ──
+get_output() {
+    xrandr 2>/dev/null | grep ' connected' | head -1 | awk '{print $1}'
+}
+
+# ── Helper: get preferred (best) resolution ──
+get_preferred() {
+    local output=$(get_output)
+    # The preferred mode has a '+' marker in xrandr output
+    xrandr 2>/dev/null | grep -A 100 "^${output} connected" | grep -v "^[A-Z]" | grep '+' | awk '{print $1}' | head -1
+}
+
+# ── Helper: restart UI components ──
+restart_ui() {
+    echo "[TaaOS Display] Restarting UI for new resolution: $(get_res)" >> "$LOG"
+    
+    # Restart Polybar
+    if [ -f "$HOME/.config/polybar/launch.sh" ]; then
+        bash "$HOME/.config/polybar/launch.sh" &
+    fi
+    
+    # Restart Plank dock (so it repositions to bottom-center)
+    if pgrep -x plank >/dev/null 2>&1; then
+        killall -q plank 2>/dev/null
+        sleep 0.5
+        plank & disown
+    fi
+}
+
+# ── Set initial best resolution ──
+OUTPUT=$(get_output)
+if [ -n "$OUTPUT" ]; then
+    xrandr --output "$OUTPUT" --auto 2>/dev/null
+    echo "[TaaOS Display] Initial resolution set: $(get_res)" >> "$LOG"
+fi
+
+old_res=$(get_res)
+
+# ── Main monitoring loop ──
 while true; do
-    sleep 3
-    new_res=$(xrandr 2>/dev/null | grep '\*' | awk '{print $1}' | head -1)
-
-    # If resolution changed, adapt the UI
-    if [ -n "$new_res" ] && [ "$old_res" != "$new_res" ]; then
-        echo "[TaaOS] Resolution changed: $old_res -> $new_res"
-
-        # Apply best-fit resolution
-        xrandr --auto 2>/dev/null || true
-
-        # Restart Polybar to fit new width
-        if [ -f "$HOME/.config/polybar/launch.sh" ]; then
-            bash "$HOME/.config/polybar/launch.sh" &
-        fi
-        old_res="$new_res"
+    sleep 2
+    
+    # Get current and preferred resolution  
+    current_res=$(get_res)
+    preferred_res=$(get_preferred)
+    OUTPUT=$(get_output)
+    
+    # Check if preferred resolution changed (VirtualBox window resized)
+    if [ -n "$preferred_res" ] && [ "$preferred_res" != "$current_res" ]; then
+        echo "[TaaOS Display] New preferred resolution: $preferred_res (current: $current_res)" >> "$LOG"
+        xrandr --output "$OUTPUT" --mode "$preferred_res" 2>/dev/null || xrandr --auto 2>/dev/null
+        sleep 0.5
+        restart_ui
+        old_res=$(get_res)
+        
+    # Check if resolution changed by other means
+    elif [ -n "$current_res" ] && [ "$current_res" != "$old_res" ]; then
+        echo "[TaaOS Display] Resolution changed externally: $old_res -> $current_res" >> "$LOG"
+        restart_ui
+        old_res="$current_res"
     fi
 done
 EOF
 chmod +x /usr/local/bin/taaos-display-watcher
+
+# Also create a manual resolution script for users
+cat > /usr/local/bin/taaos-display-fix << 'EOF'
+#!/bin/bash
+# Quick fix: apply best resolution now
+OUTPUT=$(xrandr | grep ' connected' | head -1 | awk '{print $1}')
+echo "[TaaOS] Fixing display on output: $OUTPUT"
+xrandr --output "$OUTPUT" --auto
+# Restart UI
+if [ -f "$HOME/.config/polybar/launch.sh" ]; then
+    bash "$HOME/.config/polybar/launch.sh" &
+fi
+if pgrep -x plank >/dev/null 2>&1; then
+    killall -q plank; sleep 0.5; plank & disown
+fi
+echo "[TaaOS] Display fixed: $(xrandr | grep '*' | awk '{print $1}' | head -1)"
+EOF
+chmod +x /usr/local/bin/taaos-display-fix
+
+# System-wide XDG autostart for display watcher
+mkdir -p /etc/xdg/autostart
+cat > /etc/xdg/autostart/taaos-display-watcher.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Exec=bash -c "sleep 3 && taaos-display-watcher"
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=TaaOS Display Watcher
+Comment=Dynamic resolution + VirtualBox display support
+EOF
 
 mkdir -p /etc/skel/.config/autostart
 cat > /etc/skel/.config/autostart/taaos-display-watcher.desktop << 'EOF'

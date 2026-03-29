@@ -582,6 +582,25 @@ SLIDESHOW_QML
     else
         echo "[INSTALLER] ImageMagick not available, placeholder images not created"
     fi
+
+    # CRITICAL: Ensure ALL branding images exist (Calamares FATALS if any are missing)
+    # Create minimal valid 1x1 PNG fallbacks for any missing images
+    _create_fallback_png() {
+        local target="$1"
+        if [ ! -f "$target" ]; then
+            echo "[INSTALLER] Creating fallback image: $target"
+            # Minimal valid 1x1 blue PNG (67 bytes)
+            printf '\x89PNG\r\n\x1a\n' > "$target"
+            printf '\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02' >> "$target"
+            printf '\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx' >> "$target"
+            printf '\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N' >> "$target"
+            printf '\x00\x00\x00\x00IEND\xaeB\x60\x82' >> "$target"
+        fi
+    }
+    _create_fallback_png "${BRAND_DIR}/logo.png"
+    _create_fallback_png "${BRAND_DIR}/welcome.png"
+    
+    echo "[INSTALLER] All branding images verified"
     
     echo "[INSTALLER] Branding configured"
 }

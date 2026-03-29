@@ -85,9 +85,8 @@ smartmontools
 lm-sensors
 
 # VM Guest Support (dynamic display scaling, clipboard, drag & drop)
-# NOTE: VirtualBox guest additions are NOT in Debian 12 repos.
-# In-kernel modules (vboxguest, vboxvideo, vboxsf) + taaos-display-watcher
-# handle VirtualBox display auto-resize via xrandr polling.
+# X11 driver for VirtualBox VMSVGA controller (enables xrandr resolution switching)
+xserver-xorg-video-vmware
 
 # SPICE/QEMU Guest Support (for KVM/QEMU VMs)
 spice-vdagent
