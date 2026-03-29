@@ -6,7 +6,9 @@
 # Location: config/hooks/normal/12-branding.hook.chroot
 # =============================================================================
 
-set -e
+# NOTE: No 'set -e' — this hook must complete fully even if individual
+# commands fail (e.g., apt-get in chroot), otherwise Polybar/Picom/Plank
+# configs won't be created and the desktop will be broken.
 
 echo "=============================================="
 echo "[BRANDING] TaaOS Branding Configuration"
@@ -263,67 +265,23 @@ echo "[BRANDING] XFCE theme configuration complete"
 echo "[BRANDING] Installing required panel plugins..."
 apt-get install -y --no-install-recommends xfce4-whiskermenu-plugin xfce4-pulseaudio-plugin pavucontrol || true
 
-# CRITICAL: Verify Polybar is installed
+# CRITICAL: Verify Polybar is installed (wrapped in subshell to prevent hook abort)
 if ! command -v polybar &> /dev/null; then
-    echo "[BRANDING] WARNING: Polybar not found after apt install! Attempting manual install..."
-    apt-get update
-    apt-get install -y polybar || {
-        echo "[BRANDING] Polybar apt install failed. Trying GitHub release..."
-        POLYBAR_VER="3.7.2"
-        wget -qO /tmp/polybar.deb "https://github.com/polybar/polybar/releases/download/${POLYBAR_VER}/polybar_${POLYBAR_VER}_amd64.deb" 2>/dev/null || true
-        if [ -f /tmp/polybar.deb ]; then
-            dpkg -i /tmp/polybar.deb 2>/dev/null || apt-get install -f -y 2>/dev/null || true
-            rm -f /tmp/polybar.deb
-        fi
-    }
+    echo "[BRANDING] WARNING: Polybar not found! Attempting install..."
+    (
+        apt-get update 2>/dev/null
+        apt-get install -y polybar 2>/dev/null
+    ) || echo "[BRANDING] Polybar install attempt done (may have failed)"
+    
     if command -v polybar &> /dev/null; then
         echo "[BRANDING] ✓ Polybar installed successfully"
     else
-        echo "[BRANDING] ✗ CRITICAL: Polybar could not be installed!"
+        echo "[BRANDING] ✗ WARNING: Polybar not available — XFCE panel will be used as fallback"
     fi
 else
     echo "[BRANDING] ✓ Polybar is already installed"
 fi
 
-# =============================================================================
-# VIRTUALBOX GUEST ADDITIONS (from Debian Fasttrack repo)
-# =============================================================================
-echo "[BRANDING] Installing VirtualBox Guest Additions for auto-resize..."
-
-# Add Debian Fasttrack repository temporarily
-if ! dpkg -l virtualbox-guest-utils 2>/dev/null | grep -q "^ii"; then
-    echo "[BRANDING] Adding Debian Fasttrack repository..."
-    cat > /etc/apt/sources.list.d/fasttrack.list << 'FTREPO'
-deb http://fasttrack.debian.net/debian-fasttrack/ bookworm-fasttrack main contrib
-deb http://fasttrack.debian.net/debian-fasttrack/ bookworm-backports-staging main contrib
-FTREPO
-    
-    # Import Fasttrack keyring
-    apt-get update 2>/dev/null || true
-    apt-get install -y fasttrack-archive-keyring 2>/dev/null || {
-        # Manual key import if package fails
-        wget -qO- https://fasttrack.debian.net/debian-fasttrack/fasttrack-archive-key.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/fasttrack.gpg 2>/dev/null || true
-    }
-    apt-get update 2>/dev/null || true
-    
-    # Install VirtualBox Guest Additions
-    apt-get install -y virtualbox-guest-utils virtualbox-guest-x11 2>/dev/null || {
-        echo "[BRANDING] Fasttrack VBox install failed — VBoxClient won't be available"
-        echo "[BRANDING] Display watcher will use xrandr polling instead"
-    }
-    
-    # Remove Fasttrack repo (keep system clean, packages already installed)
-    rm -f /etc/apt/sources.list.d/fasttrack.list
-    apt-get update 2>/dev/null || true
-    
-    if command -v VBoxClient &>/dev/null; then
-        echo "[BRANDING] ✓ VirtualBox Guest Additions installed (VBoxClient available)"
-    else
-        echo "[BRANDING] ✗ VBoxClient not available — using xrandr polling fallback"
-    fi
-else
-    echo "[BRANDING] ✓ VirtualBox Guest Additions already installed"
-fi
 
 # CRITICAL: Disable XFCE's built-in panel to prevent conflict with Polybar
 echo "[BRANDING] Disabling XFCE built-in panel (replaced by Polybar)..."

@@ -6,7 +6,7 @@
 # including: fstab, hostname, network, users, services, and hardware support
 # =============================================================================
 
-set -e
+# NOTE: No 'set -e' — this hook must complete fully
 
 echo "=============================================="
 echo "[OS-CONFIG] TaaOS Full OS Configuration"
@@ -459,7 +459,7 @@ Type=Application
 Name=Install TaaOS
 Comment=Install TaaOS to your system
 Icon=calamares
-Exec=sudo /usr/local/bin/taaos-install
+Exec=pkexec /usr/local/bin/taaos-install
 Categories=System;
 Terminal=false
 StartupNotify=true

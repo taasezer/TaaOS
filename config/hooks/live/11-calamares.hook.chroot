@@ -6,7 +6,7 @@
 # duplication. The full Calamares configuration is maintained in that script.
 # =============================================================================
 
-set -e
+# NOTE: No 'set -e' — setup-calamares.sh handles errors internally
 
 echo "=============================================="
 echo "[CALAMARES] TaaOS Installer Configuration"

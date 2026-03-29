@@ -8,7 +8,7 @@
 # Executed during: chroot stage of live-build (runs last due to 99- prefix)
 # =============================================================================
 
-set -euo pipefail
+# NOTE: No 'set -e' — this hook must complete fully
 
 # -----------------------------------------------------------------------------
 # Color Output Helpers
