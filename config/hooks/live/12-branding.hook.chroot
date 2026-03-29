@@ -283,18 +283,10 @@ else
 fi
 
 
-# CRITICAL: Disable XFCE's built-in panel to prevent conflict with Polybar
-echo "[BRANDING] Disabling XFCE built-in panel (replaced by Polybar)..."
-mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml
-cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml << 'PANELXML'
-<?xml version="1.0" encoding="UTF-8"?>
-<channel name="xfce4-panel" version="1.0">
-  <property name="configver" type="int" value="2"/>
-  <property name="panels" type="array">
-  </property>
-</channel>
-PANELXML
-echo "[BRANDING] XFCE panel disabled via xfce4-panel.xml"
+# CRITICAL: We let Polybar's launch.sh kill the XFCE panel dynamically,
+# rather than enforcing an empty XML which might break XFCE session startup.
+echo "[BRANDING] XFCE panel will be managed dynamically by Polybar launcher"
+
 
 # Set up TaaOS Native Polybar
 mkdir -p /etc/skel/.config/polybar
@@ -320,9 +312,9 @@ module-margin = 1
 separator = |  
 separator-foreground = ${colors.disabled}
 
-font-0 = "Open Sans:weight=regular:size=10;3"
+font-0 = "Fira Sans:weight=regular:size=10;3"
 font-1 = "Fira Code:size=10;3"
-font-2 = "Noto Sans:size=12;3"
+font-2 = "Noto Sans Symbols 2:size=12;3"
 
 modules-left = menu xworkspaces xwindow
 modules-center = date
@@ -475,18 +467,8 @@ Name=Polybar
 Comment=Starts the native TaaOS Polybar
 EOF
 
-# CRITICAL: Also add system-wide XDG autostart (more reliable than user-level)
-mkdir -p /etc/xdg/autostart
-cat > /etc/xdg/autostart/taaos-polybar.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Exec=bash -c "sleep 2 && $HOME/.config/polybar/launch.sh"
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-Name=TaaOS Polybar
-Comment=TaaOS top panel (system-wide autostart)
-EOF
+# Polybar system-wide autostart REMOVED to prevent race conditions with
+# user-level autostart (which was causing Polybar to kill itself on boot).
 
 # =============================================================================
 # TAAOS DISPLAY WATCHER (Dynamic Resolution + VirtualBox Support)
