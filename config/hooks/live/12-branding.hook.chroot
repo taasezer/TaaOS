@@ -169,6 +169,22 @@ if [ ! -d "/usr/share/icons/capitaine-cursors" ]; then
     wget -qO- https://github.com/keeferrourke/capitaine-cursors/releases/download/r4/capitaine-cursors-r4.tar.gz | tar -xzC /usr/share/icons/ || echo "Capitaine cursors download failed"
 fi
 
+# 4. Fira Sans Font (Absolute Guarantee via Mozilla GitHub)
+if [ ! -d "/usr/share/fonts/truetype/fira" ] && ! fc-list | grep -qi "Fira Sans"; then
+    echo "[BRANDING] Downloading original Fira Sans fonts..."
+    mkdir -p /usr/share/fonts/truetype/fira
+    wget -q https://github.com/mozilla/Fira/archive/refs/tags/4.202.tar.gz -O /tmp/fira.tar.gz
+    if [ -f "/tmp/fira.tar.gz" ]; then
+        tar -xzf /tmp/fira.tar.gz -C /tmp/ || true
+        cp -r /tmp/Fira-4.202/ttf/* /usr/share/fonts/truetype/fira/ 2>/dev/null || true
+        rm -rf /tmp/Fira-4.202 /tmp/fira.tar.gz
+        fc-cache -fv >/dev/null 2>&1 || true
+        echo "[BRANDING] Fira Sans fonts installed."
+    else
+        echo "[BRANDING] WARNING: Could not download Fira Sans."
+    fi
+fi
+
 cd /
 
 # XFCE Settings - Window Manager (xfwm4)
@@ -315,6 +331,7 @@ separator-foreground = ${colors.disabled}
 font-0 = "Fira Sans:weight=regular:size=10;3"
 font-1 = "Fira Code:size=10;3"
 font-2 = "Noto Sans Symbols 2:size=12;3"
+font-3 = "FontAwesome:size=11;3"
 
 modules-left = menu xworkspaces xwindow
 modules-center = date
@@ -363,11 +380,11 @@ interval = 5
 format-volume = <ramp-volume> <label-volume>
 label-volume = %percentage%%
 label-volume-foreground = ${colors.foreground}
-label-muted = MUTED
+label-muted =  MUTED
 label-muted-foreground = ${colors.disabled}
-ramp-volume-0 = VOL
-ramp-volume-1 = VOL
-ramp-volume-2 = VOL
+ramp-volume-0 = 
+ramp-volume-1 = 
+ramp-volume-2 = 
 click-right = pavucontrol &
 
 [module/bluetooth]
@@ -398,7 +415,7 @@ label-foreground = ${colors.foreground}
 
 [module/powermenu]
 type = custom/text
-content = " ⏻ "
+content = "  "
 content-foreground = ${colors.alert}
 click-left = xfce4-session-logout &
 

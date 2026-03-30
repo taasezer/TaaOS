@@ -14,14 +14,12 @@ papirus-icon-theme
 # Fira Code Font (monospace with ligatures)
 fonts-firacode
 
-# Fira Sans (Required by Polybar)
-fonts-fira
-
 # Sans-serif fonts for Polybar/UI (Fira Sans alternative)
 fonts-open-sans
 
 # Noto fonts for symbol/icon support in Polybar
 fonts-noto-core
+fonts-font-awesome
 
 # Wallpaper Manager
 nitrogen
