@@ -114,8 +114,9 @@ bat
 # =============================================================================
 # Essential command-line tools and development packages.
 
-# Privilege Escalation
+# Privilege Escalation & Authentication
 sudo
+policykit-1-gnome
 
 # Download Utilities
 wget

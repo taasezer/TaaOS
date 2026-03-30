@@ -612,38 +612,17 @@ create_desktop_entry() {
     cat > /usr/local/bin/taaos-install << 'WRAPPER_SCRIPT'
 #!/bin/bash
 # TaaOS Installer Launcher
-# Fixes unpackfs.conf dynamically then launches Calamares
+# Absolute Kali-style fix for X11 Live USB installer authentication:
+xhost +local:root
 echo "[TaaOS] Preparing installer..."
 if [ -f /usr/lib/taaos/fix-unpackfs.sh ]; then
     bash /usr/lib/taaos/fix-unpackfs.sh 2>/dev/null || true
 fi
-exec calamares "$@"
+exec sudo -E calamares "$@"
 WRAPPER_SCRIPT
     chmod +x /usr/local/bin/taaos-install
 
-    # PolicyKit rule: allow anyone in sudo group to run calamares without password
-    mkdir -p /usr/share/polkit-1/actions
-    cat > /usr/share/polkit-1/actions/org.taaos.calamares.policy << 'POLKIT_POLICY'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE policyconfig PUBLIC
- "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
- "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
-<policyconfig>
-  <action id="org.taaos.calamares.install">
-    <description>Run TaaOS Installer</description>
-    <message>Authentication is required to run the TaaOS installer</message>
-    <defaults>
-      <allow_any>auth_admin</allow_any>
-      <allow_inactive>auth_admin</allow_inactive>
-      <allow_active>yes</allow_active>
-    </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/taaos-install</annotate>
-    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
-  </action>
-</policyconfig>
-POLKIT_POLICY
-
-    # Desktop entry for installer — uses pkexec with our PolicyKit rule
+    # Desktop entry for installer — runs the wrapper which escalates to root securely via sudo
     mkdir -p /usr/share/applications
     cat > /usr/share/applications/taaos-installer.desktop << 'INSTALLER_DESKTOP'
 [Desktop Entry]
@@ -654,11 +633,11 @@ Name[tr]=TaaOS Kur
 Comment=Install TaaOS to your system
 Comment[tr]=TaaOS'u sisteminize kurun
 Icon=calamares
-Exec=pkexec /usr/local/bin/taaos-install
+Exec=/usr/local/bin/taaos-install
 Categories=System;
 Terminal=false
 StartupNotify=true
-X-AppStream-Ignore=true
+StartupWMClass=calamares
 INSTALLER_DESKTOP
 
     # Copy to desktop for live session
