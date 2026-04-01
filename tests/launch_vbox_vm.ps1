@@ -30,11 +30,9 @@ Write-Host "Creating Virtual Machine..."
 & $vbox createhd --filename $vdiPath --size 45000 --format VDI
 
 Write-Host "Configuring Storage..."
-& $vbox storagectl $vmName --name "SATA Controller" --add sata --controller IntelAhci
-& $vbox storageattach $vmName --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium $vdiPath
-
 & $vbox storagectl $vmName --name "IDE Controller" --add ide
-& $vbox storageattach $vmName --storagectl "IDE Controller" --port 0 --device 0 --type dvddrive --medium $isoPath
+& $vbox storageattach $vmName --storagectl "IDE Controller" --port 0 --device 0 --type hdd --medium $vdiPath
+& $vbox storageattach $vmName --storagectl "IDE Controller" --port 1 --device 0 --type dvddrive --medium $isoPath
 
 # CRITICAL: Set boot order — HDD first, then DVD
 # This ensures that after installation, the VM boots from the installed system

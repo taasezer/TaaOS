@@ -50,7 +50,11 @@ create_user() {
     # Add user to groups
     usermod -aG sudo,docker,video engineer || log_warning "Some groups may not exist yet"
 
-    log_success "User 'engineer' created with groups: sudo, docker, video"
+    # Give passwordless sudo to prevent background scripts from freezing on password prompts
+    echo "engineer ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/engineer
+    chmod 0440 /etc/sudoers.d/engineer
+
+    log_success "User 'engineer' created with groups: sudo, docker, video and NOPASSWD rights"
 }
 
 # =============================================================================

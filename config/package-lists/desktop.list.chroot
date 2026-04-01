@@ -50,6 +50,10 @@ rofi
 # Terminal Emulator
 xfce4-terminal
 
+# Display Management & Utility Scripts
+pciutils
+x11-xserver-utils
+
 # File Manager and Plugins
 thunar
 thunar-archive-plugin
