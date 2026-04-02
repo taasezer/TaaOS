@@ -612,12 +612,23 @@ create_desktop_entry() {
     cat > /usr/local/bin/taaos-install << 'WRAPPER_SCRIPT'
 #!/bin/bash
 # TaaOS Installer Launcher
-# Absolute Kali-style fix for X11 Live USB installer authentication:
 xhost +local:root
 echo "[TaaOS] Preparing installer..."
-if [ -f /usr/lib/taaos/fix-unpackfs.sh ]; then
-    bash /usr/lib/taaos/fix-unpackfs.sh 2>/dev/null || true
+
+# Absolute failsafe for UnpackFS
+SQ_PATH=$(find /run /lib /media -type f -name "*.squashfs" 2>/dev/null | head -n 1)
+if [ -n "$SQ_PATH" ]; then
+    echo "[TaaOS] Found live filesystem at: $SQ_PATH"
+    mkdir -p /etc/calamares/modules
+    cat > /etc/calamares/modules/unpackfs.conf << UNPACKEOF
+---
+unpack:
+    -   source: "$SQ_PATH"
+        sourcefs: "squashfs"
+        destination: ""
+UNPACKEOF
 fi
+
 exec sudo -E calamares "$@"
 WRAPPER_SCRIPT
     chmod +x /usr/local/bin/taaos-install
@@ -626,11 +637,10 @@ WRAPPER_SCRIPT
     mkdir -p /usr/share/applications
     cat > /usr/share/applications/taaos-installer.desktop << 'INSTALLER_DESKTOP'
 [Desktop Entry]
-Version=1.0
 Type=Application
-Name=Install TaaOS
-Name[tr]=TaaOS Kur
-Comment=Install TaaOS to your system
+Version=1.0
+Name=Sistemi Kur
+Comment=TaaOS İşletim Sistemini Kur
 Comment[tr]=TaaOS'u sisteminize kurun
 Icon=calamares
 Exec=/usr/local/bin/taaos-install
