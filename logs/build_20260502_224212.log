@@ -1,0 +1,26 @@
+[2026-05-02 22:42:12] [INFO] Log file: ./logs/build_20260502_224212.log
+[2026-05-02 22:42:12] [PHASE] ═══════════════════════════════════════════════════
+[2026-05-02 22:42:12] [PHASE]   PRE-FLIGHT CHECKS
+[2026-05-02 22:42:12] [PHASE] ═══════════════════════════════════════════════════
+[2026-05-02 22:42:13] [SUCCESS] Docker is available
+[2026-05-02 22:42:13] [SUCCESS] Disk space OK: 101GB available
+[2026-05-02 22:42:13] [SUCCESS] Pre-flight checks passed
+[2026-05-02 22:42:13] [PHASE] ═══════════════════════════════════════════════════
+[2026-05-02 22:42:13] [PHASE]   PHASE 1/6: CLEANUP
+[2026-05-02 22:42:13] [PHASE] ═══════════════════════════════════════════════════
+[2026-05-02 22:42:13] [INFO] Cleaning up old containers...
+[2026-05-02 22:42:13] [PHASE] ═══════════════════════════════════════════════════
+[2026-05-02 22:42:13] [PHASE]   PHASE 2/6: BUILD DOCKER IMAGE
+[2026-05-02 22:42:13] [PHASE] ═══════════════════════════════════════════════════
+[2026-05-02 22:42:13] [INFO] Building Docker image: taaos-builder:torvalds...
+[2026-05-02 22:42:15] [SUCCESS] Docker image built successfully
+[2026-05-02 22:42:15] [PHASE] ═══════════════════════════════════════════════════
+[2026-05-02 22:42:15] [PHASE]   PHASE 3/6: START ISOLATED CONTAINER
+[2026-05-02 22:42:15] [PHASE] ═══════════════════════════════════════════════════
+[2026-05-02 22:42:15] [INFO] Starting container: taaos_factory_1777750932...
+[2026-05-02 22:42:16] [SUCCESS] Container started successfully
+[2026-05-02 22:42:16] [PHASE] ═══════════════════════════════════════════════════
+[2026-05-02 22:42:16] [PHASE]   PHASE 4/6: SURGICAL FILE INJECTION
+[2026-05-02 22:42:16] [PHASE] ═══════════════════════════════════════════════════
+[2026-05-02 22:42:16] [INFO] Creating directory structure inside container...
+[2026-05-02 23:29:41] [WARN] Cleaning up container: taaos_factory_1777750932

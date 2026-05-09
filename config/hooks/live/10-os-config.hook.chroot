@@ -445,21 +445,28 @@ rm -f /usr/share/applications/install-debian.desktop 2>/dev/null || true
 # Ensure TaaOS Installer (Calamares) is clearly visible on the Desktop
 echo "[OS-CONFIG] Setting up Calamares (Install TaaOS) shortcut on the Desktop..."
 mkdir -p /etc/skel/Desktop
-# Use our custom installer desktop entry (created by setup-calamares.sh)
-if [ -f /usr/share/applications/taaos-installer.desktop ]; then
+
+# Priority 0: If includes.chroot already placed a working install-taaos.desktop, keep it
+if [ -f /etc/skel/Desktop/install-taaos.desktop ] && grep -q "calamares" /etc/skel/Desktop/install-taaos.desktop 2>/dev/null; then
+    echo "[OS-CONFIG] install-taaos.desktop already exists (from includes.chroot), keeping it."
+# Priority 1: Use custom taaos-installer if setup-calamares.sh created it
+elif [ -f /usr/share/applications/taaos-installer.desktop ]; then
     cp /usr/share/applications/taaos-installer.desktop /etc/skel/Desktop/install-taaos.desktop
+# Priority 2: Use default calamares.desktop
 elif [ -f /usr/share/applications/calamares.desktop ]; then
     cp /usr/share/applications/calamares.desktop /etc/skel/Desktop/install-taaos.desktop
 else
-    # Create a fallback desktop entry
+    # Fallback: create a desktop entry pointing directly to calamares
     cat > /etc/skel/Desktop/install-taaos.desktop << 'FALLBACK_DESKTOP'
 [Desktop Entry]
 Version=1.0
 Type=Application
 Name=Install TaaOS
-Comment=Install TaaOS to your system
+Name[tr]=TaaOS Kurulumu
+Comment=Install TaaOS to your computer
+Comment[tr]=TaaOS'u bilgisayarınıza kurun
 Icon=calamares
-Exec=pkexec /usr/local/bin/taaos-install
+Exec=pkexec calamares
 Categories=System;
 Terminal=false
 StartupNotify=true

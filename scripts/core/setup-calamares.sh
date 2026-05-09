@@ -612,7 +612,7 @@ create_desktop_entry() {
     cat > /usr/local/bin/taaos-install << 'WRAPPER_SCRIPT'
 #!/bin/bash
 # TaaOS Installer Launcher
-xhost +local:root
+xhost +local:root 2>/dev/null || true
 echo "[TaaOS] Preparing installer..."
 
 # Absolute failsafe for UnpackFS
@@ -629,7 +629,12 @@ unpack:
 UNPACKEOF
 fi
 
-exec sudo -E calamares "$@"
+# Run Calamares with sudo, pkexec as fallback
+if command -v pkexec &> /dev/null; then
+    exec pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY calamares "$@"
+else
+    exec sudo -E calamares "$@"
+fi
 WRAPPER_SCRIPT
     chmod +x /usr/local/bin/taaos-install
 
@@ -655,7 +660,17 @@ INSTALLER_DESKTOP
     cp /usr/share/applications/taaos-installer.desktop /etc/skel/Desktop/
     chmod +x /etc/skel/Desktop/taaos-installer.desktop
     
-    echo "[INSTALLER] Desktop entry created"
+    # SIKINTI ÇÖZÜCÜ: Debian'ın ve Eski TaaOS'un Çiftleyen Kısayollarını Kesin Olarak Yok Et
+    rm -f /etc/skel/Desktop/install-debian.desktop 2>/dev/null || true
+    rm -f /usr/share/applications/install-debian.desktop 2>/dev/null || true
+    rm -f /etc/skel/Desktop/debian-installer-launcher.desktop 2>/dev/null || true
+    rm -f /usr/share/applications/debian-installer-launcher.desktop 2>/dev/null || true
+    rm -f /etc/skel/Desktop/install-taaos.desktop 2>/dev/null || true
+    rm -f /usr/share/applications/install-taaos.desktop 2>/dev/null || true
+    rm -f /etc/skel/Desktop/calamares.desktop 2>/dev/null || true
+    rm -f /usr/share/applications/calamares.desktop 2>/dev/null || true
+    
+    echo "[INSTALLER] Desktop entry created and duplicates purged"
 }
 
 # -----------------------------------------------------------------------------
