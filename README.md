@@ -115,6 +115,22 @@ TaaOS is built in a Docker-based isolated environment via the `build.sh` script.
 *   **Portainer**: `http://localhost:9000`
 *   **Cockpit**: `https://localhost:9090`
 
+## Project Diagram
+-----------------------------------------------------------------------------------------------------------------------------------------
+<img width="2464" height="3016" alt="diagram" src="https://github.com/user-attachments/assets/957c2b28-673b-4b17-83a6-378d8de133da" />
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+## Screenshots
+---
+### First Screen
+<img width="808" height="603" alt="Ekran görüntüsü 2026-03-30 013647" src="https://github.com/user-attachments/assets/19c1db20-c304-4ff2-a33b-21b8df891d21" />
+
+---
+### Terminal
+
+<img width="800" height="403" alt="image" src="https://github.com/user-attachments/assets/97d29ab5-37d7-4421-8a1c-4d99428c6d72" />
+
 ---
 
 # TaaOS (Türkçe)
