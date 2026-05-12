@@ -65,7 +65,40 @@ else
     echo -e "  ${GREEN}✓ Sistem güncel${NC}"
 fi
 
-# 6. Uptime
+# 6. TaaNOS (AI Engine)
+echo -e "\n${YELLOW}[TAANOS - AI ENGINE]${NC}"
+
+# Check TaaNOS binary
+if [ -x /usr/local/bin/taanos ]; then
+    TAANOS_VER=$(taanos version 2>/dev/null | head -1 || echo "unknown")
+    echo -e "  ${GREEN}✓${NC} TaaNOS kurulu: $TAANOS_VER"
+else
+    echo -e "  ${RED}✗ TaaNOS binary bulunamadı!${NC}"
+    echo -e "  Çalıştır: ${CYAN}sudo wget -qO /usr/local/bin/taanos https://github.com/taasezer/TaaNOS/releases/latest/download/taanos-linux-amd64 && sudo chmod +x /usr/local/bin/taanos${NC}"
+fi
+
+# Check Ollama service
+if systemctl is-active --quiet ollama 2>/dev/null; then
+    echo -e "  ${GREEN}✓${NC} Ollama servisi: aktif"
+elif systemctl is-enabled --quiet ollama 2>/dev/null; then
+    echo -e "  ${YELLOW}○${NC} Ollama servisi: yüklü ama çalışmıyor"
+    echo -e "  Çalıştır: ${CYAN}sudo systemctl start ollama${NC}"
+else
+    echo -e "  ${RED}✗ Ollama servisi bulunamadı${NC}"
+fi
+
+# Check if any model is configured
+if command -v ollama &> /dev/null; then
+    MODEL_COUNT=$(ollama list 2>/dev/null | tail -n +2 | wc -l || echo "0")
+    if [ "$MODEL_COUNT" -gt 0 ]; then
+        echo -e "  ${GREEN}✓${NC} $MODEL_COUNT AI model(ler) yüklü"
+    else
+        echo -e "  ${YELLOW}○${NC} Henüz AI modeli yok"
+        echo -e "  Çalıştır: ${CYAN}taanos init${NC}"
+    fi
+fi
+
+# 7. Uptime
 echo -e "\n${YELLOW}[SİSTEM]${NC}"
 echo "  Uptime: $(uptime -p | sed 's/up //')"
 echo "  Kernel: $(uname -r)"

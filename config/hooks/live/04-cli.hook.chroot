@@ -151,7 +151,7 @@ alias cpuinfo='lscpu'
 
 # TaaOS specific
 alias health='health-check'
-alias ai='natural'
+alias ai='taanos'
 
 # Docker shortcuts
 alias dps='docker ps'

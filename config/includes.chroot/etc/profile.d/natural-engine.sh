@@ -1,15 +1,11 @@
-# TaaOS Natural Engine Aliases
+# TaaOS Natural Engine (TaaNOS) Aliases
 # Source this file in .bashrc or .zshrc
 
-# Natural Engine shortcuts
-alias n='natural'
-alias natural='/usr/local/bin/natural'
-alias nchat='natural chat'
-alias nexplain='natural explain'
+# Natural Engine shortcuts — all point to TaaNOS binary
+alias natural='taanos'
+alias n='taanos'
+alias ai='taanos'
+alias ask='taanos'
 
-# AI model shortcuts
-alias ai='natural'
-alias ask='natural'
-
-# Quick commands
-alias "?"='natural'
+# Quick command shortcut
+alias "?"='taanos'

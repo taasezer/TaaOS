@@ -495,7 +495,7 @@ Presentation {
                 }
                 
                 Text {
-                    text: "Natural Engine - translate plain English\nto Linux commands using AI"
+                    text: "TaaNOS - translate plain English\nto Linux commands using AI"
                     color: "#ffffff"
                     font.pixelSize: 20
                     horizontalAlignment: Text.AlignHCenter

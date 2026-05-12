@@ -350,8 +350,10 @@ show_commands() {
   taaos-rescue                Recovery menu
   taaos-health-check          System health
 
-## AI Assistant
-  natural-engine              Start TaaOS Natural Engine
+## AI Assistant (TaaNOS)
+  taanos                      Start TaaNOS AI Assistant
+  taanos init                 First-time model setup
+  natural                     Alias for taanos
 
 ## Help
   taaos-help                  This help system
@@ -361,36 +363,44 @@ EOF
 show_natural_engine() {
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}  TAAOS AI ASSISTANT (NATURAL ENGINE)${NC}"
+    echo -e "${CYAN}  TAAOS AI ASSISTANT (TaaNOS)${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     
     cat << 'EOF'
-# TaaOS Natural Engine
+# TaaNOS — Natural Engine
 
-TaaOS comes with a built-in AI assistant powered by Ollama. It can convert
-natural language into safe, executable bash commands, explain commands,
-and provide interactive terminal coaching.
+TaaOS comes with TaaNOS, a deterministic AI-powered CLI system.
+Unlike standard AI assistants, TaaNOS uses AI only for intent
+extraction and relies on a hardcoded, safe action registry.
+
+## First-Time Setup
+```bash
+taanos init                   # Configure Ollama + select model
+```
 
 ## Basic Usage
 Type what you want to do in plain English (or Turkish):
 ```bash
-natural-engine "show me my large files"
-natural-engine "açık portları listele"
+taanos install nginx
+taanos "açık portları listele"
+natural "show me my large files"   # alias for taanos
 ```
 
-## Chat & Explain
+## Execution Modes
 ```bash
-natural-engine chat           # Start an interactive AI chat session
-natural-engine explain "ls -la" # Explain what a linux command does
+taanos -m explain install nginx    # Show plan without executing
+taanos -m auto install nginx       # Auto-execute after confirmation
+taanos -m guided install nginx     # Step-by-step (default)
 ```
 
-## Advanced Settings & Models
-You can change the AI model using the --model flag. (Default is 'phi').
-If the model doesn't exist, TaaOS will automatically download it.
+## Commands
 ```bash
-natural-engine --model llama2 "how to secure ssh?"
-natural-engine --model codellama chat
+taanos status                 # View system & AI status
+taanos history                # Show past operations
+taanos model                  # View or change AI model
+taanos config                 # Show configuration
+taanos version                # Show version info
 ```
 EOF
 }
@@ -489,7 +499,7 @@ if [[ "${1:-}" != "" ]]; then
         trouble*|fix) show_troubleshooting ;;
         cmd|command*) show_commands ;;
         faq) show_faq ;;
-        ai|natural|natural-engine) show_natural_engine ;;
+        ai|natural|natural-engine|taanos) show_natural_engine ;;
         search) shift; search_docs "$@" ;;
         --help|-h) 
             echo "Usage: taaos-help [topic]"

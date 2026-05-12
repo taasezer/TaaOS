@@ -104,7 +104,7 @@ install_python_deps() {
         click \
         || log_warning "Utility libs install failed, continuing..."
     
-    # Step 6: Install ollama and rich for AI integration
+    # Step 6: Install ollama and rich (useful for users' own Python AI projects)
     log_info "Installing ollama, rich from PyPI..."
     pip3 install --break-system-packages ollama rich || log_warning "ollama/rich install failed, continuing..."
     
@@ -136,448 +136,57 @@ install_ollama() {
 }
 
 # =============================================================================
-# SECTION 3: NATURAL ENGINE APPLICATION
+# SECTION 3: TAANOS (NATURAL ENGINE) INSTALLATION
 # =============================================================================
-create_natural_engine() {
-    log_ai "Creating Natural Engine application..."
+install_taanos() {
+    log_ai "Installing TaaNOS (Natural Engine)..."
 
-    # Create the Natural Engine Python script
-    cat > /usr/local/bin/natural << 'NATURAL_ENGINE_EOF'
-#!/usr/bin/env python3
-# =============================================================================
-# TaaOS Natural Engine - AI-Powered Command Translator
-# =============================================================================
-# Translates natural language requests into Linux bash commands using Ollama.
-# Usage: natural "your request in plain English"
-# Features: Auto-sudo, file save, safety guardrails
-# =============================================================================
+    # Primary URL: raw binary from repo (always exists)
+    local TAANOS_RAW="https://raw.githubusercontent.com/taasezer/TaaNOS/main/taanos-linux"
+    # Fallback URL: GitHub release asset (if user uploads binaries to releases)
+    local TAANOS_RELEASE="https://github.com/taasezer/TaaNOS/releases/latest/download/taanos-linux-amd64"
 
-import sys
-import subprocess
-import os
+    log_info "Downloading TaaNOS binary from GitHub..."
+    local download_ok=false
 
-try:
-    import ollama
-    from rich.console import Console
-    from rich.panel import Panel
-    from rich.syntax import Syntax
-    from rich.prompt import Confirm, Prompt
-    from rich.text import Text
-    from rich.markdown import Markdown
-    from rich import box as rich_box
-except ImportError as e:
-    print(f"Error: Missing dependency - {e}")
-    print("Please ensure ollama and rich are installed:")
-    print("  pip3 install ollama rich requests")
-    sys.exit(1)
+    # Try release URL first (preferred, versioned)
+    if command -v wget &> /dev/null; then
+        if wget -qO /usr/local/bin/taanos "$TAANOS_RELEASE" 2>/dev/null; then
+            download_ok=true
+        elif wget -qO /usr/local/bin/taanos "$TAANOS_RAW" 2>/dev/null; then
+            download_ok=true
+        fi
+    elif command -v curl &> /dev/null; then
+        if curl -fsSL -o /usr/local/bin/taanos "$TAANOS_RELEASE" 2>/dev/null; then
+            download_ok=true
+        elif curl -fsSL -o /usr/local/bin/taanos "$TAANOS_RAW" 2>/dev/null; then
+            download_ok=true
+        fi
+    else
+        log_error "Neither wget nor curl found! Cannot download TaaNOS."
+        return 1
+    fi
 
+    if [ "$download_ok" = false ]; then
+        log_error "TaaNOS download failed from all sources!"
+        log_warning "You can install manually: taanos init"
+        return 1
+    fi
 
-def check_and_pull_model(model_name: str, console) -> bool:
-    """Check if model exists and pull if missing."""
-    import time
-    # Attempt to auto-start ollama if it's not running
-    try:
-        subprocess.run("systemctl is-active --quiet ollama || sudo systemctl start ollama >/dev/null 2>&1 || (nohup ollama serve >/dev/null 2>&1 &)", shell=True)
-        time.sleep(1.5)
-    except Exception:
-        pass
-        
-    try:
-        models = ollama.list()
-        raw_models = models.get('models', []) if isinstance(models, dict) else getattr(models, 'models', [])
-        model_names = []
-        for m in raw_models:
-            name = m.get('name', '') if isinstance(m, dict) else getattr(m, 'model', getattr(m, 'name', ''))
-            model_names.append(name)
-        
-        check_name = model_name if ":" in model_name else f"{model_name}:latest"
-        
-        if check_name not in model_names and model_name not in model_names:
-            console.print(f"[bold yellow]Model '{model_name}' not found locally. Downloading...[/bold yellow]")
-            ollama.pull(model_name)
-            console.print(f"[bold green]✓ Download complete![/bold green]\n")
-            return True
-        return True
-    except Exception as e:
-        console.print(f"[bold red]Ollama connection or model download failed:[/bold red] {e}")
-        console.print("[yellow]Tip 1:[/yellow] Make sure Ollama service is running (`systemctl start ollama`)")
-        console.print(f"[yellow]Tip 2:[/yellow] Check your internet connection to pull the '{model_name}' model.")
-        return False
+    # Make binary executable
+    chmod +x /usr/local/bin/taanos
 
+    # Create 'natural' symlink for backward compatibility
+    ln -sf /usr/local/bin/taanos /usr/local/bin/natural
 
-# Initialize Rich console
-console = Console(highlight=False)
-
-# Configuration
-DEFAULT_MODEL = "llama3.2"
-SYSTEM_PROMPT = """You are a highly capable AI assistant inside "TaaOS Natural Engine".
-You have FULL SYSTEM ACCESS with sudo privileges. You are the primary system administrator.
-
-RULES:
-1. If the user asks for a command to execute (like "update the system" or "find large files"):
-   - Output ONLY the raw bash command. NO markdown blocks (like ```bash).
-   - The system will directly execute this command with sudo.
-   - Do NOT include 'sudo' prefix — it is added automatically.
-2. If the user asks a coding question (like "write a python script" or "how does a for loop work"):
-   - Provide a helpful, well-formatted response with code blocks (```python, ```c++, etc.)
-   - The user will be offered to save the code to a file.
-3. Keep your answers focused, professional, and directly useful.
-4. You have full authority over the system. Act like the root administrator.
-
-If the request looks like a system command (e.g., "show running processes"), just output: ps aux"""
-
-
-# =============================================================================
-# DANGEROUS COMMAND DETECTION
-# =============================================================================
-BLOCKED_PATTERNS = [
-    "rm -rf /",
-    "rm -rf /*",
-    "rm -rf /home",
-    "rm -rf /etc",
-    "rm -rf /usr",
-    "rm -rf /var",
-    "rm -rf /boot",
-    "rm -rf /bin",
-    "rm -rf /sbin",
-    "rm -rf /lib",
-    "rm -rf /root",
-    "mkfs /dev/sd",
-    "mkfs /dev/nvme",
-    "dd if=/dev/zero of=/dev/sd",
-    "dd if=/dev/zero of=/dev/nvme",
-    "dd if=/dev/urandom of=/dev/sd",
-    "> /dev/sda",
-    "> /dev/nvme",
-    "chmod -R 777 /",
-    "chown -R",
-    ":(){ :|:& };:",
-]
-
-WARN_PATTERNS = [
-    "rm -rf",
-    "rm -r /",
-    "mkfs",
-    "dd if=",
-    "fdisk",
-    "parted",
-    "> /dev/",
-    "chmod 777",
-    "systemctl disable",
-    "kill -9 1",
-    "init 0",
-    "shutdown",
-    "reboot",
-]
-
-
-def is_blocked(command: str) -> bool:
-    """Check if command matches a blocked destructive pattern."""
-    cmd_lower = command.lower().strip()
-    for pattern in BLOCKED_PATTERNS:
-        if pattern.lower() in cmd_lower:
-            return True
-    return False
-
-
-def is_dangerous(command: str) -> bool:
-    """Check if command matches a warning-level pattern."""
-    cmd_lower = command.lower().strip()
-    for pattern in WARN_PATTERNS:
-        if pattern.lower() in cmd_lower:
-            return True
-    return False
-
-
-def print_banner():
-    """Display the Natural Engine banner with a Plane Tree ASCII art."""
-    W = "white"
-    B = "dark_red"
-    D = "dim"
-
-    tree = [
-        ("    .  ' * '  .   * .  ' *  .  *  '  . *  '  .   ",
-         [(0,4,D),(4,5,W),(5,7,D),(7,10,W),(10,13,D),(13,16,W),(16,18,D),(18,19,W),(19,22,D),(22,23,W),(23,26,D),(26,27,W),(27,30,D),(30,31,W),(31,34,D),(34,35,W),(35,50,D)]),
-        ("  *  ( ) * (   ) *  ( )  *  ( )  *  ( )  *  (  )  ",
-         [(0,2,D),(2,3,W),(3,5,D),(5,8,W),(8,9,D),(9,10,W),(9,14,W),(14,16,D),(16,17,W),(17,20,W),(20,22,D),(22,23,W),(23,27,W),(27,29,D),(29,30,W),(30,34,W),(34,36,D),(36,37,W),(37,41,W),(41,43,D),(43,44,W),(44,49,W),(49,52,D)]),
-        ("  * (   ) ,(   ), * (   )  (   ), * (   )  (    )  ",
-         [(0,2,D),(2,11,W),(11,12,D),(12,20,W),(20,23,D),(23,31,W),(31,33,D),(33,41,W),(41,42,D),(42,43,W),(43,44,D),(44,45,W),(45,52,W),(52,54,D)]),
-        ("   \\__/   \\___/   \\__/  \\___/   \\__/  \\____/      ",
-         [(0,3,D),(3,7,W),(7,10,D),(10,15,W),(15,18,D),(18,22,W),(22,24,D),(24,29,W),(29,32,D),(32,36,W),(32,38,D),(38,44,W),(44,54,D)]),
-        ("       `---´  `---´   `--´  `---´  `---´           ",
-         [(0,7,D),(7,12,W),(12,14,D),(14,19,W),(19,22,D),(22,26,W),(22,28,D),(28,33,W),(28,35,D),(35,40,W),(40,51,D)]),
-        ("              \\   /    |    \\  /    /               ",
-         [(0,14,D),(14,15,W),(15,18,D),(18,19,W),(18,22,D),(22,23,W),(22,27,D),(27,28,W),(27,31,D),(31,32,W),(31,35,D),(35,36,W),(36,51,D)]),
-        ("               \\ /     |     \\/    /                ",
-         [(0,15,D),(15,16,W),(15,17,D),(17,18,W),(17,22,D),(22,23,W),(22,27,D),(27,29,W),(27,33,D),(33,34,W),(33,49,D)]),
-        ("                |      |      |                     ",
-         [(0,16,D),(16,17,B),(17,23,D),(23,24,B),(24,31,D),(31,32,B),(32,53,D)]),
-        ("               |||    |||    |||                    ",
-         [(0,15,D),(15,18,B),(18,22,D),(22,25,B),(25,29,D),(29,32,B),(32,52,D)]),
-        ("              |||||  |||||  |||||                   ",
-         [(0,14,D),(14,19,B),(19,21,D),(21,26,B),(26,28,D),(28,33,B),(33,51,D)]),
-        ("             |||||||||||||||||||||                  ",
-         [(0,13,D),(13,32,B),(32,52,D)]),
-        ("               |___________|                       ",
-         [(0,15,D),(15,27,B),(27,51,D)]),
-    ]
-
-    console.print()
-    for line_text, segs in tree:
-        t = Text()
-        for s, e, style in segs:
-            t.append(line_text[s:e], style=style)
-        console.print(t)
-
-    console.print()
-    hdr = Text()
-    hdr.append("  TaaOS Natural Engine", style="bold magenta")
-    hdr.append(" — Personal AI Assistant", style="dim")
-    console.print(hdr)
-    sub = Text()
-    sub.append("  ⚡ Full System Access (sudo)", style="bold green")
-    sub.append("  |  ", style="dim")
-    sub.append("💾 Code Save", style="bold cyan")
-    console.print(sub)
-    console.print()
-
-
-def translate_to_command(user_request: str, model: str = DEFAULT_MODEL) -> str:
-    """Translate natural language to bash command using Ollama."""
-    try:
-        # Halt execution if model is not available and cannot be pulled
-        if not check_and_pull_model(model, console):
-            console.print("[bold red]Hata:[/bold red] Yapay Zeka modeli yüklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.")
-            sys.exit(1)
-        
-        response = ollama.chat(
-            model=model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_request}
-            ],
-            options={"temperature": 0.4}
-        )
-        
-        command = response["message"]["content"].strip()
-        
-        # Determine if this is a general explanation/code writing or a strict bash command
-        bash_command_mode = not ("```" in command or "def " in command or "\n" in command)
-        
-        if bash_command_mode:
-            command = command.replace("```bash", "").replace("```", "").strip()
-            command = command.replace("`", "").strip()
-            if (command.startswith('"') and command.endswith('"')) or \
-               (command.startswith("'") and command.endswith("'")):
-                command = command[1:-1]
-            return command, True
-        else:
-            return command, False
-
-    except ollama.ResponseError as e:
-        console.print(f"[red]Error:[/red] Ollama response error - {e}")
-        console.print("[yellow]Tip:[/yellow] Make sure Ollama is running: systemctl start ollama")
-        console.print(f"[yellow]Tip:[/yellow] Ensure model '{model}' is pulled: ollama pull {model}")
-        sys.exit(1)
-    except Exception as e:
-        console.print(f"[red]Error:[/red] {e}")
-        sys.exit(1)
-
-
-def extract_code_blocks(content: str):
-    """Extract code blocks from markdown-formatted AI response."""
-    blocks = []
-    lines = content.split('\n')
-    in_block = False
-    current_lang = ""
-    current_code = []
-    
-    for line in lines:
-        if line.strip().startswith('```') and not in_block:
-            in_block = True
-            current_lang = line.strip().replace('```', '').strip()
-            current_code = []
-        elif line.strip() == '```' and in_block:
-            in_block = False
-            blocks.append((current_lang, '\n'.join(current_code)))
-        elif in_block:
-            current_code.append(line)
-    
-    return blocks
-
-
-def save_code_to_file(content: str, blocks: list):
-    """Offer to save code blocks to files."""
-    if not blocks:
-        return
-    
-    console.print()
-    console.print("[bold cyan]💾 Kod bloğu tespit edildi![/bold cyan]")
-    
-    for i, (lang, code) in enumerate(blocks):
-        # Suggest file extension based on language
-        ext_map = {
-            'python': '.py', 'py': '.py',
-            'javascript': '.js', 'js': '.js',
-            'typescript': '.ts', 'ts': '.ts',
-            'bash': '.sh', 'sh': '.sh',
-            'c': '.c', 'cpp': '.cpp', 'c++': '.cpp',
-            'java': '.java', 'go': '.go',
-            'rust': '.rs', 'html': '.html',
-            'css': '.css', 'sql': '.sql',
-            'ruby': '.rb', 'php': '.php',
-        }
-        suggested_ext = ext_map.get(lang.lower(), '.txt')
-        
-        if len(blocks) > 1:
-            console.print(f"  [dim]Blok {i+1}/{len(blocks)} ({lang or 'text'})[/dim]")
-        
-        save = Confirm.ask(f"  [bold yellow]Bu kodu dosyaya kaydetmek ister misiniz?[/bold yellow]", default=True)
-        
-        if save:
-            default_name = f"natural_output{suggested_ext}"
-            filepath = Prompt.ask(
-                f"  [cyan]Dosya yolu[/cyan]",
-                default=os.path.expanduser(f"~/{default_name}")
-            )
-            
-            try:
-                # Expand ~ and resolve path
-                filepath = os.path.expanduser(filepath)
-                os.makedirs(os.path.dirname(filepath) or '.', exist_ok=True)
-                
-                with open(filepath, 'w') as f:
-                    f.write(code + '\n')
-                
-                # Make executable if it's a script
-                if suggested_ext in ['.sh', '.py']:
-                    os.chmod(filepath, 0o755)
-                
-                console.print(f"  [bold green]✓ Kaydedildi: {filepath}[/bold green]")
-            except Exception as e:
-                console.print(f"  [red]Kaydetme hatası: {e}[/red]")
-
-
-def display_command(content: str, is_command: bool):
-    """Display the generated command or code block."""
-    if is_command:
-        syntax = Syntax(content, "bash", theme="monokai", line_numbers=False)
-        panel = Panel(
-            syntax,
-            title="[bold green] Generated Command [/bold green]",
-            border_style="green",
-            box=rich_box.SIMPLE,
-            padding=(0, 1)
-        )
-        console.print(panel)
-    else:
-        panel = Panel(
-            Markdown(content),
-            title="[bold blue] AI Response [/bold blue]",
-            border_style="blue",
-            box=rich_box.SIMPLE,
-            padding=(1, 2)
-        )
-        console.print(panel)
-        
-        # Offer to save code blocks
-        blocks = extract_code_blocks(content)
-        if blocks:
-            save_code_to_file(content, blocks)
-
-
-def execute_command(command: str):
-    """Execute the command with sudo and stream output."""
-    # Auto-prefix with sudo if not already present
-    if not command.strip().startswith("sudo "):
-        exec_command = f"sudo {command}"
-    else:
-        exec_command = command
-    
-    console.print()
-    console.print(f"[bold blue]Executing (with sudo)...[/bold blue]")
-    console.print("─" * 50)
-    
-    try:
-        result = subprocess.run(
-            exec_command,
-            shell=True,
-            text=True,
-            capture_output=False
-        )
-        
-        console.print("─" * 50)
-        
-        if result.returncode == 0:
-            console.print("[bold green]✓ Command completed successfully[/bold green]")
-        else:
-            console.print(f"[bold yellow]⚠ Command exited with code {result.returncode}[/bold yellow]")
-            
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Command interrupted by user[/yellow]")
-    except Exception as e:
-        console.print(f"[red]Error executing command:[/red] {e}")
-
-
-def main():
-    """Main entry point for Natural Engine."""
-    print_banner()
-    
-    if len(sys.argv) < 2:
-        console.print("[yellow]Usage:[/yellow] natural \"your request in plain English\"")
-        console.print()
-        console.print("[dim]Examples:[/dim]")
-        console.print('  natural "show me disk usage"')
-        console.print('  natural "find all python files modified today"')
-        console.print('  natural "write a python flask hello world app"')
-        console.print('  natural "list docker containers"')
-        console.print()
-        console.print("[dim]Features:[/dim]")
-        console.print("  ⚡ Commands run with sudo automatically")
-        console.print("  💾 Code responses can be saved to file")
-        sys.exit(0)
-    
-    user_request = " ".join(sys.argv[1:])
-    
-    console.print(f"[dim]Translating:[/dim] {user_request}")
-    console.print()
-    
-    with console.status("[bold green]Thinking...[/bold green]", spinner="dots"):
-        content, is_command = translate_to_command(user_request)
-        
-    display_command(content, is_command)
-    
-    if is_command:
-        # SAFETY: Block absolutely destructive commands
-        if is_blocked(content):
-            console.print()
-            console.print("[bold red]🛑 ENGELLENDI: Bu komut kritik sistem dosyalarını yok edecek![/bold red]")
-            console.print("[bold red]   Bu komut Natural Engine tarafından çalıştırılamaz.[/bold red]")
-            return
-        
-        console.print()
-        
-        if is_dangerous(content):
-            console.print("[bold red]⚠️  UYARI: Bu komut potansiyel olarak tehlikeli![/bold red]")
-            if not Confirm.ask("[bold yellow]Yine de çalıştırmak istiyor musunuz?[/bold yellow]", default=False):
-                console.print("[yellow]İptal edildi.[/yellow]")
-                return
-        else:
-            if not Confirm.ask("[bold yellow]Bu komutu çalıştırmak istiyor musunuz?[/bold yellow]", default=True):
-                console.print("[yellow]İptal edildi.[/yellow]")
-                return
-        
-        execute_command(content)
-
-
-if __name__ == "__main__":
-    main()
-NATURAL_ENGINE_EOF
-
-    # Make the script executable
-    chmod +x /usr/local/bin/natural
-
-    log_success "Natural Engine created at /usr/local/bin/natural"
+    # Verify installation
+    if [ -x /usr/local/bin/taanos ]; then
+        log_success "TaaNOS installed at /usr/local/bin/taanos"
+        log_info "Symlink created: natural -> taanos"
+    else
+        log_error "TaaNOS installation failed!"
+        return 1
+    fi
 }
 
 # =============================================================================
@@ -662,15 +271,16 @@ create_shell_integration() {
     cat >> /etc/bash.bashrc << 'BASHRC_EOF'
 
 # =============================================================================
-# TaaOS Natural Engine Integration
+# TaaOS Natural Engine (TaaNOS) Integration
 # =============================================================================
-# Quick alias for Natural Engine
-alias n='natural'
-alias ai='natural'
+# Quick aliases for TaaNOS
+alias natural='taanos'
+alias n='taanos'
+alias ai='taanos'
 
 # Function for quick AI commands
 ask() {
-    natural "$@"
+    taanos "$@"
 }
 
 # Display TaaOS info on login
@@ -698,7 +308,7 @@ cleanup() {
 main() {
     echo ""
     echo "=================================================="
-    echo "  TaaOS Natural Engine AI Assistant Hook"
+    echo "  TaaOS Natural Engine (TaaNOS) Hook"
     echo "=================================================="
     echo ""
 
@@ -708,7 +318,9 @@ main() {
     install_ollama
     echo ""
 
-    create_natural_engine
+    # TaaNOS download is non-fatal: if it fails (no internet in chroot),
+    # the user can install it later via manual download
+    install_taanos || log_warning "TaaNOS download failed (no internet?). Install manually after boot."
     echo ""
 
     install_n8n
@@ -721,11 +333,12 @@ main() {
     echo ""
 
     echo "=================================================="
-    echo "  Natural Engine Hook completed!"
+    echo "  Natural Engine (TaaNOS) Hook completed!"
     echo "=================================================="
     echo ""
-    echo "  Usage: natural \"your request in plain English\""
-    echo "  Alias: n \"your request\" or ai \"your request\""
+    echo "  Usage: taanos \"your request\""
+    echo "  Alias: natural, n, ai, ask"
+    echo "  Init:  taanos init"
     echo ""
     echo "  n8n available at: http://localhost:5678"
     echo ""
