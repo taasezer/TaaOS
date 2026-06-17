@@ -11,7 +11,7 @@ echo "=============================================="
 echo "  TaaOS DevOps Toolchain Hook"
 echo "=============================================="
 
-SCRIPT_BASE="/build/scripts/devops"
+SCRIPT_BASE="/opt/taaos/scripts/devops"
 
 # Execute container infrastructure setup
 if [ -f "${SCRIPT_BASE}/install-containers.sh" ]; then

@@ -12,7 +12,7 @@ echo "=============================================="
 echo "[CALAMARES] TaaOS Installer Configuration"
 echo "=============================================="
 
-SCRIPT_BASE="/build/scripts/core"
+SCRIPT_BASE="/opt/taaos/scripts/core"
 
 # Delegate to the canonical setup-calamares.sh script
 if [ -f "${SCRIPT_BASE}/setup-calamares.sh" ]; then

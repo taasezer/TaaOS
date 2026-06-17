@@ -12,7 +12,7 @@ echo "  TaaOS UX Branding Hook"
 echo "=============================================="
 
 # Source and execute branding scripts
-SCRIPT_DIR="/build/scripts/ux"
+SCRIPT_DIR="/opt/taaos/scripts/ux"
 
 if [ -d "${SCRIPT_DIR}" ]; then
     # Execute branding setup

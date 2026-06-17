@@ -189,6 +189,11 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     find config/includes.chroot -type f -exec dos2unix {} \; 2>/dev/null || echo "[WARN] dos2unix conversion had issues for includes.chroot files (continuing)"
     # Convert scripts directory
     find scripts -type f -exec dos2unix {} \; 2>/dev/null || echo "[WARN] dos2unix conversion had issues for scripts files (continuing)"
+    
+    # CRITICAL FIX: Inject scripts into chroot so hooks can access them!
+    echo "Injecting scripts into chroot for hooks to access..."
+    mkdir -p config/includes.chroot/opt/taaos/scripts
+    cp -r scripts/* config/includes.chroot/opt/taaos/scripts/ 2>/dev/null || true
 
     
     chmod +x *.sh
@@ -200,6 +205,7 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     find config/includes.chroot/usr/bin -type f -exec chmod +x {} \; 2>/dev/null || true
     find config/includes.chroot/usr/local/bin -type f -exec chmod +x {} \; 2>/dev/null || true
     find config/includes.chroot/usr/lib/taaos -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
+    find config/includes.chroot/opt/taaos/scripts -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
     
     # Verify files
     echo "=== Files in /build ==="

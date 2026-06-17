@@ -125,8 +125,8 @@ install_python_deps() {
 install_ollama() {
     log_info "Installing Ollama AI runtime..."
 
-    # Download and run Ollama install script
-    curl -fsSL https://ollama.com/install.sh | sh
+    # Download and run Ollama install script (will fail to start service in chroot, so we catch it)
+    curl -fsSL https://ollama.com/install.sh | sh || log_warning "Ollama install returned non-zero (expected in chroot)"
 
     # Enable Ollama service to start on boot
     log_info "Enabling Ollama service..."

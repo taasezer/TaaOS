@@ -15,9 +15,9 @@ echo "=============================================="
 # =============================================================================
 # SECTION 0: TAAOS SYSTEM COMMANDS INSTALLATION
 # =============================================================================
-echo "[OS-CONFIG] Installing core TaaOS system commands from /build/scripts/system..."
-if [ -d "/build/scripts/system" ]; then
-    for script in /build/scripts/system/*.sh; do
+echo "[OS-CONFIG] Installing core TaaOS system commands from /opt/taaos/scripts/system..."
+if [ -d "/opt/taaos/scripts/system" ]; then
+    for script in /opt/taaos/scripts/system/*.sh; do
         if [ -f "$script" ]; then
             filename=$(basename -- "$script")
             cmdname="${filename%.sh}"
@@ -27,11 +27,11 @@ if [ -d "/build/scripts/system" ]; then
         fi
     done
 else
-    echo "[OS-CONFIG] WARNING: /build/scripts/system not found. TaaOS custom commands will be missing!"
+    echo "[OS-CONFIG] WARNING: /opt/taaos/scripts/system not found. TaaOS custom commands will be missing!"
 fi
 
-if [ -d "/build/scripts/core" ]; then
-    for script in /build/scripts/core/taaos-*.sh; do
+if [ -d "/opt/taaos/scripts/core" ]; then
+    for script in /opt/taaos/scripts/core/taaos-*.sh; do
         if [ -f "$script" ]; then
             filename=$(basename -- "$script")
             cmdname="${filename%.sh}"

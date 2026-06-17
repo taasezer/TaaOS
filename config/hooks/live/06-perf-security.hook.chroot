@@ -11,7 +11,7 @@ echo "=============================================="
 echo "  TaaOS Performance & Security Hook"
 echo "=============================================="
 
-SCRIPT_BASE="/build/scripts"
+SCRIPT_BASE="/opt/taaos/scripts"
 
 # Execute performance optimization
 if [ -f "${SCRIPT_BASE}/performance/optimize-system.sh" ]; then
