@@ -208,7 +208,7 @@ setup_wallpapers() {
     mkdir -p "${WALLPAPER_DIR}"
     
     # Check for local wallpapers first
-    LOCAL_WALLPAPERS="/build/assets/wallpapers"
+    LOCAL_WALLPAPERS="/opt/taaos/assets/wallpapers"
     
     if [ -d "${LOCAL_WALLPAPERS}" ] && [ "$(ls -A ${LOCAL_WALLPAPERS} 2>/dev/null)" ]; then
         echo "[USER-ENV] Copying local wallpapers..."

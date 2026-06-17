@@ -100,8 +100,8 @@ Plymouth.SetMessageFunction(message_callback);
 EOF
 
 # Copy logo for Plymouth (if exists)
-if [ -f /build/assets/logo.png ]; then
-    cp /build/assets/logo.png /usr/share/plymouth/themes/taaos/
+if [ -f /opt/taaos/assets/logo.png ]; then
+    cp /opt/taaos/assets/logo.png /usr/share/plymouth/themes/taaos/
 fi
 
 # Create simple progress bar images
@@ -908,9 +908,9 @@ mkdir -p /usr/share/backgrounds/taaos
 # STEP 1: Ensure wallpaper exists (includes.chroot should have placed it already)
 if [ -f /usr/share/backgrounds/taaos/wallpaper.png ]; then
     echo "[BRANDING] Wallpaper found at target (from includes.chroot)"
-elif [ -f /build/assets/wallpaper.png ]; then
-    cp /build/assets/wallpaper.png /usr/share/backgrounds/taaos/wallpaper.png
-    echo "[BRANDING] Wallpaper copied from /build/assets/"
+elif [ -f /opt/taaos/assets/wallpaper.png ]; then
+    cp /opt/taaos/assets/wallpaper.png /usr/share/backgrounds/taaos/wallpaper.png
+    echo "[BRANDING] Wallpaper copied from /opt/taaos/assets/"
 else
     echo "[BRANDING] WARNING: No wallpaper found! Generating fallback..."
     if command -v convert &> /dev/null; then
@@ -961,10 +961,10 @@ if [ -f /usr/share/pixmaps/taaos-logo.png ]; then
     echo "[BRANDING] Logo found at target (from includes.chroot)"
     # Ensure icons copy exists too
     cp -n /usr/share/pixmaps/taaos-logo.png /usr/share/icons/taaos-logo.png 2>/dev/null || true
-elif [ -f /build/assets/logo.png ]; then
-    cp /build/assets/logo.png /usr/share/pixmaps/taaos-logo.png
-    cp /build/assets/logo.png /usr/share/icons/taaos-logo.png
-    echo "[BRANDING] Logo copied from /build/assets/"
+elif [ -f /opt/taaos/assets/logo.png ]; then
+    cp /opt/taaos/assets/logo.png /usr/share/pixmaps/taaos-logo.png
+    cp /opt/taaos/assets/logo.png /usr/share/icons/taaos-logo.png
+    echo "[BRANDING] Logo copied from /opt/taaos/assets/"
 else
     echo "[BRANDING] WARNING: Logo not found! Using system default..."
 fi

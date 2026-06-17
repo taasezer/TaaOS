@@ -109,8 +109,8 @@ PLYMOUTH_SCRIPT
     echo "[BRANDING] ImageMagick not available, using fallback"
 
     # Copy logo if exists, otherwise create text-based placeholder
-    if [ -f "/build/assets/logo.png" ]; then
-        cp /build/assets/logo.png "${THEME_DIR}/logo.png"
+    if [ -f "/opt/taaos/assets/logo.png" ]; then
+        cp /opt/taaos/assets/logo.png "${THEME_DIR}/logo.png"
         echo "[BRANDING] Logo copied from assets"
     else
         # Create a simple Rosso Corsa text logo
@@ -176,9 +176,9 @@ GTK_GREETER_CONF
 
     # Create a Rosso Corsa login background
     # Check for custom wallpaper in assets
-    if [ -f "/build/assets/wallpaper.png" ]; then
+    if [ -f "/opt/taaos/assets/wallpaper.png" ]; then
         echo "[BRANDING] Custom wallpaper found, copying..."
-        cp "/build/assets/wallpaper.png" "/usr/share/backgrounds/taaos/login-bg.png"
+        cp "/opt/taaos/assets/wallpaper.png" "/usr/share/backgrounds/taaos/login-bg.png"
     fi
 
     if [ ! -f "/usr/share/backgrounds/taaos/login-bg.png" ]; then
@@ -215,7 +215,7 @@ setup_system_logos() {
     mkdir -p /usr/share/pixmaps
 
     # Copy or create logo in various sizes
-    LOGO_SOURCE="/build/assets/logo.png"
+    LOGO_SOURCE="/opt/taaos/assets/logo.png"
     
     if [ -f "${LOGO_SOURCE}" ]; then
         echo "[BRANDING] Processing logo from assets..."

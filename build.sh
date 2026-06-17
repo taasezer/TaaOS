@@ -191,9 +191,11 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     find scripts -type f -exec dos2unix {} \; 2>/dev/null || echo "[WARN] dos2unix conversion had issues for scripts files (continuing)"
     
     # CRITICAL FIX: Inject scripts into chroot so hooks can access them!
-    echo "Injecting scripts into chroot for hooks to access..."
+    echo "Injecting scripts and assets into chroot for hooks to access..."
     mkdir -p config/includes.chroot/opt/taaos/scripts
     cp -r scripts/* config/includes.chroot/opt/taaos/scripts/ 2>/dev/null || true
+    mkdir -p config/includes.chroot/opt/taaos/assets
+    cp -r assets/* config/includes.chroot/opt/taaos/assets/ 2>/dev/null || true
 
     
     chmod +x *.sh
