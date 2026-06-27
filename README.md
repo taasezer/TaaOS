@@ -50,11 +50,11 @@ TaaOS comes with the following languages and libraries:
     *   **Perl**: Standard installation
     *   **Bash/Shell**: Modern Bash, scripting tools
 
-### AI Assistant (Natural Engine)
-*   **Natural Engine**: A local AI assistant using the installed `python` and `ollama` infrastructure.
-*   **Usage**: Translates natural language requests into Bash commands by typing `natural "list files"` or `n "update system"` in the terminal.
+### AI Assistant (TaaNOS)
+*   **TaaNOS**: A local AI assistant using the installed `python` and `ollama` infrastructure.
+*   **Usage**: Translates natural language requests into Bash commands by typing `taanos "list files"` or `ai "update system"` in the terminal.
 *   **Auto-Sudo**: All commands are automatically executed with `sudo` privileges — no manual prefix needed.
-*   **Code Save**: When Natural generates code, it automatically detects code blocks and offers to save them as files (15+ language extensions auto-detected).
+*   **Code Save**: When TaaNOS generates code, it automatically detects code blocks and offers to save them as files (15+ language extensions auto-detected).
 *   **Safety Guardrails**: Two-tier protection — destructive commands (`rm -rf /`, fork bombs) are hard-blocked; potentially dangerous commands trigger a confirmation prompt.
 
 ### DevOps and Container Management
@@ -72,7 +72,7 @@ TaaOS comes with the following languages and libraries:
 *   **Backup**: **Timeshift** system restore points (Snapshot).
 *   **Virtualization**: KVM/QEMU, Libvirt, Virt-Manager (Virtual Machine Management).
 *   **Network Analysis**: Wireshark, Nmap, Tcpdump, Htop, Btop, Iftop.
-*   **Self-Healing**: `taaos-update` utility to automatically fix broken packages, apply OS core patches from GitHub, and verify AI Engine status.
+*   **Self-Healing**: `taaos-update` utility to automatically fix broken packages, apply OS core patches from GitHub, and verify TaaNOS status.
 *   **DLL Support**: `taaos-dll-handler` command to register, unregister, inspect, or run Windows .dll files via Wine. Double-click support in file manager.
 
 ### Desktop and Terminal
@@ -105,6 +105,7 @@ TaaOS is built in a Docker-based isolated environment via the `build.sh` script.
     *   **Cleanup**: Old containers and temporary files are cleaned.
     *   **Docker Environment**: `taaos-builder` image is created.
     *   **File Injection**: Package lists, libraries, and configuration files are copied into the container.
+    *   **TaaNOS Injection**: Automatically detects and injects a locally built TaaNOS binary (if present in `../TaaNOS/taanos-linux`) into the ISO, bypassing the GitHub download.
     *   **Kernel Build**: (Optional) Customized Linux kernel is compiled.
     *   **Live-Build**: Debian-based live system (squashfs) and ISO image are created with `lb build` command.
     *   **Output**: When finished, `TaaOS.iso` file is created in the directory.
@@ -185,11 +186,11 @@ TaaOS, aşağıdaki diller ve kütüphanelerle birlikte gelir:
     *   **Perl**: Standart kurulum
     *   **Bash/Shell**: Modern Bash, betik araçları
 
-### Yapay Zeka Asistanı (Natural Engine)
-*   **Natural Engine**: Sistemde yüklü olan `python` ve `ollama` altyapısını kullanan yerel yapay zeka asistanı.
-*   **Kullanım**: Terminalde `natural "dosyaları listele"` veya `n "sistemi güncelle"` yazarak doğal dildeki istekleri Bash komutlarına çevirir.
+### Yapay Zeka Asistanı (TaaNOS)
+*   **TaaNOS**: Sistemde yüklü olan `python` ve `ollama` altyapısını kullanan yerel yapay zeka asistanı.
+*   **Kullanım**: Terminalde `taanos "dosyaları listele"` veya `ai "sistemi güncelle"` yazarak doğal dildeki istekleri Bash komutlarına çevirir.
 *   **Otomatik Sudo**: Tüm komutlar otomatik olarak `sudo` ile çalıştırılır — manuel prefix gerekmez.
-*   **Kod Kaydetme**: Natural kod ürettiğinde otomatik olarak kod bloklarını algılar ve dosya olarak kaydetmeyi teklif eder (15+ dil uzantısı otomatik algılanır).
+*   **Kod Kaydetme**: TaaNOS kod ürettiğinde otomatik olarak kod bloklarını algılar ve dosya olarak kaydetmeyi teklif eder (15+ dil uzantısı otomatik algılanır).
 *   **Güvenlik Korumaları**: İki kademeli koruma — yıkıcı komutlar (`rm -rf /`, fork bomb) tamamen engellenir; potansiyel tehlikeli komutlar onay ister.
 
 ### DevOps ve Konteyner Yönetimi
@@ -207,7 +208,7 @@ TaaOS, aşağıdaki diller ve kütüphanelerle birlikte gelir:
 *   **Yedekleme**: **Timeshift** ile sistem geri yükleme noktaları (Snapshot).
 *   **Sanallaştırma**: KVM/QEMU, Libvirt, Virt-Manager (Sanal Makine Yönetimi).
 *   **Ağ Analizi**: Wireshark, Nmap, Tcpdump, Htop, Btop, Iftop.
-*   **Otomatik Onarım**: `taaos-update` komutu ile kırık paket, sistem güncellemesi, GitHub bağımlı çekirdek yamaları ve Natural Engine sağlık kontrolünü tek tıkla yapma imkanı.
+*   **Otomatik Onarım**: `taaos-update` komutu ile kırık paket, sistem güncellemesi, GitHub bağımlı çekirdek yamaları ve TaaNOS sağlık kontrolünü tek tıkla yapma imkanı.
 *   **DLL Desteği**: `taaos-dll-handler` komutu ile Windows .dll dosyalarını Wine üzerinden kaydetme, silme, inceleme veya çalıştırma. Dosya yöneticisinde çift tıklama desteği.
 
 ### Masaüstü ve Terminal
@@ -240,6 +241,7 @@ TaaOS, `build.sh` betiği üzerinden Docker tabanlı izole bir ortamda derlenir.
     *   **Temizlik**: Eski konteyner ve geçici dosyalar temizlenir.
     *   **Docker Ortamı**: `taaos-builder` imajı oluşturulur.
     *   **Dosya Enjeksiyonu**: Paket listeleri, kütüphaneler ve yapılandırma dosyaları konteyner içine kopyalanır.
+    *   **TaaNOS Enjeksiyonu**: Geliştirici ortamındaki yerel TaaNOS derlemesini (`../TaaNOS/taanos-linux`) otomatik algılar ve ISO içine doğrudan enjekte eder (GitHub'dan indirmeyi atlar).
     *   **Kernel Derleme**: (Opsiyonel) Özelleştirilmiş Linux çekirdeği derlenir.
     *   **Live-Build**: `lb build` komutu ile Debian tabanlı canlı sistem (squashfs) ve ISO imajı oluşturulur.
     *   **Çıktı**: İşlem bittiğinde dizinde `TaaOS.iso` dosyası oluşur.
