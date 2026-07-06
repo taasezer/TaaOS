@@ -82,11 +82,13 @@ fi
 # 2b. Append Custom Aliases & neofetch call to system-wide bashrc
 echo "[POLISH] Injecting custom aliases and neofetch into /etc/bash.bashrc..."
 
+if ! grep -q "fastfetch --config" /etc/bash.bashrc; then
 cat >> /etc/bash.bashrc << 'BASHRC_EOF'
 
-# ==========================================
-# TaaOS Professional Terminal Settings
-# ==========================================
+# =============================================================================
+# TaaOS Polish Environment
+# =============================================================================
+
 alias update="sudo apt update && sudo apt upgrade -y"
 alias ports="sudo netstat -tulanp"
 alias ll="ls -la"
@@ -117,6 +119,7 @@ if [[ $- == *i* ]]; then
     fi
 fi
 BASHRC_EOF
+fi
 
 # 3. Configure Flatpak
 echo "[POLISH] Configuring Flatpak Ecosystem..."

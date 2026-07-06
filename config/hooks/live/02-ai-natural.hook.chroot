@@ -275,6 +275,7 @@ create_shell_integration() {
     log_info "Creating shell integration..."
 
     # Add alias to system-wide bash profile
+    if ! grep -q "alias natural='taanos'" /etc/bash.bashrc; then
     cat >> /etc/bash.bashrc << 'BASHRC_EOF'
 
 # =============================================================================
@@ -295,6 +296,7 @@ if command -v neofetch &> /dev/null; then
     : # neofetch will be called from profile if desired
 fi
 BASHRC_EOF
+    fi
 
     log_success "Shell integration added"
 }
