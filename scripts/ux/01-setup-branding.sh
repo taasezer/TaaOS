@@ -134,8 +134,8 @@ PLYMOUTH_SCRIPT
 # SECTION 2: LIGHTDM LOGIN SCREEN
 # -----------------------------------------------------------------------------
 setup_lightdm() {
-    echo "[BRANDING] Installing LightDM..."
-    apt-get install -y lightdm lightdm-gtk-greeter lightdm-gtk-greeter-settings
+    echo "[BRANDING] Installing LightDM and necessary themes..."
+    apt-get install -y lightdm lightdm-gtk-greeter lightdm-gtk-greeter-settings gnome-themes-extra papirus-icon-theme
 
     echo "[BRANDING] Configuring LightDM..."
     

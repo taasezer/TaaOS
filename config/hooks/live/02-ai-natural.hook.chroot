@@ -144,7 +144,14 @@ install_taanos() {
     # Primary URL: raw binary from repo (always exists)
     local TAANOS_RAW="https://raw.githubusercontent.com/taasezer/TaaNOS/main/taanos-linux"
     # Fallback URL: GitHub release asset (if user uploads binaries to releases)
-    local TAANOS_RELEASE="https://github.com/taasezer/TaaNOS/releases/latest/download/taanos-linux-amd64"
+    local TAANOS_RELEASE="https://github.com/taasezer/TaaNOS/releases/latest/download/taanos-linux"
+
+    # Check if TaaNOS was injected locally via includes.chroot
+    if [ -x /usr/local/bin/taanos ]; then
+        log_success "Local TaaNOS binary detected (injected during build). Skipping download."
+        ln -sf /usr/local/bin/taanos /usr/local/bin/natural
+        return 0
+    fi
 
     log_info "Downloading TaaNOS binary from GitHub..."
     local download_ok=false

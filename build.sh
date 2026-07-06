@@ -175,6 +175,17 @@ echo "    Copying assets..."
 docker exec "$CONTAINER_NAME" mkdir -p /build/assets
 [ -d ./assets ] && docker cp ./assets/. "$CONTAINER_NAME":/build/assets/ 2>/dev/null || true
 
+# INJECT LOCAL TAANOS
+echo "    Injecting local TaaNOS binary..."
+if [ -f ../TaaNOS/taanos-linux ]; then
+    docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/local/bin
+    docker cp ../TaaNOS/taanos-linux "$CONTAINER_NAME":/build/config/includes.chroot/usr/local/bin/taanos
+    docker exec "$CONTAINER_NAME" chmod +x /build/config/includes.chroot/usr/local/bin/taanos
+    echo "      ✓ Local TaaNOS binary injected!"
+else
+    echo "      ⚠ Local TaaNOS not found, hook will download from GitHub."
+fi
+
 echo "    Files copied successfully!"
 
 # Execute Build

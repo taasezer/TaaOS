@@ -322,8 +322,8 @@ setup_theme_system() {
     echo "[USER-ENV] Setting up TaaOS theme system..."
     
     # Install theme switcher script
-    if [ -f "/build/scripts/ux/theme-switcher.sh" ]; then
-        cp /build/scripts/ux/theme-switcher.sh /usr/local/bin/taaos-theme
+    if [ -f "/opt/taaos/scripts/ux/theme-switcher.sh" ]; then
+        cp /opt/taaos/scripts/ux/theme-switcher.sh /usr/local/bin/taaos-theme
         chmod +x /usr/local/bin/taaos-theme
         echo "[USER-ENV] Theme switcher installed: taaos-theme"
     fi
