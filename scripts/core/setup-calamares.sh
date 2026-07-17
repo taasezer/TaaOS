@@ -402,9 +402,6 @@ strings:
 images:
     productLogo:         "logo.png"
     productIcon:         "logo.png"
-    productWelcome:      "welcome.png"
-
-slideshow:               "show.qml"
 
 style:
     sidebarBackground:   "#1a1a2e"
@@ -413,37 +410,7 @@ style:
     sidebarTextHighlight: "#00d4ff"
 BRANDING_DESC
 
-    # Create slideshow QML
-    cat > "${BRAND_DIR}/show.qml" << 'SLIDESHOW_QML'
-import QtQuick 2.0;
-import calamares.slideshow 1.0;
-
-Presentation {
-    id: presentation
-
-    Timer {
-        interval: 5000
-        running: true
-        repeat: true
-        onTriggered: presentation.goToNextSlide()
-    }
-    
-    Slide {
-        Rectangle {
-            anchors.fill: parent
-            color: "#1a1a2e"
-            
-            Text {
-                anchors.centerIn: parent
-                text: "TaaOS"
-                color: "#00d4ff"
-                font.pixelSize: 64
-                font.bold: true
-            }
-        }
-    }
-}
-SLIDESHOW_QML
+    # Slideshow removed per user request
 
     # Create placeholder images
     if command -v convert &> /dev/null; then
@@ -454,14 +421,7 @@ SLIDESHOW_QML
             -annotate 0 "T" \
             "${BRAND_DIR}/logo.png" 2>/dev/null || true
         
-        # Welcome image
-        convert -size 800x300 \
-            -define gradient:direction=east \
-            gradient:'#0a0a14-#1a1a2e' \
-            -font DejaVu-Sans-Bold -pointsize 64 \
-            -fill '#00d4ff' -gravity center \
-            -annotate 0 "TaaOS" \
-            "${BRAND_DIR}/welcome.png" 2>/dev/null || true
+        # (Welcome image removed per user request)
     else
         echo "[INSTALLER] ImageMagick not available, placeholder images not created"
     fi
