@@ -177,9 +177,9 @@ docker exec "$CONTAINER_NAME" mkdir -p /build/assets
 
 # INJECT LOCAL TAANOS
 echo "    Injecting local TaaNOS binary..."
-if [ -f ../TaaNOS/taanos-linux ]; then
+if [ -f ../TaaNOS/bin/TaaNOS-Setup-Linux ]; then
     docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/local/bin
-    docker cp ../TaaNOS/taanos-linux "$CONTAINER_NAME":/build/config/includes.chroot/usr/local/bin/taanos
+    docker cp ../TaaNOS/bin/TaaNOS-Setup-Linux "$CONTAINER_NAME":/build/config/includes.chroot/usr/local/bin/taanos
     docker exec "$CONTAINER_NAME" chmod +x /build/config/includes.chroot/usr/local/bin/taanos
     echo "      ✓ Local TaaNOS binary injected!"
 else

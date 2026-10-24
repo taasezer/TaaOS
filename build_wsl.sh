@@ -124,21 +124,31 @@ echo "    Copying scripts..."
 docker cp ./init_config.sh "$CONTAINER_NAME":/build/
 docker cp ./compile_kernel.sh "$CONTAINER_NAME":/build/
 
-# Copy package lists (ALL .list.chroot files)
+# Copy package lists (Filter out unnecessary GUI/installer/firmware for WSL)
 echo "    Copying package lists..."
 for listfile in ./config/package-lists/*.list.chroot; do
     if [ -f "$listfile" ]; then
+        filename=$(basename "$listfile")
+        if [[ "$filename" == "firmware.list.chroot" || "$filename" == "installer.list.chroot" || "$filename" == "live.list.chroot" || "$filename" == "desktop.list.chroot" || "$filename" == "themes.list.chroot" || "$filename" == "wine.list.chroot" ]]; then
+            echo "      ⚠ Skipping $filename (Not needed in WSL)"
+            continue
+        fi
         docker cp "$listfile" "$CONTAINER_NAME":/build/config/package-lists/
-        echo "      ✓ $(basename "$listfile")"
+        echo "      ✓ $filename"
     fi
 done
 
-# Copy hooks (ALL hooks automatically)
+# Copy hooks (Filter out GUI/installer hooks for WSL)
 echo "    Copying hooks..."
 for hookfile in ./config/hooks/live/*.hook.chroot ./config/hooks/live/*.hook.binary; do
     if [ -f "$hookfile" ]; then
+        filename=$(basename "$hookfile")
+        if [[ "$filename" == "05-ux-branding.hook.chroot" || "$filename" == "08-core-installer.hook.chroot" || "$filename" == "09-efi-fix.hook.chroot" || "$filename" == "11-calamares.hook.chroot" || "$filename" == "12-branding.hook.chroot" || "$filename" == "00-copy-kernel.hook.binary" || "$filename" == "00-kernel-setup.hook.chroot" ]]; then
+            echo "      ⚠ Skipping $filename (Not needed in WSL)"
+            continue
+        fi
         docker cp "$hookfile" "$CONTAINER_NAME":/build/config/hooks/live/
-        echo "      ✓ $(basename "$hookfile")"
+        echo "      ✓ $filename"
     fi
 done
 
@@ -177,11 +187,11 @@ docker exec "$CONTAINER_NAME" mkdir -p /build/assets
 
 # INJECT LOCAL TAANOS
 echo "    Injecting local TaaNOS binary..."
-if [ -f ../TaaNOS/taanos-linux ]; then
+if [ -f ../TaaNOS/bin/TaaNOS-Setup-Linux ]; then
     docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/local/bin
-    docker cp ../TaaNOS/taanos-linux "$CONTAINER_NAME":/build/config/includes.chroot/usr/local/bin/taanos
+    docker cp ../TaaNOS/bin/TaaNOS-Setup-Linux "$CONTAINER_NAME":/build/config/includes.chroot/usr/local/bin/taanos
     docker exec "$CONTAINER_NAME" chmod +x /build/config/includes.chroot/usr/local/bin/taanos
-    echo "      ✓ Local TaaNOS binary injected!"
+    echo "      ✓ Local TaaNOS binary injected into includes.chroot"
 else
     echo "      ⚠ Local TaaNOS not found, hook will download from GitHub."
 fi
@@ -226,21 +236,21 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     echo "=== Package lists ==="
     ls -la config/package-lists/ || echo "No package lists!"
     
-    # Run kernel compilation (ENABLED)
-    echo "=== PHASE A: Kernel Compilation ==="
-    ./compile_kernel.sh
+    # Run kernel compilation (SKIPPED FOR WSL)
+    echo "=== PHASE A: Kernel Compilation (SKIPPED for WSL) ==="
+    # ./compile_kernel.sh
     
     # Verify Kernel Packages
-    echo "=== Verifying Kernel Packages ==="
-    ls -lh config/packages.chroot/
+    # echo "=== Verifying Kernel Packages ==="
+    # ls -lh config/packages.chroot/
     
     # Ensure packages are accessible
-    chmod -R 777 config/packages.chroot 2>/dev/null || true
+    # chmod -R 777 config/packages.chroot 2>/dev/null || true
     
     # CRITICAL FIX: Force inject kernel into chroot because live-build might ignore them due to --linux-packages "none"
-    echo "=== Injecting Kernel Packages into Chroot ==="
-    mkdir -p config/includes.chroot/root/taaos-kernel
-    cp config/packages.chroot/*.deb config/includes.chroot/root/taaos-kernel/ 2>/dev/null || true
+    # echo "=== Injecting Kernel Packages into Chroot ==="
+    # mkdir -p config/includes.chroot/root/taaos-kernel
+    # cp config/packages.chroot/*.deb config/includes.chroot/root/taaos-kernel/ 2>/dev/null || true
     
     # Run live-build config
     echo "=== PHASE B: Live-Build Config ==="
@@ -275,13 +285,13 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     if [ -d chroot ]; then
         # 1. Base wsl.conf (Systemd enabled, default is root for the first boot)
         mkdir -p chroot/etc
-        cat > chroot/etc/wsl.conf << 'WSLCONF'
+        cat > chroot/etc/wsl.conf << \WSLCONF
 [boot]
 systemd=true
 WSLCONF
 
         # 2. First-Boot OOBE Script
-        cat > chroot/usr/local/bin/taaos-wsl-setup << 'OOBESCRIPT'
+        cat > chroot/usr/local/bin/taaos-wsl-setup << \OOBESCRIPT
 #!/bin/bash
 if [ -f /etc/taaos-wsl-configured ]; then
     exit 0
@@ -292,7 +302,7 @@ echo "╔═══════════════════════�
 echo "║                 Welcome to TaaOS - Terminal Edition                   ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "\033[0m"
-echo "Let's set up your personal account. You will have sudo (Admin) privileges."
+echo "Let us set up your personal account. You will have sudo (Admin) privileges."
 echo ""
 
 while true; do
@@ -336,7 +346,16 @@ OOBESCRIPT
     
     echo "=== PHASE E: Packaging WSL Tarball ==="
     if [ -d chroot ]; then
-        tar -czpf /build/TaaOS-WSL.tar.gz -C chroot .
+        echo "    Compressing the entire root filesystem (this usually takes 5-10 minutes)..."
+        tar -czpf /build/TaaOS-WSL.tar.gz -C chroot . || {
+            TAR_CODE=$?
+            if [ $TAR_CODE -eq 1 ]; then
+                echo "    [WARN] tar finished with exit code 1 (usually ignored sockets or changed files). This is normal."
+            else
+                echo "    [ERROR] tar failed with fatal exit code $TAR_CODE!"
+                exit $TAR_CODE
+            fi
+        }
     else
         echo "ERROR: chroot directory not found!"
         exit 1
