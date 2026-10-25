@@ -191,7 +191,7 @@ fi
 
 cd /
 
-# XFCE Settings - Window Manager (xfwm4) - Orchis-Dark
+# XFCE Settings - Window Manager (xfwm4) - Orchis-Dark with Fluid Alt-Tab Preview
 cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfwm4" version="1.0">
@@ -199,6 +199,16 @@ cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'EOF'
     <property name="theme" type="string" value="Orchis-Dark"/>
     <property name="title_font" type="string" value="Fira Sans Bold 10"/>
     <property name="button_layout" type="string" value="O|HMC"/>
+    <property name="cycle_tabwin_mode" type="int" value="1"/>
+    <property name="cycle_preview" type="bool" value="true"/>
+    <property name="cycle_draw_frame" type="bool" value="true"/>
+    <property name="cycle_raise" type="bool" value="false"/>
+    <property name="cycle_hidden" type="bool" value="true"/>
+    <property name="cycle_workspaces" type="bool" value="false"/>
+    <property name="cycle_minimum" type="bool" value="true"/>
+    <property name="box_resize" type="bool" value="false"/>
+    <property name="box_move" type="bool" value="false"/>
+    <property name="use_compositing" type="bool" value="false"/>
   </property>
 </channel>
 EOF
@@ -240,7 +250,7 @@ cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml << 
 </channel>
 EOF
 
-# XFCE Settings - Desktop (Wallpaper) - covers all screen/monitor name combos
+# XFCE Settings - Desktop (Wallpaper & Clean Desktop) - covers all screen/monitor name combos
 cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfce4-desktop" version="1.0">
@@ -254,6 +264,20 @@ cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml << 'EOF'
         </property>
       </property>
       <property name="monitorVirtual-1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="color-style" type="int" value="0"/>
+          <property name="image-style" type="int" value="5"/>
+          <property name="last-image" type="string" value="/usr/share/backgrounds/taaos/wallpaper.png"/>
+        </property>
+      </property>
+      <property name="monitorVirtual1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="color-style" type="int" value="0"/>
+          <property name="image-style" type="int" value="5"/>
+          <property name="last-image" type="string" value="/usr/share/backgrounds/taaos/wallpaper.png"/>
+        </property>
+      </property>
+      <property name="monitorVirtual-0" type="empty">
         <property name="workspace0" type="empty">
           <property name="color-style" type="int" value="0"/>
           <property name="image-style" type="int" value="5"/>
@@ -274,10 +298,35 @@ cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml << 'EOF'
           <property name="last-image" type="string" value="/usr/share/backgrounds/taaos/wallpaper.png"/>
         </property>
       </property>
+      <property name="monitoreDP-1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="color-style" type="int" value="0"/>
+          <property name="image-style" type="int" value="5"/>
+          <property name="last-image" type="string" value="/usr/share/backgrounds/taaos/wallpaper.png"/>
+        </property>
+      </property>
+      <property name="monitorDP-1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="color-style" type="int" value="0"/>
+          <property name="image-style" type="int" value="5"/>
+          <property name="last-image" type="string" value="/usr/share/backgrounds/taaos/wallpaper.png"/>
+        </property>
+      </property>
+    </property>
+  </property>
+  <property name="desktop-icons" type="empty">
+    <property name="file-icons" type="empty">
+      <property name="show-home" type="bool" value="false"/>
+      <property name="show-filesystem" type="bool" value="false"/>
+      <property name="show-trash" type="bool" value="false"/>
+      <property name="show-removable" type="bool" value="false"/>
     </property>
   </property>
 </channel>
 EOF
+
+mkdir -p /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml
+cp -r /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/* /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/ 2>/dev/null || true
 
 echo "[BRANDING] XFCE theme configuration complete"
 
@@ -659,29 +708,20 @@ EOF
 echo "[BRANDING] Configuring Picom compositor..."
 mkdir -p /etc/skel/.config/picom
 cat > /etc/skel/.config/picom/picom.conf << 'EOF'
-# TaaOS Picom Compositor
+# TaaOS Picom Compositor — Fluid CachyOS Style
 backend = "glx";
 
-# Shadows
-shadow = true;
-shadow-radius = 12;
-shadow-offset-x = -5;
-shadow-offset-y = -5;
-shadow-opacity = 0.3;
-shadow-exclude = [
-  "class_g = 'Polybar'",
-  "class_g = 'Plank'",
-  "_GTK_FRAME_EXTENTS@:c"
-];
-
-# Fading / Transitions
+# Fading & Fluid Transitions
 fading = true;
-fade-in-step = 0.06;
-fade-out-step = 0.06;
-fade-delta = 5;
+fade-in-step = 0.08;
+fade-out-step = 0.08;
+fade-delta = 4;
+no-fading-openclose = false;
+no-fading-destroyed-argb = true;
 
 # Opacity
-inactive-opacity = 0.95;
+inactive-opacity = 0.96;
+active-opacity = 1.0;
 frame-opacity = 1.0;
 inactive-opacity-override = false;
 focus-exclude = [
@@ -689,23 +729,123 @@ focus-exclude = [
   "class_g = 'Rofi'"
 ];
 
-# Blur (frosted glass effect for Polybar)
-blur-method = "dual_kawase";
-blur-strength = 6;
-blur-background = true;
-blur-background-exclude = [
-  "class_g = 'Plank'"
-];
-
-# Corners
-corner-radius = 8;
+# Corners (Smooth Rounding)
+corner-radius = 10;
 rounded-corners-exclude = [
   "class_g = 'Polybar'",
-  "class_g = 'Plank'"
+  "window_type = 'dock'",
+  "window_type = 'desktop'"
+];
+
+# Shadows
+shadow = true;
+shadow-radius = 14;
+shadow-offset-x = -7;
+shadow-offset-y = -7;
+shadow-opacity = 0.35;
+shadow-exclude = [
+  "class_g = 'Polybar'",
+  "_GTK_FRAME_EXTENTS@:c"
 ];
 
 # VSync
 vsync = true;
+
+# Wintypes for Alt-Tab, Menus and Dialogs
+wintypes:
+{
+  tooltip = { fade = true; shadow = true; opacity = 0.95; focus = true; };
+  dock = { shadow = false; clip-shadow-above = true; };
+  dnd = { shadow = false; };
+  popup_menu = { opacity = 0.98; shadow = true; };
+  dropdown_menu = { opacity = 0.98; shadow = true; };
+  utility = { shadow = true; focus = true; };
+  dialog = { shadow = true; };
+};
+EOF
+
+# Modern CachyOS-Style Rofi Configuration
+mkdir -p /etc/skel/.config/rofi
+cat > /etc/skel/.config/rofi/config.rasi << 'EOF'
+configuration {
+    modi: "drun,run,window";
+    font: "Fira Sans 11";
+    show-icons: true;
+    icon-theme: "Papirus-Dark";
+    display-drun: "APPS";
+    display-run: "RUN";
+    display-window: "WINDOWS";
+    drun-display-format: "{name}";
+}
+
+@theme "/dev/null"
+
+* {
+    bg: #0D1117ee;
+    bg-alt: #161B22;
+    fg: #E6EDF3;
+    accent: #D40000;
+    muted: #8B949E;
+
+    background-color: transparent;
+    text-color: @fg;
+    margin: 0;
+    padding: 0;
+    spacing: 0;
+}
+
+window {
+    width: 640px;
+    background-color: @bg;
+    border: 2px;
+    border-color: @accent;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+inputbar {
+    children: [prompt, entry];
+    background-color: @bg-alt;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 0 0 16px 0;
+}
+
+prompt {
+    text-color: @accent;
+    font-weight: bold;
+    margin: 0 10px 0 0;
+}
+
+entry {
+    placeholder: "Search applications...";
+    placeholder-color: @muted;
+}
+
+listview {
+    lines: 8;
+    columns: 1;
+    spacing: 4px;
+}
+
+element {
+    padding: 8px 12px;
+    border-radius: 6px;
+    spacing: 12px;
+}
+
+element selected {
+    background-color: @accent;
+    text-color: #ffffff;
+}
+
+element-icon {
+    size: 24px;
+}
+
+element-text {
+    vertical-align: 0.5;
+}
 EOF
 
 cat > /etc/skel/.config/autostart/picom.desktop << 'EOF'

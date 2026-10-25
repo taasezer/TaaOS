@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=TaaOS Wallpaper Fix
-Exec=/usr/local/bin/taaos-wallpaper-fix.sh
-OnlyShowIn=XFCE;
-RunHook=0
-StartupNotify=false
-Terminal=false
-Hidden=false

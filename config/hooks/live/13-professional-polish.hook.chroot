@@ -129,9 +129,6 @@ fi
 
 # 4. Make UI scripts Executable and cleanup duplicates
 echo "[POLISH] Setting permissions for UI scripts and cleaning up..."
-if [ -f /usr/local/bin/taaos-wallpaper-fix.sh ]; then
-    chmod +x /usr/local/bin/taaos-wallpaper-fix.sh
-fi
 if [ -f /usr/local/bin/taaos-update ]; then
     chmod +x /usr/local/bin/taaos-update
 fi
@@ -165,7 +162,6 @@ pip3 install --break-system-packages tldr 2>/dev/null || echo "[WARN] tldr insta
 echo "[POLISH] Setting executable permissions on TaaOS scripts..."
 
 # UI and helper scripts
-chmod +x /usr/local/bin/taaos-wallpaper-fix.sh 2>/dev/null || true
 chmod +x /usr/local/bin/taaos-node-repl 2>/dev/null || true
 chmod +x /usr/local/bin/taanos 2>/dev/null || true
 chmod +x /usr/lib/taaos/post-install.sh 2>/dev/null || true
