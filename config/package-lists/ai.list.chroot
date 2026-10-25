@@ -12,8 +12,8 @@ python3-dev
 # ML libraries (install via pip)
 # pip3 install torch tensorflow transformers
 
-# Jupyter
-jupyter-notebook
+# Jupyter (managed on-demand via 'taaos-ai')
+# jupyter-notebook
 
 # JSON processing for conversation history
 jq

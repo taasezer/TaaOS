@@ -1,0 +1,67 @@
+# =============================================================================
+# TaaOS WSL Essential Package List (Zero-Bloat Terminal Base)
+# =============================================================================
+# Core tools for developers on WSL2. Heavy frameworks and specialized
+# runtimes are installed on-demand via 'taaos-*' modular suite.
+# =============================================================================
+
+# Build essentials & compilers
+build-essential
+gcc
+g++
+make
+cmake
+
+# Version control
+git
+git-lfs
+
+# Shell & Terminal
+zsh
+bash-completion
+tmux
+screen
+
+# System telemetry & monitoring
+fastfetch
+htop
+btop
+
+# Navigation, search & text manipulation
+fzf
+bat
+tree
+jq
+pv
+pigz
+
+# Text editors
+nano
+vim
+neovim
+micro
+
+# Archive utilities
+zip
+unzip
+rsync
+
+# Network & Download utilities
+curl
+wget
+net-tools
+iproute2
+dnsutils
+iputils-ping
+traceroute
+nmap
+
+# Python 3 minimal base
+python3
+python3-pip
+python3-venv
+
+# Privileges & Package performance
+sudo
+ca-certificates
+eatmydata

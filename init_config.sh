@@ -22,7 +22,7 @@ else
     log_phase() { echo ""; echo "=== $1 ==="; echo ""; }
 fi
 
-DISTRIBUTION="bookworm"
+DISTRIBUTION="trixie"
 IMAGE_NAME="TaaOS"
 
 log_phase "TaaOS Live-Build Configuration"

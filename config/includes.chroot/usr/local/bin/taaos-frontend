@@ -1,0 +1,294 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Frontend Suite — Modular CRUD Engine
+# =============================================================================
+# Manage Bun, pnpm, Yarn, Vite, Tailwind CLI, and Tauri tooling on-demand.
+# Usage: taaos-frontend [status|install|update|remove] [target] [--lang=tr|en]
+# =============================================================================
+
+set -e
+
+LIB_DIR="/usr/local/lib/taaos"
+if [ ! -f "${LIB_DIR}/common.sh" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "${SCRIPT_DIR}/../lib/taaos/common.sh" ]; then
+        LIB_DIR="${SCRIPT_DIR}/../lib/taaos"
+    fi
+fi
+
+if [ -f "${LIB_DIR}/common.sh" ]; then
+    source "${LIB_DIR}/common.sh" "$@"
+else
+    RED='\033[1;31m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'; CYAN='\033[1;36m'; NC='\033[0m'
+    t() { echo "$2"; }
+    log_info() { echo -e "${CYAN}[INFO]${NC} $*"; }
+    log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
+    log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+    log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+    taaos_banner() { echo -e "${RED}=== $1 ===${NC}"; }
+    is_cmd_installed() { command -v "$1" >/dev/null 2>&1; }
+    print_status_item() { if is_cmd_installed "$2"; then echo -e "  ${GREEN}[✓]${NC} $1 (Installed)"; else echo -e "  ${RED}[○]${NC} $1 (Not installed)"; fi; }
+    confirm() { return 0; }
+    taaos_apt_install() { sudo apt-get update -qq && sudo apt-get install -y "$@"; }
+    taaos_apt_remove() { sudo apt-get remove -y --purge "$@" && sudo apt-get autoremove -y; }
+fi
+
+# =============================================================================
+# READ: STATUS REPORT (Bilingual & Educational)
+# =============================================================================
+show_status() {
+    taaos_banner \
+        "$(t 'TaaOS Frontend Geliştirici Ortamı' 'TaaOS Frontend Developer Environment')" \
+        "$(t 'Paket Yöneticileri, Çatılar ve UI Araçları' 'Package Managers, Frameworks and UI Tools')"
+
+    echo -e "${YELLOW}1. JavaScript / TypeScript Runtimes & Managers:${NC}"
+    print_status_item "Bun" "bun" "bun --version" \
+        "$(t 'Ultra-hızlı hepsi-bir-arada JS/TS çalışma zamanı, paketçi ve test aracı' 'All-in-one ultra-fast JS/TS runtime, bundler, and package manager')"
+    print_status_item "pnpm" "pnpm" "pnpm --version" \
+        "$(t 'Hard-link tabanlı, disk tasarruflu ve hızlı Node.js paket yöneticisi' 'Hard-link based, fast, and disk space efficient package manager')"
+    print_status_item "Yarn" "yarn" "yarn --version" \
+        "$(t 'Klasik güvenli ve kararlı JavaScript bağımlılık yöneticisi' 'Established, reliable, and secure JavaScript package manager')"
+
+    echo -e "\n${YELLOW}2. $(t 'Build Araçları & UI Çatıları' 'Build Tools & UI Frameworks'):${NC}"
+    print_status_item "Vite CLI" "vite" "vite --version" \
+        "$(t 'Yeni nesil esbuild tabanlı yıldırım hızında frontend geliştirme sunucusu' 'Next-gen lightning fast frontend build tool and dev server')"
+    print_status_item "Tailwind CSS" "tailwindcss" "tailwindcss --help | head -1" \
+        "$(t 'Bağımsız yardımcı-öncelikli CSS tasarım motoru CLI aracı' 'Standalone utility-first CSS framework CLI compiler')"
+
+    echo -e "\n${YELLOW}3. $(t 'Masaüstü & Hibrit Uygulama Çatıları' 'Desktop & Hybrid App Frameworks'):${NC}"
+    print_status_item "Tauri CLI" "cargo-tauri" "cargo-tauri --version" \
+        "$(t 'Rust tabanlı, web teknolojileriyle küçük ve güvenli masaüstü uygulamaları yapma çatısı' 'Build tiny, blazingly fast, and secure desktop apps with web tech & Rust')"
+
+    echo ""
+}
+
+# =============================================================================
+# CREATE: INSTALLERS
+# =============================================================================
+install_bun() {
+    log_info "$(t 'Bun ultra-hızlı JavaScript çalışma ortamı kuruluyor...' 'Installing Bun ultra-fast JavaScript runtime...')"
+    if ! is_cmd_installed bun; then
+        curl -fsSL https://bun.sh/install | bash
+        export BUN_INSTALL="$HOME/.bun"
+        export PATH="$BUN_INSTALL/bin:$PATH"
+        log_success "$(t 'Bun kuruldu!' 'Bun installed!') ($(bun --version))"
+    else
+        log_warn "$(t 'Bun zaten kurulu' 'Bun is already installed') ($(bun --version))."
+    fi
+}
+
+install_pnpm() {
+    log_info "$(t 'pnpm paket yöneticisi kuruluyor...' 'Installing pnpm package manager...')"
+    if is_cmd_installed npm; then
+        sudo npm install -g pnpm
+    else
+        curl -fsSL https://get.pnpm.io/install.sh | sh -
+    fi
+    log_success "$(t 'pnpm hazır!' 'pnpm is ready!')"
+}
+
+install_yarn() {
+    log_info "$(t 'Yarn paket yöneticisi kuruluyor...' 'Installing Yarn package manager...')"
+    if is_cmd_installed npm; then
+        sudo npm install -g yarn
+    else
+        curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/yarn.gpg 2>/dev/null || true
+        echo "deb [signed-by=/usr/share/keyrings/yarn.gpg] https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+        taaos_apt_install yarn
+    fi
+    log_success "$(t 'Yarn hazır!' 'Yarn is ready!')"
+}
+
+install_vite() {
+    log_info "$(t 'Vite araçları kuruluyor...' 'Installing Vite build tooling...')"
+    if is_cmd_installed npm; then
+        sudo npm install -g create-vite
+    elif is_cmd_installed bun; then
+        bun add -g create-vite
+    else
+        log_warn "$(t 'Önce Node veya Bun kurulu olmalıdır. Node kuruluyor...' 'Node or Bun is required. Installing Node...')"
+        taaos-backend install node
+        sudo npm install -g create-vite
+    fi
+    log_success "$(t 'Vite aracı hazır!' 'Vite tooling is ready!')"
+}
+
+install_tailwind() {
+    log_info "$(t 'Tailwind CSS CLI bağımsız ikili dosyası kuruluyor...' 'Installing Tailwind CSS standalone CLI binary...')"
+    local arch="x64"
+    [ "$(uname -m)" = "aarch64" ] && arch="arm64"
+    sudo curl -sLo /usr/local/bin/tailwindcss "https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-${arch}"
+    sudo chmod +x /usr/local/bin/tailwindcss
+    log_success "$(t 'Tailwind CSS CLI hazır!' 'Tailwind CSS CLI is ready!')"
+}
+
+install_tauri() {
+    log_info "$(t 'Tauri masaüstü geliştirme bağımlılıkları kuruluyor (libwebkit2gtk, Rust)...' 'Installing Tauri desktop dependencies (libwebkit2gtk, Rust)...')"
+    taaos_apt_install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+    if is_cmd_installed cargo; then
+        cargo install tauri-cli --locked || true
+    else
+        log_warn "$(t 'Rust kurulu değil. taaos-backend install rust çalıştırılıyor...' 'Rust is not installed. Running taaos-backend install rust...')"
+        taaos-backend install rust
+        cargo install tauri-cli --locked || true
+    fi
+    log_success "$(t 'Tauri geliştirme ortamı hazır!' 'Tauri environment is ready!')"
+}
+
+install_all() {
+    log_info "$(t 'Tüm frontend geliştirici araçları kuruluyor...' 'Installing full frontend development suite...')"
+    install_bun
+    install_pnpm
+    install_yarn
+    install_vite
+    install_tailwind
+    install_tauri
+    log_success "$(t 'Tüm frontend yığını başarıyla kuruldu!' 'Full frontend suite installed successfully!')"
+}
+
+# =============================================================================
+# UPDATE: UPDATERS
+# =============================================================================
+update_target() {
+    local target="$1"
+    case "$target" in
+        bun)
+            log_info "$(t 'Bun güncelleniyor...' 'Updating Bun...')"
+            if is_cmd_installed bun; then bun upgrade 2>/dev/null || true; fi
+            log_success "$(t 'Bun güncellendi.' 'Bun updated.')"
+            ;;
+        pnpm)
+            log_info "$(t 'pnpm güncelleniyor...' 'Updating pnpm...')"
+            if is_cmd_installed pnpm; then sudo npm update -g pnpm 2>/dev/null || true; fi
+            log_success "$(t 'pnpm güncellendi.' 'pnpm updated.')"
+            ;;
+        yarn)
+            log_info "$(t 'Yarn güncelleniyor...' 'Updating Yarn...')"
+            if is_cmd_installed yarn; then sudo npm update -g yarn 2>/dev/null || true; fi
+            log_success "$(t 'Yarn güncellendi.' 'Yarn updated.')"
+            ;;
+        tailwind)
+            install_tailwind
+            ;;
+        all|"")
+            log_info "$(t 'Kurulu tüm frontend araçları taranıp güncelleniyor...' 'Scanning and updating all installed frontend tools...')"
+            if is_cmd_installed bun; then update_target bun; fi
+            if is_cmd_installed pnpm; then update_target pnpm; fi
+            if is_cmd_installed yarn; then update_target yarn; fi
+            if is_cmd_installed tailwindcss; then update_target tailwind; fi
+            log_success "$(t 'Tüm frontend bileşenleri güncellendi!' 'All frontend components updated!')"
+            ;;
+    esac
+}
+
+# =============================================================================
+# DELETE: UNINSTALLERS
+# =============================================================================
+remove_target() {
+    local target="$1"
+    case "$target" in
+        bun)
+            if confirm "$(t 'Bun çalışma zamanını kaldırmak istiyor musunuz?' 'Do you want to remove Bun runtime?')"; then
+                rm -rf "$HOME/.bun" /usr/local/bin/bun 2>/dev/null || true
+                log_success "$(t 'Bun kaldırıldı.' 'Bun removed.')"
+            fi
+            ;;
+        pnpm)
+            if confirm "$(t 'pnpm paket yöneticisini kaldırmak istiyor musunuz?' 'Do you want to remove pnpm?')"; then
+                sudo npm uninstall -g pnpm 2>/dev/null || true
+                rm -rf "$HOME/.local/share/pnpm" 2>/dev/null || true
+                log_success "$(t 'pnpm kaldırıldı.' 'pnpm removed.')"
+            fi
+            ;;
+        yarn)
+            if confirm "$(t 'Yarn paket yöneticisini kaldırmak istiyor musunuz?' 'Do you want to remove Yarn?')"; then
+                sudo npm uninstall -g yarn 2>/dev/null || true
+                taaos_apt_remove yarn 2>/dev/null || true
+                log_success "$(t 'Yarn kaldırıldı.' 'Yarn removed.')"
+            fi
+            ;;
+        tailwind)
+            if confirm "$(t 'Tailwind CSS CLI ikili dosyasını kaldırmak istiyor musunuz?' 'Do you want to remove Tailwind CSS CLI?')"; then
+                sudo rm -f /usr/local/bin/tailwindcss
+                log_success "$(t 'Tailwind CSS CLI kaldırıldı.' 'Tailwind CSS CLI removed.')"
+            fi
+            ;;
+        all)
+            if confirm "$(t 'DİKKAT: Tüm frontend araçları kaldırılacak. Emin misiniz?' 'WARNING: All frontend tools will be removed. Are you sure?')":; then
+                remove_target bun
+                remove_target pnpm
+                remove_target yarn
+                remove_target tailwind
+                log_success "$(t 'Tüm frontend araçları kaldırıldı.' 'All frontend tools removed.')"
+            fi
+            ;;
+    esac
+}
+
+# =============================================================================
+# INTERACTIVE MENU
+# =============================================================================
+interactive_menu() {
+    show_status
+    echo -e "${BOLD}$(t 'Hangi frontend ortamını yapılandırmak istiyorsunuz?' 'Which frontend environment would you like to configure?')${NC}"
+    echo "  1) Bun (Ultra-fast JS/TS runtime)"
+    echo "  2) pnpm (Disk-efficient package manager)"
+    echo "  3) Yarn (Reliable dependency manager)"
+    echo "  4) Vite (Frontend build tool CLI)"
+    echo "  5) Tailwind CSS (Standalone CLI compiler)"
+    echo "  6) Tauri Desktop (WebKit + Rust desktop apps)"
+    echo "  7) $(t 'Hepsini Kur (Tam Frontend Yığını)' 'Install Everything (Full Stack)')"
+    echo "  8) $(t 'Kurulu Olanları Güncelle (Update)' 'Update Installed Tools')"
+    echo "  9) $(t 'Çıkış' 'Exit')"
+    echo ""
+    read -p "$(t 'Seçiminiz [1-9]: ' 'Your choice [1-9]: ')" choice
+
+    case "$choice" in
+        1) install_bun ;;
+        2) install_pnpm ;;
+        3) install_yarn ;;
+        4) install_vite ;;
+        5) install_tailwind ;;
+        6) install_tauri ;;
+        7) install_all ;;
+        8) update_target all ;;
+        9|q|Q) exit 0 ;;
+        *) echo "$(t 'Geçersiz seçim.' 'Invalid choice.')"; exit 1 ;;
+    esac
+}
+
+# =============================================================================
+# ENTRYPOINT
+# =============================================================================
+ACTION="${1:-menu}"
+TARGET="${2:-}"
+
+case "$ACTION" in
+    status|list|read)
+        show_status
+        ;;
+    install|create)
+        case "$TARGET" in
+            bun) install_bun ;;
+            pnpm) install_pnpm ;;
+            yarn) install_yarn ;;
+            vite) install_vite ;;
+            tailwind|tailwindcss) install_tailwind ;;
+            tauri) install_tauri ;;
+            all|"") install_all ;;
+            *) log_error "$(t 'Bilinmeyen hedef:' 'Unknown target:') $TARGET (bun, pnpm, yarn, vite, tailwind, tauri, all)"; exit 1 ;;
+        esac
+        ;;
+    update)
+        update_target "$TARGET"
+        ;;
+    remove|delete|purge)
+        remove_target "$TARGET"
+        ;;
+    help|--help|-h)
+        echo "$(t 'Kullanım:' 'Usage:') taaos-frontend [status|install|update|remove] [bun|pnpm|yarn|vite|tailwind|tauri|all] [--lang=tr|en]"
+        ;;
+    menu|*)
+        interactive_menu
+        ;;
+esac

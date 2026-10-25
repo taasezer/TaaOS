@@ -1,10 +1,9 @@
 [Desktop Entry]
 Type=Application
 Name=TaaOS Wallpaper Fix
-Comment=Enforces TaaOS wallpaper on all display types
 Exec=/usr/local/bin/taaos-wallpaper-fix.sh
+OnlyShowIn=XFCE;
+RunHook=0
 StartupNotify=false
 Terminal=false
 Hidden=false
-X-GNOME-Autostart-enabled=true
-X-XFCE-Autostart-Override=true

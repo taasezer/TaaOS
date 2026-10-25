@@ -1,0 +1,11 @@
+# Build outputs
+*.iso
+*.tar.gz
+*.swp
+
+# Logs & temp files
+logs/*.log
+chroot/
+binary/
+cache/
+.build/

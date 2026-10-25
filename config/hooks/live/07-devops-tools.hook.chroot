@@ -13,27 +13,8 @@ echo "=============================================="
 
 SCRIPT_BASE="/opt/taaos/scripts/devops"
 
-# Execute container infrastructure setup
-if [ -f "${SCRIPT_BASE}/install-containers.sh" ]; then
-    echo "[HOOK] Running container infrastructure setup..."
-    chmod +x "${SCRIPT_BASE}/install-containers.sh"
-    bash "${SCRIPT_BASE}/install-containers.sh"
-else
-    echo "[HOOK] Warning: Container script not found"
-fi
-
-echo ""
-
-# Execute admin tools setup
-if [ -f "${SCRIPT_BASE}/install-admin-tools.sh" ]; then
-    echo "[HOOK] Running admin tools setup..."
-    chmod +x "${SCRIPT_BASE}/install-admin-tools.sh"
-    bash "${SCRIPT_BASE}/install-admin-tools.sh"
-else
-    echo "[HOOK] Warning: Admin tools script not found"
-fi
-
-echo ""
+# Container infrastructure and admin tools (Cockpit/QEMU) are now managed
+# on-demand via 'taaos-devops' to keep the base system ultra-lightweight.
 
 # Execute Git infrastructure setup
 if [ -f "${SCRIPT_BASE}/setup-git.sh" ]; then

@@ -1,0 +1,312 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Backend Suite — Modular CRUD Engine
+# =============================================================================
+# Manage Python, Node.js, Go, Rust, and Database toolchains on-demand.
+# Usage: taaos-backend [status|install|update|remove] [target] [--lang=tr|en]
+# =============================================================================
+
+set -e
+
+LIB_DIR="/usr/local/lib/taaos"
+if [ ! -f "${LIB_DIR}/common.sh" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "${SCRIPT_DIR}/../lib/taaos/common.sh" ]; then
+        LIB_DIR="${SCRIPT_DIR}/../lib/taaos"
+    fi
+fi
+
+if [ -f "${LIB_DIR}/common.sh" ]; then
+    source "${LIB_DIR}/common.sh" "$@"
+else
+    # Fallback minimal definitions
+    RED='\033[1;31m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'; CYAN='\033[1;36m'; NC='\033[0m'
+    t() { echo "$2"; }
+    log_info() { echo -e "${CYAN}[INFO]${NC} $*"; }
+    log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
+    log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+    log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+    taaos_banner() { echo -e "${RED}=== $1 ===${NC}"; }
+    is_cmd_installed() { command -v "$1" >/dev/null 2>&1; }
+    print_status_item() { if is_cmd_installed "$2"; then echo -e "  ${GREEN}[✓]${NC} $1 (Installed)"; else echo -e "  ${RED}[○]${NC} $1 (Not installed)"; fi; }
+    confirm() { return 0; }
+    taaos_apt_install() { sudo apt-get update -qq && sudo apt-get install -y "$@"; }
+    taaos_apt_remove() { sudo apt-get remove -y --purge "$@" && sudo apt-get autoremove -y; }
+fi
+
+# =============================================================================
+# READ: STATUS REPORT (Bilingual & Educational)
+# =============================================================================
+show_status() {
+    taaos_banner \
+        "$(t 'TaaOS Backend Geliştirici Ortamı' 'TaaOS Backend Developer Environment')" \
+        "$(t 'Kurulu Araç ve Çalışma Zamanı Durum Raporu' 'Installed Tools and Runtime Status Report')"
+
+    echo -e "${YELLOW}1. $(t 'Python Arka Yüz Yığını' 'Python Backend Stack'):${NC}"
+    print_status_item "Python 3" "python3" "python3 --version" \
+        "$(t 'Genel amaçlı backend dili' 'General-purpose backend programming language')"
+    print_status_item "Pip" "pip3" "pip3 --version | awk '{print \$1,\$2}'" \
+        "$(t 'Standart Python paket yöneticisi' 'Standard Python package installer')"
+    print_status_item "uv" "uv" "uv --version" \
+        "$(t 'Rust ile yazılmış, 10-100x hızlı Python paket ve sanal ortam yöneticisi' 'Extremely fast Rust-based Python package & project manager')"
+    print_status_item "FastAPI CLI" "fastapi" "fastapi --version" \
+        "$(t 'Yüksek performanslı modern asenkron web API çatısı' 'High-performance modern async API framework')"
+    print_status_item "Uvicorn" "uvicorn" "uvicorn --version" \
+        "$(t 'Yıldırım hızında ASGI web sunucusu' 'Lightning-fast ASGI web server implementation')"
+
+    echo -e "\n${YELLOW}2. $(t 'Node.js & TypeScript Yığını' 'Node.js & TypeScript Stack'):${NC}"
+    print_status_item "Node.js" "node" "node --version" \
+        "$(t 'V8 tabanlı JavaScript arka yüz çalışma zamanı' 'V8-powered server-side JavaScript runtime')"
+    print_status_item "npm" "npm" "npm --version" \
+        "$(t 'Varsayılan Node.js paket yöneticisi' 'Default Node.js package manager')"
+    print_status_item "pnpm" "pnpm" "pnpm --version" \
+        "$(t 'Hızlı ve disk tasarruflu paket yöneticisi' 'Fast, disk space efficient package manager')"
+    print_status_item "tsx" "tsx" "tsx --version" \
+        "$(t 'Sıfır yapılandırmalı TypeScript yürütücüsü (esbuild)' 'Zero-config TypeScript executor powered by esbuild')"
+
+    echo -e "\n${YELLOW}3. $(t 'Go Programlama Dili' 'Go Programming Language'):${NC}"
+    print_status_item "Go" "go" "go version | awk '{print \$3}'" \
+        "$(t 'Google tarafından geliştirilen hızlı, eşzamanlı sistem dili' 'Fast, concurrent, statically typed systems language by Google')"
+    print_status_item "gopls" "gopls" "gopls version | head -1" \
+        "$(t 'Go dili resmi dil sunucusu (LSP / IDE zekası)' 'Official Go Language Server Protocol daemon for IDEs')"
+
+    echo -e "\n${YELLOW}4. $(t 'Rust Programlama Dili' 'Rust Programming Language'):${NC}"
+    print_status_item "rustc" "rustc" "rustc --version" \
+        "$(t 'Bellek güvenli, sıfır maliyetli soyutlama sunan sistem derleyicisi' 'Memory-safe systems compiler with zero-cost abstractions')"
+    print_status_item "Cargo" "cargo" "cargo --version" \
+        "$(t 'Rust paket yöneticisi ve derleme otomasyonu' 'Rust package manager and build orchestrator')"
+
+    echo -e "\n${YELLOW}5. $(t 'Veritabanı CLI İstemcileri' 'Database CLI Clients'):${NC}"
+    print_status_item "PostgreSQL (psql)" "psql" "psql --version" \
+        "$(t 'Güçlü nesne-ilişkisel veritabanı terminal istemcisi' 'Advanced open-source relational database terminal client')"
+    print_status_item "Redis CLI" "redis-cli" "redis-cli --version" \
+        "$(t 'Bellek-içi anahtar-değer önbellek ve veri yapısı terminali' 'In-memory key-value cache and data structure CLI')"
+    print_status_item "SQLite 3" "sqlite3" "sqlite3 --version" \
+        "$(t 'Hafif, sunucusuz gömülü ilişkisel SQL veritabanı' 'Lightweight, serverless embedded SQL engine')"
+
+    echo ""
+}
+
+# =============================================================================
+# CREATE: INSTALLERS
+# =============================================================================
+install_python() {
+    log_info "$(t 'Python backend ortamı yapılandırılıyor...' 'Configuring Python backend environment...')"
+    taaos_apt_install python3 python3-pip python3-venv python3-dev
+
+    if ! is_cmd_installed uv; then
+        log_info "$(t 'uv (Ultra hızlı paketçi) kuruluyor...' 'Installing uv (ultra-fast package manager)...')"
+        curl -LsSf https://astral.sh/uv/install.sh | sh || true
+        export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    fi
+
+    log_info "$(t 'Temel web kütüphaneleri kuruluyor (FastAPI, Uvicorn, SQLAlchemy)...' 'Installing core web libraries (FastAPI, Uvicorn, SQLAlchemy)...')"
+    pip3 install --break-system-packages --user fastapi uvicorn sqlalchemy requests pydantic || true
+    log_success "$(t 'Python backend ortamı hazır!' 'Python backend environment is ready!')"
+}
+
+install_node() {
+    log_info "$(t 'Node.js LTS ve TypeScript ortamı kuruluyor...' 'Installing Node.js LTS and TypeScript environment...')"
+    if ! is_cmd_installed node; then
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        taaos_apt_install nodejs
+    else
+        log_warn "$(t 'Node.js zaten kurulu' 'Node.js already installed') ($(node --version))."
+    fi
+    sudo npm install -g pnpm tsx || true
+    log_success "$(t 'Node.js ortamı hazır!' 'Node.js environment is ready!')"
+}
+
+install_go() {
+    log_info "$(t 'Go geliştirme ortamı kuruluyor...' 'Installing Go development environment...')"
+    taaos_apt_install golang-go
+    log_success "$(t 'Go ortamı hazır!' 'Go environment is ready!') ($(go version))"
+}
+
+install_rust() {
+    log_info "$(t 'Rust ortamı kuruluyor...' 'Installing Rust environment...')"
+    if ! is_cmd_installed rustup && ! is_cmd_installed rustc; then
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source "$HOME/.cargo/env" 2>/dev/null || export PATH="$HOME/.cargo/bin:$PATH"
+    else
+        taaos_apt_install rustc cargo
+    fi
+    log_success "$(t 'Rust ortamı hazır!' 'Rust environment is ready!')"
+}
+
+install_db() {
+    log_info "$(t 'Veritabanı CLI araçları kuruluyor...' 'Installing Database CLI clients...')"
+    taaos_apt_install postgresql-client redis-tools sqlite3
+    log_success "$(t 'Veritabanı CLI araçları hazır!' 'Database CLI clients are ready!')"
+}
+
+install_all() {
+    log_info "$(t 'Tüm backend geliştirici ortamları kuruluyor...' 'Installing full backend development suite...')"
+    install_python
+    install_node
+    install_go
+    install_rust
+    install_db
+    log_success "$(t 'Tüm backend yığını başarıyla kuruldu!' 'Full backend stack installed successfully!')"
+}
+
+# =============================================================================
+# UPDATE: UPDATERS
+# =============================================================================
+update_target() {
+    local target="$1"
+    case "$target" in
+        python)
+            log_info "$(t 'Python araçları güncelleniyor...' 'Updating Python tools...')"
+            if is_cmd_installed uv; then uv self update 2>/dev/null || true; fi
+            pip3 install --upgrade --break-system-packages --user fastapi uvicorn sqlalchemy requests pydantic 2>/dev/null || true
+            log_success "$(t 'Python araçları güncellendi.' 'Python tools updated.')"
+            ;;
+        node)
+            log_info "$(t 'Node / npm paketleri güncelleniyor...' 'Updating Node / npm packages...')"
+            if is_cmd_installed npm; then sudo npm update -g 2>/dev/null || true; fi
+            log_success "$(t 'Node araçları güncellendi.' 'Node tools updated.')"
+            ;;
+        go)
+            log_info "$(t 'Go paketi güncelleniyor...' 'Updating Go compiler...')"
+            taaos_apt_install --only-upgrade golang-go 2>/dev/null || true
+            log_success "$(t 'Go güncellendi.' 'Go updated.')"
+            ;;
+        rust)
+            log_info "$(t 'Rust araçları güncelleniyor...' 'Updating Rust toolchain...')"
+            if is_cmd_installed rustup; then rustup update 2>/dev/null || true; else taaos_apt_install --only-upgrade rustc cargo 2>/dev/null || true; fi
+            log_success "$(t 'Rust güncellendi.' 'Rust updated.')"
+            ;;
+        db)
+            log_info "$(t 'Veritabanı CLI araçları güncelleniyor...' 'Updating Database CLI tools...')"
+            taaos_apt_install --only-upgrade postgresql-client redis-tools sqlite3 2>/dev/null || true
+            log_success "$(t 'Veritabanı araçları güncellendi.' 'Database tools updated.')"
+            ;;
+        all|"")
+            log_info "$(t 'Kurulu tüm backend bileşenleri taranıp güncelleniyor...' 'Scanning and updating all installed backend components...')"
+            if is_cmd_installed python3; then update_target python; fi
+            if is_cmd_installed node; then update_target node; fi
+            if is_cmd_installed go; then update_target go; fi
+            if is_cmd_installed rustc || is_cmd_installed rustup; then update_target rust; fi
+            if is_cmd_installed psql || is_cmd_installed redis-cli; then update_target db; fi
+            log_success "$(t 'Tüm backend bileşenleri güncellendi!' 'All backend components updated!')"
+            ;;
+    esac
+}
+
+# =============================================================================
+# DELETE: UNINSTALLERS
+# =============================================================================
+remove_target() {
+    local target="$1"
+    case "$target" in
+        python)
+            if confirm "$(t 'Python ek web kütüphanelerini kaldırmak istiyor musunuz?' 'Do you want to remove Python web libraries?')"; then
+                pip3 uninstall -y fastapi uvicorn sqlalchemy pydantic 2>/dev/null || true
+                rm -rf "$HOME/.local/bin/uv" "$HOME/.cargo/bin/uv" 2>/dev/null || true
+                log_success "$(t 'Python ek araçları kaldırıldı.' 'Python extra tools removed.')"
+            fi
+            ;;
+        node)
+            if confirm "$(t 'Node.js ve global npm paketlerini kaldırmak istiyor musunuz?' 'Do you want to remove Node.js and global packages?')"; then
+                taaos_apt_remove nodejs
+                sudo rm -rf /etc/apt/sources.list.d/nodesource.list 2>/dev/null || true
+                log_success "$(t 'Node.js kaldırıldı.' 'Node.js removed.')"
+            fi
+            ;;
+        go)
+            if confirm "$(t 'Go derleyicisini kaldırmak istiyor musunuz?' 'Do you want to remove Go compiler?')"; then
+                taaos_apt_remove golang-go
+                log_success "$(t 'Go derleyicisi kaldırıldı.' 'Go compiler removed.')"
+            fi
+            ;;
+        rust)
+            if confirm "$(t 'Rust ortamını kaldırmak istiyor musunuz?' 'Do you want to remove Rust toolchain?')"; then
+                if is_cmd_installed rustup; then rustup self uninstall -y 2>/dev/null || true; fi
+                taaos_apt_remove rustc cargo
+                log_success "$(t 'Rust ortamı kaldırıldı.' 'Rust toolchain removed.')"
+            fi
+            ;;
+        db)
+            if confirm "$(t 'Veritabanı CLI araçlarını kaldırmak istiyor musunuz?' 'Do you want to remove Database CLI tools?')"; then
+                taaos_apt_remove postgresql-client redis-tools sqlite3
+                log_success "$(t 'Veritabanı CLI araçları kaldırıldı.' 'Database CLI tools removed.')"
+            fi
+            ;;
+        all)
+            if confirm "$(t 'DİKKAT: Tüm backend ortam araçları kaldırılacak. Emin misiniz?' 'WARNING: All backend tools will be removed. Are you sure?')":; then
+                remove_target python
+                remove_target node
+                remove_target go
+                remove_target rust
+                remove_target db
+                log_success "$(t 'Tüm backend araçları kaldırıldı.' 'All backend tools removed.')"
+            fi
+            ;;
+    esac
+}
+
+# =============================================================================
+# INTERACTIVE MENU
+# =============================================================================
+interactive_menu() {
+    show_status
+    echo -e "${BOLD}$(t 'Hangi backend ortamını yapılandırmak istiyorsunuz?' 'Which backend environment would you like to configure?')${NC}"
+    echo "  1) Python (FastAPI, Uvicorn, SQLAlchemy, uv)"
+    echo "  2) Node.js & TypeScript (Node LTS, npm, pnpm, tsx)"
+    echo "  3) Go (golang-go, gopls)"
+    echo "  4) Rust (Rustup, Cargo, rustc)"
+    echo "  5) Database CLI (PostgreSQL, Redis, SQLite)"
+    echo "  6) $(t 'Hepsini Kur (Tam Backend Yığını)' 'Install Everything (Full Stack)')"
+    echo "  7) $(t 'Kurulu Olanları Güncelle (Update)' 'Update Installed Environments')"
+    echo "  8) $(t 'Çıkış' 'Exit')"
+    echo ""
+    read -p "$(t 'Seçiminiz [1-8]: ' 'Your choice [1-8]: ')" choice
+
+    case "$choice" in
+        1) install_python ;;
+        2) install_node ;;
+        3) install_go ;;
+        4) install_rust ;;
+        5) install_db ;;
+        6) install_all ;;
+        7) update_target all ;;
+        8|q|Q) exit 0 ;;
+        *) echo "$(t 'Geçersiz seçim.' 'Invalid choice.')"; exit 1 ;;
+    esac
+}
+
+# =============================================================================
+# ENTRYPOINT
+# =============================================================================
+ACTION="${1:-menu}"
+TARGET="${2:-}"
+
+case "$ACTION" in
+    status|list|read)
+        show_status
+        ;;
+    install|create)
+        case "$TARGET" in
+            python|py) install_python ;;
+            node|nodejs|js|ts) install_node ;;
+            go|golang) install_go ;;
+            rust|cargo) install_rust ;;
+            db|database|sql) install_db ;;
+            all|"") install_all ;;
+            *) log_error "$(t 'Bilinmeyen hedef:' 'Unknown target:') $TARGET (python, node, go, rust, db, all)"; exit 1 ;;
+        esac
+        ;;
+    update)
+        update_target "$TARGET"
+        ;;
+    remove|delete|purge)
+        remove_target "$TARGET"
+        ;;
+    help|--help|-h)
+        echo "$(t 'Kullanım:' 'Usage:') taaos-backend [status|install|update|remove] [python|node|go|rust|db|all] [--lang=tr|en]"
+        ;;
+    menu|*)
+        interactive_menu
+        ;;
+esac

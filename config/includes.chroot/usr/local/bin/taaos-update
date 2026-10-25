@@ -3,27 +3,66 @@
 # TaaOS System Updater
 # =============================================================================
 
+set -e
+
 GREEN='\033[1;32m'
 CYAN='\033[1;36m'
 YELLOW='\033[1;33m'
+RED='\033[1;31m'
 NC='\033[0m'
 
-echo -e "${CYAN}==============================================${NC}"
-echo -e "${GREEN}  TaaOS Sistem Güncelleyici${NC}"
-echo -e "${CYAN}==============================================${NC}"
+# Locale / Language detection
+TAAOS_LANG="en"
+_SYS_LOCALE="${LC_ALL:-${LC_MESSAGES:-${LANG:-en}}}"
+if [[ "$_SYS_LOCALE" =~ ^tr ]]; then
+    TAAOS_LANG="tr"
+fi
+for arg in "$@"; do
+    case "$arg" in
+        --lang=tr) TAAOS_LANG="tr" ;;
+        --lang=en) TAAOS_LANG="en" ;;
+    esac
+done
+
+t() {
+    if [ "$TAAOS_LANG" = "tr" ]; then
+        echo -e "$1"
+    else
+        echo -e "$2"
+    fi
+}
+
+echo -e "${RED}==============================================${NC}"
+echo -e "${GREEN}  $(t 'TaaOS Sistem Güncelleyici' 'TaaOS System Updater')${NC}"
+echo -e "${RED}==============================================${NC}"
 echo ""
 
-echo -e "${YELLOW}[1/3] APT Paketleri Güncelleniyor...${NC}"
-sudo apt update && sudo apt upgrade -y
-
-echo -e "\n${YELLOW}[2/3] Gereksiz APT Paketleri Temizleniyor...${NC}"
-sudo apt autoremove -y && sudo apt clean
-
-if command -v flatpak >/dev/null 2>&1; then
-    echo -e "\n${YELLOW}[3/3] Flatpak Uygulamaları Güncelleniyor...${NC}"
-    flatpak update -y
+echo -e "${YELLOW}[1/4] $(t 'APT Paket Listeleri ve Paketler Güncelleniyor...' 'Updating APT Package Repositories and Packages...')${NC}"
+if [ "$EUID" -ne 0 ]; then
+    sudo apt update && sudo apt upgrade -y
 else
-    echo -e "\n${YELLOW}[3/3] Flatpak yüklü değil, atlanıyor.${NC}"
+    apt update && apt upgrade -y
 fi
 
-echo -e "\n${GREEN}✓ Güncelleme tamamlandı! Sisteminiz en güncel sürümde.${NC}"
+echo -e "\n${YELLOW}[2/4] $(t 'Gereksiz APT Paketleri ve Önbellek Temizleniyor...' 'Removing Unneeded Packages and Cleaning Cache...')${NC}"
+if [ "$EUID" -ne 0 ]; then
+    sudo apt autoremove -y && sudo apt clean
+else
+    apt autoremove -y && apt clean
+fi
+
+if command -v flatpak >/dev/null 2>&1; then
+    echo -e "\n${YELLOW}[3/4] $(t 'Flatpak Uygulamaları Güncelleniyor...' 'Updating Flatpak Applications...')${NC}"
+    flatpak update -y
+else
+    echo -e "\n${YELLOW}[3/4] $(t 'Flatpak yüklü değil, atlanıyor.' 'Flatpak not installed, skipping.')${NC}"
+fi
+
+if command -v taanos >/dev/null 2>&1; then
+    echo -e "\n${YELLOW}[4/4] $(t 'TaaNOS Güncelliği Kontrol Ediliyor...' 'Checking TaaNOS Updates...')${NC}"
+    taanos update 2>/dev/null || true
+else
+    echo -e "\n${YELLOW}[4/4] $(t 'TaaNOS kontrolü tamamlandı.' 'TaaNOS check completed.')${NC}"
+fi
+
+echo -e "\n${GREEN}✓ $(t 'Güncelleme tamamlandı! Sisteminiz en güncel sürümde.' 'Update complete! Your system is up to date.')${NC}"

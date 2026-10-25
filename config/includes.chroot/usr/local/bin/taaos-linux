@@ -1,0 +1,251 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Linux Kernel & System Optimization Suite — Modular CRUD Engine
+# =============================================================================
+# Manage Kernel Headers, DKMS, eBPF/perf tools, telemetry, and sysctl tuning.
+# Usage: taaos-linux [status|install|tune|update|remove] [target] [--lang=tr|en]
+# =============================================================================
+
+set -e
+
+LIB_DIR="/usr/local/lib/taaos"
+if [ ! -f "${LIB_DIR}/common.sh" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "${SCRIPT_DIR}/../lib/taaos/common.sh" ]; then
+        LIB_DIR="${SCRIPT_DIR}/../lib/taaos"
+    fi
+fi
+
+if [ -f "${LIB_DIR}/common.sh" ]; then
+    source "${LIB_DIR}/common.sh" "$@"
+else
+    RED='\033[1;31m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'; CYAN='\033[1;36m'; NC='\033[0m'
+    t() { echo "$2"; }
+    log_info() { echo -e "${CYAN}[INFO]${NC} $*"; }
+    log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
+    log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+    log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+    taaos_banner() { echo -e "${RED}=== $1 ===${NC}"; }
+    is_cmd_installed() { command -v "$1" >/dev/null 2>&1; }
+    print_status_item() { if is_cmd_installed "$2"; then echo -e "  ${GREEN}[✓]${NC} $1 (Installed)"; else echo -e "  ${RED}[○]${NC} $1 (Not installed)"; fi; }
+    confirm() { return 0; }
+    taaos_apt_install() { sudo apt-get update -qq && sudo apt-get install -y "$@"; }
+    taaos_apt_remove() { sudo apt-get remove -y --purge "$@" && sudo apt-get autoremove -y; }
+    is_wsl() { grep -qi microsoft /proc/version 2>/dev/null; }
+fi
+
+# =============================================================================
+# READ: STATUS REPORT (Bilingual & Educational)
+# =============================================================================
+show_status() {
+    taaos_banner \
+        "$(t 'TaaOS Linux Sistem & Çekirdek Geliştirici Yığını' 'TaaOS Linux System & Kernel Developer Stack')" \
+        "$(t 'Kernel Başlıkları, Profil Çıkarma ve Sysctl İnce Ayarı' 'Kernel Headers, Profiling, and Sysctl Tuning')"
+
+    echo -e "${YELLOW}1. $(t 'Çekirdek & Donanım Modülü Geliştirme' 'Kernel & Hardware Module Development'):${NC}"
+    if [ -d "/lib/modules/$(uname -r)/build" ]; then
+        echo -e "  ${GREEN}[✓]${NC} Linux Headers: ${GREEN}$(t 'Kurulu' 'Installed')${NC} (/lib/modules/$(uname -r)/build)"
+        echo -e "      ${DIM}└─ $(t 'C/C++ çekirdek modülü ve aygıt sürücüsü derleme başlık dosyaları' 'Header files required to compile Linux kernel modules and hardware drivers')${NC}"
+    else
+        echo -e "  ${RED}[○]${NC} Linux Headers: $(t 'Kurulu değil' 'Not installed')"
+    fi
+    print_status_item "DKMS" "dkms" "dkms --version" \
+        "$(t 'Çekirdek güncellemelerinde üçüncü taraf sürücüleri otomatik yeniden derleme sistemi' 'Dynamic Kernel Module Support for automatic driver rebuilds across kernel updates')"
+
+    echo -e "\n${YELLOW}2. $(t 'Çekirdek Profil & Hata Ayıklama (eBPF)' 'Kernel Profiling & Debugging (eBPF)'):${NC}"
+    print_status_item "perf" "perf" "perf --version" \
+        "$(t 'Linux resmi donanım ve yazılım performans analiz ve profil çıkarma aracı' 'Linux performance analyzing and profiling tool')"
+    print_status_item "bpftrace" "bpftrace" "bpftrace --version" \
+        "$(t 'Linux çekirdeği için yüksek seviyeli dinamik eBPF izleme dili' 'High-level tracing language for Linux eBPF')"
+    print_status_item "Valgrind" "valgrind" "valgrind --version" \
+        "$(t 'Bellek sızıntısı (leak) ve erişim hatalarını tespit eden profil aracı' 'Instrumentation framework for building dynamic analysis tools (memory leaks, threading)')"
+    print_status_item "Strace" "strace" "strace --version | head -1" \
+        "$(t 'Bir sürecin yaptığı tüm sistem çağrılarını (syscall) yakalayıp izleme aracı' 'Diagnostic, debugging and instructional userspace utility for Linux')"
+
+    echo -e "\n${YELLOW}3. $(t 'Donanım Telemetrisi & İzleme' 'Hardware Telemetry & Monitoring'):${NC}"
+    print_status_item "inxi" "inxi" "inxi --version | head -1" \
+        "$(t 'Tam sistem ve donanım bileşeni telemetri raporlayıcısı' 'Full CLI system and hardware component information reporting tool')"
+    print_status_item "lshw" "lshw" "lshw -version" \
+        "$(t 'Ayrıntılı donanım ağacı ve bellek haritası çıkarıcı' 'Detailed hardware configuration and memory topology extractor')"
+    print_status_item "sysstat" "iostat" "iostat -V | head -1" \
+        "$(t 'Disk I/O ve sistem yük istatistikleri koleksiyonu' 'System performance tools including sar, iostat, mpstat, pidstat')"
+
+    echo -e "\n${YELLOW}4. $(t 'Çekirdek Optimizasyon Profili' 'Kernel Optimization Profile'):${NC}"
+    if [ -f /etc/sysctl.d/99-taaos-tune.conf ]; then
+        echo -e "  ${GREEN}[✓]${NC} $(t 'Aktif Profil:' 'Active Profile:') $(cat /etc/sysctl.d/99-taaos-tune.conf | grep '^# PROFIL:' || echo 'Custom Profile')"
+    else
+        echo -e "  ${DIM}[○] $(t 'Aktif Profil: Standart Linux Dağıtım Ayarları' 'Active Profile: Standard Linux Distribution Defaults')${NC}"
+    fi
+
+    if is_wsl; then
+        echo -e "\n${DIM}[$(t 'Not: WSL2 ortamında çekirdek Microsoft sanallaştırma katmanı tarafından yönetilir.' 'Note: In WSL2, the kernel is managed by the Microsoft virtualization layer.')]${NC}"
+    fi
+    echo ""
+}
+
+# =============================================================================
+# CREATE: INSTALLERS
+# =============================================================================
+install_headers() {
+    log_info "$(t 'Linux çekirdek başlıkları ve derleme ortamı kuruluyor...' 'Installing Linux kernel headers and compilation environment...')"
+    if is_wsl; then
+        taaos_apt_install linux-headers-amd64 dkms build-essential kmod 2>/dev/null || true
+    else
+        taaos_apt_install "linux-headers-$(uname -r)" dkms build-essential kmod 2>/dev/null || taaos_apt_install linux-headers-amd64 dkms build-essential kmod
+    fi
+    log_success "$(t 'Kernel başlıkları hazır!' 'Kernel headers are ready!')"
+}
+
+install_perf() {
+    log_info "$(t 'eBPF, perf ve profil çıkarma araçları kuruluyor...' 'Installing eBPF, perf, and profiling tools...')"
+    taaos_apt_install linux-perf bpftrace bpfcc-tools trace-cmd valgrind strace ltrace 2>/dev/null || taaos_apt_install bpftrace valgrind strace ltrace
+    log_success "$(t 'Performans ve izleme araçları hazır!' 'Performance and tracing tools are ready!')"
+}
+
+install_telemetry() {
+    log_info "$(t 'Donanım telemetri araçları kuruluyor...' 'Installing hardware telemetry tools...')"
+    taaos_apt_install inxi lshw lm-sensors sysstat smartmontools
+    log_success "$(t 'Telemetri araçları hazır!' 'Telemetry tools are ready!')"
+}
+
+install_all() {
+    log_info "$(t 'Tüm Linux sistem ve çekirdek geliştirme araçları kuruluyor...' 'Installing all Linux system and kernel developer tools...')"
+    install_headers
+    install_perf
+    install_telemetry
+    log_success "$(t 'Tüm Linux geliştirici yığını hazır!' 'All Linux developer tools are ready!')"
+}
+
+# =============================================================================
+# TUNE: SYSCTL PROFILES
+# =============================================================================
+apply_profile() {
+    local prof="$1"
+    case "$prof" in
+        low-latency|latency)
+            log_info "$(t 'Düşük gecikme (Low-Latency) profili uygulanıyor...' 'Applying low-latency kernel tuning profile...')"
+            sudo tee /etc/sysctl.d/99-taaos-tune.conf >/dev/null << 'EOF'
+# PROFIL: Low-Latency (Audio, Gaming, High-Frequency Trading)
+vm.swappiness = 5
+vm.dirty_ratio = 10
+vm.dirty_background_ratio = 5
+fs.inotify.max_user_watches = 1048576
+kernel.sched_latency_ns = 4000000
+kernel.sched_min_granularity_ns = 500000
+EOF
+            sudo sysctl --system >/dev/null 2>&1 || true
+            log_success "$(t 'Düşük gecikme profili devrede!' 'Low-latency profile applied!')"
+            ;;
+        throughput|server)
+            log_info "$(t 'Yüksek verim (High Throughput / Server) profili uygulanıyor...' 'Applying high throughput / server profile...')"
+            sudo tee /etc/sysctl.d/99-taaos-tune.conf >/dev/null << 'EOF'
+# PROFIL: High-Throughput (Server, Build Machine, Database)
+vm.swappiness = 10
+vm.dirty_ratio = 40
+vm.dirty_background_ratio = 10
+net.core.rmem_max = 33554432
+net.core.wmem_max = 33554432
+net.ipv4.tcp_rmem = 4096 87380 33554432
+net.ipv4.tcp_wmem = 4096 65536 33554432
+fs.file-max = 2097152
+EOF
+            sudo sysctl --system >/dev/null 2>&1 || true
+            log_success "$(t 'Yüksek verim profili devrede!' 'High-throughput profile applied!')"
+            ;;
+        default|reset)
+            sudo rm -f /etc/sysctl.d/99-taaos-tune.conf
+            sudo sysctl --system >/dev/null 2>&1 || true
+            log_success "$(t 'Varsayılan çekirdek parametrelerine dönüldü.' 'Restored default kernel parameters.')"
+            ;;
+        *)
+            log_error "$(t 'Bilinmeyen profil:' 'Unknown profile:') $prof (low-latency, throughput, default)"
+            exit 1
+            ;;
+    esac
+}
+
+# =============================================================================
+# UPDATE & REMOVE
+# =============================================================================
+update_all() {
+    log_info "$(t 'Linux araçları taranıp güncelleniyor...' 'Updating Linux tools...')"
+    taaos_apt_install --only-upgrade build-essential dkms strace valgrind bpftrace 2>/dev/null || true
+    log_success "$(t 'Linux araçları güncellendi.' 'Linux tools updated.')"
+}
+
+remove_all() {
+    if confirm "$(t 'Linux ekstra geliştirici ve analiz araçlarını kaldırmak istiyor musunuz?' 'Do you want to remove extra Linux developer tools?')"; then
+        taaos_apt_remove bpftrace valgrind strace ltrace inxi lm-sensors smartmontools
+        sudo rm -f /etc/sysctl.d/99-taaos-tune.conf
+        sudo sysctl --system >/dev/null 2>&1 || true
+        log_success "$(t 'Linux ekstra araçları kaldırıldı.' 'Linux extra tools removed.')"
+    fi
+}
+
+# =============================================================================
+# INTERACTIVE MENU
+# =============================================================================
+interactive_menu() {
+    show_status
+    echo -e "${BOLD}$(t 'Hangi Linux bileşenini yapılandırmak istiyorsunuz?' 'Which Linux component would you like to configure?')${NC}"
+    echo "  1) Kernel Headers & DKMS (Aygıt sürücüsü ve modül derleme)"
+    echo "  2) eBPF, perf & Profiling (bpftrace, perf, valgrind, strace)"
+    echo "  3) Hardware Telemetry (inxi, lshw, sysstat, lm-sensors)"
+    echo "  4) $(t 'Düşük Gecikme (Low-Latency) Sysctl Profili Uygula' 'Apply Low-Latency Sysctl Profile')"
+    echo "  5) $(t 'Yüksek Verim (Throughput/Server) Sysctl Profili Uygula' 'Apply High-Throughput Sysctl Profile')"
+    echo "  6) $(t 'Varsayılan Sysctl Ayarlarına Sıfırla' 'Reset to Default Sysctl Parameters')"
+    echo "  7) $(t 'Hepsini Kur (Tam Linux Geliştirici Yığını)' 'Install Everything (Full Linux Stack)')"
+    echo "  8) $(t 'Kurulu Olanları Güncelle (Update)' 'Update Installed Tools')"
+    echo "  9) $(t 'Çıkış' 'Exit')"
+    echo ""
+    read -p "$(t 'Seçiminiz [1-9]: ' 'Your choice [1-9]: ')" choice
+
+    case "$choice" in
+        1) install_headers ;;
+        2) install_perf ;;
+        3) install_telemetry ;;
+        4) apply_profile low-latency ;;
+        5) apply_profile throughput ;;
+        6) apply_profile default ;;
+        7) install_all ;;
+        8) update_all ;;
+        9|q|Q) exit 0 ;;
+        *) echo "$(t 'Geçersiz seçim.' 'Invalid choice.')"; exit 1 ;;
+    esac
+}
+
+# =============================================================================
+# ENTRYPOINT
+# =============================================================================
+ACTION="${1:-menu}"
+TARGET="${2:-}"
+
+case "$ACTION" in
+    status|list|read)
+        show_status
+        ;;
+    install|create)
+        case "$TARGET" in
+            headers|kernel) install_headers ;;
+            perf|ebpf) install_perf ;;
+            telemetry|hardware) install_telemetry ;;
+            all|"") install_all ;;
+            *) log_error "$(t 'Bilinmeyen hedef:' 'Unknown target:') $TARGET (headers, perf, telemetry, all)"; exit 1 ;;
+        esac
+        ;;
+    tune|profile)
+        apply_profile "$TARGET"
+        ;;
+    update)
+        update_all
+        ;;
+    remove|delete|purge)
+        remove_all
+        ;;
+    help|--help|-h)
+        echo "$(t 'Kullanım:' 'Usage:') taaos-linux [status|install|tune|update|remove] [headers|perf|telemetry|all] [--lang=tr|en]"
+        ;;
+    menu|*)
+        interactive_menu
+        ;;
+esac

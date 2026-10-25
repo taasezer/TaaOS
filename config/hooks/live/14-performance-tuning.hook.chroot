@@ -37,18 +37,19 @@ mkdir -p /etc/default
 cat > /etc/default/earlyoom << 'EOF'
 # TaaOS earlyoom Configuration
 # Kill processes when RAM falls below 5% or swap below 10%
-EARLYOOM_ARGS="-r 3600 -m 5 -s 10 --avoid '(^|/)(init|Xorg|xfwm4|polybar|plank)$' --prefer '(^|/)(cc1|cc1plus|rustc|nodejs)$' -n"
+EARLYOOM_ARGS="-r 3600 -m 5 -s 10 --avoid '(^|/)(init|Xorg|xfwm4|polybar)$' --prefer '(^|/)(cc1|cc1plus|rustc|nodejs)$' -n"
 EOF
 
 systemctl enable earlyoom 2>/dev/null || true
 echo "[PERF] earlyoom configured (5% RAM / 10% swap threshold)"
 
 # =============================================================================
-# 3. Preload — Adaptive Application Preloading
+# 3. Memory Optimization (Disable Unneeded Daemons for Sub-500MB Idle RAM)
 # =============================================================================
-echo "[PERF] Enabling preload daemon..."
-systemctl enable preload 2>/dev/null || true
-echo "[PERF] preload enabled (will learn usage patterns automatically)"
+echo "[PERF] Disabling heavy background daemons for low idle RAM..."
+for s in cups cups-browsed ModemManager preload; do
+    systemctl disable "$s" 2>/dev/null || true
+done
 
 # =============================================================================
 # 4. tmpfiles.d — Automatic /tmp Cleanup

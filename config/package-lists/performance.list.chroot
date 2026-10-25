@@ -9,7 +9,7 @@ zram-tools
 eatmydata
 
 # CPU frequency management
-cpufrequtils
+# (cpufrequtils removed in Debian 13 / Trixie; managed by kernel)
 
 # I/O scheduling
 irqbalance

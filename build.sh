@@ -177,13 +177,18 @@ docker exec "$CONTAINER_NAME" mkdir -p /build/assets
 
 # INJECT LOCAL TAANOS
 echo "    Injecting local TaaNOS binary..."
-if [ -f ../TaaNOS/bin/TaaNOS-Setup-Linux ]; then
+if [ -f ../TaaNOS/bin/taanos-linux-amd64 ]; then
+    docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/local/bin
+    docker cp ../TaaNOS/bin/taanos-linux-amd64 "$CONTAINER_NAME":/build/config/includes.chroot/usr/local/bin/taanos
+    docker exec "$CONTAINER_NAME" chmod +x /build/config/includes.chroot/usr/local/bin/taanos
+    echo "      ✓ Local TaaNOS binary (core engine) injected!"
+elif [ -f ../TaaNOS/bin/TaaNOS-Setup-Linux ]; then
     docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/local/bin
     docker cp ../TaaNOS/bin/TaaNOS-Setup-Linux "$CONTAINER_NAME":/build/config/includes.chroot/usr/local/bin/taanos
     docker exec "$CONTAINER_NAME" chmod +x /build/config/includes.chroot/usr/local/bin/taanos
     echo "      ✓ Local TaaNOS binary injected!"
 else
-    echo "      ⚠ Local TaaNOS not found, hook will download from GitHub."
+    echo "      ⚠ Local TaaNOS not found in ../TaaNOS/bin, relying on includes.chroot or GitHub."
 fi
 
 echo "    Files copied successfully!"

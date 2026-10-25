@@ -21,8 +21,12 @@ if [ -d "/opt/taaos/scripts/system" ]; then
         if [ -f "$script" ]; then
             filename=$(basename -- "$script")
             cmdname="${filename%.sh}"
-            echo "  -> Installing $cmdname"
-            cp "$script" "/usr/local/bin/$cmdname"
+            if [ ! -f "/usr/local/bin/$cmdname" ]; then
+                echo "  -> Installing $cmdname"
+                cp "$script" "/usr/local/bin/$cmdname"
+            else
+                echo "  -> Preserving existing $cmdname"
+            fi
             chmod +x "/usr/local/bin/$cmdname"
         fi
     done
@@ -35,8 +39,12 @@ if [ -d "/opt/taaos/scripts/core" ]; then
         if [ -f "$script" ]; then
             filename=$(basename -- "$script")
             cmdname="${filename%.sh}"
-            echo "  -> Installing persistence tools: $cmdname"
-            cp "$script" "/usr/local/bin/$cmdname"
+            if [ ! -f "/usr/local/bin/$cmdname" ]; then
+                echo "  -> Installing persistence tools: $cmdname"
+                cp "$script" "/usr/local/bin/$cmdname"
+            else
+                echo "  -> Preserving existing persistence tool: $cmdname"
+            fi
             chmod +x "/usr/local/bin/$cmdname"
         fi
     done
@@ -149,8 +157,8 @@ update-usbids 2>/dev/null || true
 # Enable thermal management
 systemctl enable thermald.service 2>/dev/null || true
 
-# Enable CPU frequency scaling
-systemctl enable cpufrequtils.service 2>/dev/null || true
+# Enable CPU frequency scaling (kernel handled, cpufrequtils obsolete in Trixie)
+# systemctl enable cpufrequtils.service 2>/dev/null || true
 
 # Enable bluetooth
 systemctl enable bluetooth.service 2>/dev/null || true
@@ -184,7 +192,7 @@ systemctl enable alsa-restore.service 2>/dev/null || true
 echo "[OS-CONFIG] Configuring system services..."
 
 # Enable cron
-systemctl enable cron.service
+systemctl enable cron.service 2>/dev/null || true
 
 # Enable log rotation (timer may not exist on all Debian versions — cron fallback)
 systemctl enable logrotate.timer 2>/dev/null || true
@@ -241,6 +249,7 @@ cat > /etc/profile.d/taaos-safety.sh << 'SAFETY_EOF'
 _TAAOS_PROTECTED_PATHS=("/" "/*" "/home" "/etc" "/usr" "/boot" "/bin" "/sbin" "/lib" "/lib64" "/var" "/root" "/opt" "/srv" "/proc" "/sys" "/dev" "/run" "/tmp")
 
 # Override 'rm' with a safety wrapper
+unalias rm 2>/dev/null || true
 rm() {
     local has_recursive=false
     local has_force=false
@@ -347,10 +356,10 @@ echo "[OS-CONFIG] Configuring package management..."
 
 # Ensure apt is configured
 cat > /etc/apt/sources.list << 'EOF'
-# Debian 12 (Bookworm) - TaaOS
-deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
-deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
-deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+# Debian 13 (Trixie) - TaaOS
+deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
+deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
 EOF
 
 # Update apt cache

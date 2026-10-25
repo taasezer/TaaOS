@@ -124,31 +124,18 @@ echo "    Copying scripts..."
 docker cp ./init_config.sh "$CONTAINER_NAME":/build/
 docker cp ./compile_kernel.sh "$CONTAINER_NAME":/build/
 
-# Copy package lists (Filter out unnecessary GUI/installer/firmware for WSL)
-echo "    Copying package lists..."
-for listfile in ./config/package-lists/*.list.chroot; do
-    if [ -f "$listfile" ]; then
-        filename=$(basename "$listfile")
-        if [[ "$filename" == "firmware.list.chroot" || "$filename" == "installer.list.chroot" || "$filename" == "live.list.chroot" || "$filename" == "desktop.list.chroot" || "$filename" == "themes.list.chroot" || "$filename" == "wine.list.chroot" ]]; then
-            echo "      ⚠ Skipping $filename (Not needed in WSL)"
-            continue
-        fi
-        docker cp "$listfile" "$CONTAINER_NAME":/build/config/package-lists/
-        echo "      ✓ $filename"
-    fi
-done
+# Copy package lists (WSL Essential Terminal Base ONLY)
+echo "    Copying package lists (WSL minimal developer base)..."
+docker cp ./config/package-lists/wsl.list.chroot "$CONTAINER_NAME":/build/config/package-lists/
+echo "      ✓ wsl.list.chroot"
 
-# Copy hooks (Filter out GUI/installer hooks for WSL)
-echo "    Copying hooks..."
-for hookfile in ./config/hooks/live/*.hook.chroot ./config/hooks/live/*.hook.binary; do
-    if [ -f "$hookfile" ]; then
-        filename=$(basename "$hookfile")
-        if [[ "$filename" == "05-ux-branding.hook.chroot" || "$filename" == "08-core-installer.hook.chroot" || "$filename" == "09-efi-fix.hook.chroot" || "$filename" == "11-calamares.hook.chroot" || "$filename" == "12-branding.hook.chroot" || "$filename" == "00-copy-kernel.hook.binary" || "$filename" == "00-kernel-setup.hook.chroot" ]]; then
-            echo "      ⚠ Skipping $filename (Not needed in WSL)"
-            continue
-        fi
-        docker cp "$hookfile" "$CONTAINER_NAME":/build/config/hooks/live/
-        echo "      ✓ $filename"
+# Copy hooks (WSL Minimal: Only CLI, OS config, polish and user environment)
+echo "    Copying hooks (WSL essential hooks only)..."
+WSL_HOOKS=("04-cli.hook.chroot" "10-os-config.hook.chroot" "13-professional-polish.hook.chroot" "99-user.hook.chroot")
+for h in "${WSL_HOOKS[@]}"; do
+    if [ -f "./config/hooks/live/$h" ]; then
+        docker cp "./config/hooks/live/$h" "$CONTAINER_NAME":/build/config/hooks/live/
+        echo "      ✓ $h"
     fi
 done
 
@@ -185,16 +172,8 @@ echo "    Copying assets..."
 docker exec "$CONTAINER_NAME" mkdir -p /build/assets
 [ -d ./assets ] && docker cp ./assets/. "$CONTAINER_NAME":/build/assets/ 2>/dev/null || true
 
-# INJECT LOCAL TAANOS
-echo "    Injecting local TaaNOS binary..."
-if [ -f ../TaaNOS/bin/TaaNOS-Setup-Linux ]; then
-    docker exec "$CONTAINER_NAME" mkdir -p /build/config/includes.chroot/usr/local/bin
-    docker cp ../TaaNOS/bin/TaaNOS-Setup-Linux "$CONTAINER_NAME":/build/config/includes.chroot/usr/local/bin/taanos
-    docker exec "$CONTAINER_NAME" chmod +x /build/config/includes.chroot/usr/local/bin/taanos
-    echo "      ✓ Local TaaNOS binary injected into includes.chroot"
-else
-    echo "      ⚠ Local TaaNOS not found, hook will download from GitHub."
-fi
+# Note: TaaNOS is kept exclusive to full TaaOS distribution; WSL uses lean terminal + taaos-* CRUD suite
+echo "    WSL Terminal Edition: Skipping TaaNOS AI engine in WSL rootfs (runs on Host OS)..."
 
 echo "    Files copied successfully!"
 
@@ -288,6 +267,15 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
         cat > chroot/etc/wsl.conf << \WSLCONF
 [boot]
 systemd=true
+
+[automount]
+enabled=true
+options="metadata,umask=22,fmask=11"
+mountFsTab=true
+
+[interop]
+enabled=true
+appendWindowsPath=true
 WSLCONF
 
         # 2. First-Boot OOBE Script
@@ -328,6 +316,15 @@ default=$NEW_USER
 
 [boot]
 systemd=true
+
+[automount]
+enabled=true
+options="metadata,umask=22,fmask=11"
+mountFsTab=true
+
+[interop]
+enabled=true
+appendWindowsPath=true
 EOF
 
 touch /etc/taaos-wsl-configured
@@ -346,6 +343,9 @@ OOBESCRIPT
     
     echo "=== PHASE E: Packaging WSL Tarball ==="
     if [ -d chroot ]; then
+        # Ensure TaaNOS AI engine binary is not in WSL (it runs natively on Windows host)
+        rm -f chroot/usr/local/bin/taanos 2>/dev/null || true
+
         echo "    Compressing the entire root filesystem (this usually takes 5-10 minutes)..."
         tar -czpf /build/TaaOS-WSL.tar.gz -C chroot . || {
             TAR_CODE=$?

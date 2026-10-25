@@ -144,7 +144,7 @@ alias mv='mv -i'
 alias cp='cp -i'
 
 # Quick system info
-alias sysinfo='neofetch'
+alias sysinfo='fastfetch'
 alias ports='ss -tulanp'
 alias meminfo='free -h'
 alias cpuinfo='lscpu'

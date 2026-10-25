@@ -173,6 +173,7 @@ chmod +x /usr/local/bin/10022006 2>/dev/null || true
 
 # Ensure ALL scripts in /usr/local/bin are executable
 find /usr/local/bin -name "taaos-*" -exec chmod +x {} \; 2>/dev/null || true
+chmod +x /usr/local/lib/taaos/*.sh 2>/dev/null || true
 
 echo "[POLISH] Script permissions set"
 

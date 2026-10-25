@@ -99,15 +99,19 @@ fun message_callback(text) {
 Plymouth.SetMessageFunction(message_callback);
 EOF
 
-# Copy logo for Plymouth (if exists)
+# Copy and scale logo for Plymouth (resize 1536px source to 180x180 so it's not cropped)
 if [ -f /opt/taaos/assets/logo.png ]; then
-    cp /opt/taaos/assets/logo.png /usr/share/plymouth/themes/taaos/
+    if command -v convert &> /dev/null; then
+        convert /opt/taaos/assets/logo.png -resize 180x180 /usr/share/plymouth/themes/taaos/logo.png 2>/dev/null || cp /opt/taaos/assets/logo.png /usr/share/plymouth/themes/taaos/
+    else
+        cp /opt/taaos/assets/logo.png /usr/share/plymouth/themes/taaos/
+    fi
 fi
 
-# Create simple progress bar images
+# Create simple progress bar images (Rosso Corsa #D40000 theme)
 if command -v convert &> /dev/null; then
-    convert -size 200x16 xc:'#1a1a2e' -fill '#333355' -draw "roundrectangle 0,0 199,15 5,5" /usr/share/plymouth/themes/taaos/progress_box.png 2>/dev/null || true
-    convert -size 196x12 xc:'#4cc9f0' -draw "roundrectangle 0,0 195,11 4,4" /usr/share/plymouth/themes/taaos/progress_bar.png 2>/dev/null || true
+    convert -size 200x16 xc:'#0D1117' -fill '#21262D' -draw "roundrectangle 0,0 199,15 5,5" /usr/share/plymouth/themes/taaos/progress_box.png 2>/dev/null || true
+    convert -size 196x12 xc:'#D40000' -draw "roundrectangle 0,0 195,11 4,4" /usr/share/plymouth/themes/taaos/progress_bar.png 2>/dev/null || true
 fi
 
 # Ensure progress bar images exist (fallback: create minimal 1x1 PNGs if ImageMagick failed)
@@ -187,30 +191,30 @@ fi
 
 cd /
 
-# XFCE Settings - Window Manager (xfwm4)
+# XFCE Settings - Window Manager (xfwm4) - Orchis-Dark
 cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfwm4" version="1.0">
   <property name="general" type="empty">
-    <property name="theme" type="string" value="WhiteSur-Dark"/>
+    <property name="theme" type="string" value="Orchis-Dark"/>
     <property name="title_font" type="string" value="Fira Sans Bold 10"/>
     <property name="button_layout" type="string" value="O|HMC"/>
   </property>
 </channel>
 EOF
 
-# XFCE Settings - GTK Theme (xsettings)
+# XFCE Settings - GTK Theme (xsettings) - Orchis-Dark + Papirus-Dark
 cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xsettings" version="1.0">
   <property name="Net" type="empty">
-    <property name="ThemeName" type="string" value="WhiteSur-Dark"/>
-    <property name="IconThemeName" type="string" value="WhiteSur-dark"/>
+    <property name="ThemeName" type="string" value="Orchis-Dark"/>
+    <property name="IconThemeName" type="string" value="Papirus-Dark"/>
   </property>
   <property name="Gtk" type="empty">
     <property name="FontName" type="string" value="Fira Sans 10"/>
     <property name="MonospaceFontName" type="string" value="Fira Code 10"/>
-    <property name="CursorThemeName" type="string" value="capitaine-cursors"/>
+    <property name="CursorThemeName" type="string" value="Adwaita"/>
   </property>
 </channel>
 EOF
@@ -310,38 +314,40 @@ PANELDUMMY
 chmod +x /usr/local/bin/xfce4-panel
 
 
-# Set up TaaOS Native Polybar
+# Set up TaaOS Native Polybar (Rosso Corsa Dark Theme)
 mkdir -p /etc/skel/.config/polybar
 cat > /etc/skel/.config/polybar/config.ini << 'EOF'
 [colors]
-background = #ffffff
-background-alt = #f5f5f5
-foreground = #222222
-primary = #333333
-secondary = #555555
-alert = #cc0000
-disabled = #999999
+background = #ee0d1117
+background-alt = #2821262d
+foreground = #e6edf3
+primary = #d40000
+secondary = #8b949e
+alert = #ff4444
+disabled = #484f58
 
 [bar/taaos]
 width = 100%
-height = 28pt
+height = 26pt
 radius = 0
 background = ${colors.background}
 foreground = ${colors.foreground}
-padding-left = 0
+padding-left = 1
 padding-right = 1
 module-margin = 1
 separator = |  
 separator-foreground = ${colors.disabled}
+border-bottom-size = 2
+border-bottom-color = ${colors.primary}
 
-font-0 = "Fira Sans:weight=regular:size=10;3"
+font-0 = "Fira Sans:weight=medium:size=10;3"
 font-1 = "Fira Code:size=10;3"
 font-2 = "Noto Sans Symbols 2:size=12;3"
 font-3 = "FontAwesome:size=11;3"
 
 modules-left = menu xworkspaces xwindow
 modules-center = date
-modules-right = pulseaudio bluetooth memory cpu powermenu
+modules-right = pulseaudio memory cpu powermenu
 
 cursor-click = pointer
 cursor-scroll = ns-resize
@@ -353,12 +359,12 @@ tray-background = ${colors.background}
 
 [settings]
 screenchange-reload = true
-pseudo-transparency = false
+pseudo-transparency = true
 
 [module/menu]
 type = custom/text
 content = "  ◆  "
-content-foreground = #cc0000
+content-foreground = #d40000
 content-background = ${colors.background}
 content-padding = 0
 click-left = rofi -show drun -show-icons
@@ -367,9 +373,11 @@ click-left = rofi -show drun -show-icons
 type = internal/xworkspaces
 label-active = %name%
 label-active-background = ${colors.background-alt}
-label-active-underline = #333333
+label-active-foreground = #ffffff
+label-active-underline = #d40000
 label-active-padding = 2
 label-occupied = %name%
+label-occupied-foreground = #c9d1d9
 label-occupied-padding = 2
 label-urgent = %name%
 label-urgent-background = ${colors.alert}
@@ -380,7 +388,7 @@ label-empty-padding = 2
 
 [module/xwindow]
 type = internal/xwindow
-label = %title:0:40:...%
+label = %title:0:45:...%
 label-foreground = ${colors.secondary}
 
 [module/pulseaudio]
@@ -390,18 +398,12 @@ interval = 5
 format-volume = <ramp-volume> <label-volume>
 label-volume = %percentage%%
 label-volume-foreground = ${colors.foreground}
-label-muted =  MUTED
+label-muted = MUTED
 label-muted-foreground = ${colors.disabled}
-ramp-volume-0 = 
-ramp-volume-1 = 
-ramp-volume-2 = 
+ramp-volume-0 = 🔈
+ramp-volume-1 = 🔉
+ramp-volume-2 = 🔊
 click-right = pavucontrol &
-
-[module/bluetooth]
-type = custom/script
-exec = echo "BT"
-interval = 10
-click-left = blueman-manager &
 
 [module/memory]
 type = internal/memory
@@ -421,12 +423,12 @@ interval = 1
 date = %H:%M
 date-alt = %Y-%m-%d %H:%M:%S
 label = %date%
-label-foreground = ${colors.foreground}
+label-foreground = #ffffff
 
 [module/powermenu]
 type = custom/text
-content = "  "
-content-foreground = ${colors.alert}
+content = " ⏻ "
+content-foreground = ${colors.primary}
 click-left = xfce4-session-logout &
 EOF
 
@@ -434,7 +436,7 @@ cat > /etc/skel/.config/polybar/launch.sh << 'EOF'
 #!/usr/bin/env bash
 
 # ==========================================================
-# TaaOS Polybar Launcher
+# TaaOS Polybar Launcher (Zero-Bloat Dark Rosso Corsa)
 # ==========================================================
 
 # Kill conflicting panel processes
@@ -447,10 +449,6 @@ while pgrep -u $UID -x polybar >/dev/null 2>&1; do sleep 0.5; done
 # Kill XFCE panel again (it may respawn)
 sleep 1
 killall -9 xfce4-panel 2>/dev/null
-
-# Launch tray and dock apps
-pgrep -x blueman-applet >/dev/null 2>&1 || (nohup blueman-applet >/dev/null 2>&1 &)
-pgrep -x plank >/dev/null 2>&1 || (nohup plank >/dev/null 2>&1 &)
 
 # Launch TaaOS Polybar (with retry)
 if command -v polybar &> /dev/null; then
@@ -568,13 +566,6 @@ restart_ui() {
     if [ -f "$HOME/.config/polybar/launch.sh" ]; then
         bash "$HOME/.config/polybar/launch.sh" &
     fi
-    
-    # Restart Plank dock (so it repositions to bottom-center)
-    if pgrep -x plank >/dev/null 2>&1; then
-        killall -q plank 2>/dev/null
-        sleep 0.5
-        plank & disown
-    fi
 }
 
 # ── Set initial best resolution ──
@@ -632,9 +623,6 @@ xrandr --output "$OUTPUT" --auto
 # Restart UI
 if [ -f "$HOME/.config/polybar/launch.sh" ]; then
     bash "$HOME/.config/polybar/launch.sh" &
-fi
-if pgrep -x plank >/dev/null 2>&1; then
-    killall -q plank; sleep 0.5; plank & disown
 fi
 echo "[TaaOS] Display fixed: $(xrandr | grep '*' | awk '{print $1}' | head -1)"
 EOF
@@ -799,21 +787,6 @@ EOF
 
 echo "[BRANDING] UX polish configured (Picom + Dunst)"
 
-# Construct BOTTOM DOCK launcher profiles (panel-2)
-# Construct BOTTOM DOCK (Plank) WhiteSur Theme
-echo "[BRANDING] Configuring Plank with WhiteSur theme..."
-mkdir -p /usr/share/plank/themes/WhiteSur
-cat > /usr/share/plank/themes/WhiteSur/dock.theme << 'EOF'
-[PlankTheme]
-TopRoundness=15
-BottomRoundness=15
-LineWidth=1
-OuterStrokeColor=0;;0;;0;;40
-FillStartColor=30;;30;;34;;200
-FillEndColor=30;;30;;34;;200
-InnerStrokeColor=255;;255;;255;;20
-EOF
-
 # Fallback Internet Browser Desktop File
 cat > /usr/share/applications/taaos-browser.desktop << 'EOF'
 [Desktop Entry]
@@ -840,62 +813,6 @@ StartupNotify=false
 StartupWMClass=Code
 Categories=TextEditor;Development;IDE;
 EOF
-
-# Plank Settings & Launchers
-mkdir -p /etc/skel/.config/plank/dock1/launchers
-
-# 1. Dosya Gezgini (Thunar)
-cat > /etc/skel/.config/plank/dock1/launchers/thunar.dockitem << 'EOF'
-[PlankDockItemPreferences]
-Launcher=file:///usr/share/applications/thunar.desktop
-EOF
-
-# 2. Terminal (Xfce4-terminal)
-cat > /etc/skel/.config/plank/dock1/launchers/terminal.dockitem << 'EOF'
-[PlankDockItemPreferences]
-Launcher=file:///usr/share/applications/xfce4-terminal.desktop
-EOF
-
-# 3. Internet (Browser)
-cat > /etc/skel/.config/plank/dock1/launchers/internet.dockitem << 'EOF'
-[PlankDockItemPreferences]
-Launcher=file:///usr/share/applications/taaos-browser.desktop
-EOF
-
-# 4. Araç Arama Listeleme Uygulaması (Xfce4-appfinder)
-cat > /etc/skel/.config/plank/dock1/launchers/appfinder.dockitem << 'EOF'
-[PlankDockItemPreferences]
-Launcher=file:///usr/share/applications/xfce4-appfinder.desktop
-EOF
-
-# 5. VSCode
-cat > /etc/skel/.config/plank/dock1/launchers/vscode.dockitem << 'EOF'
-[PlankDockItemPreferences]
-Launcher=file:///usr/share/applications/code.desktop
-EOF
-
-# Plank Dock Global Settings
-cat > /etc/skel/.config/plank/dock1/settings << 'EOF'
-[PlankDockPreferences]
-CurrentBaseWidth=-1
-Position=3
-Offset=0
-Alignment=3
-ItemsAlignment=3
-IconSize=48
-HideMode=0
-UnhideDelay=0
-DockItems=terminal.dockitem;;thunar.dockitem;;internet.dockitem;;vscode.dockitem;;appfinder.dockitem
-Theme=WhiteSur
-ZoomEnabled=true
-ZoomPercent=150
-LockItems=false
-EOF
-
-echo "[BRANDING] Bottom dock (Plank WhiteSur) launchers configured"
-
-
-echo "[BRANDING] Bottom dock launchers created (Terminal, File Manager, Browser, App Finder, Home)"
 
 # =============================================================================
 # SECTION 3: WALLPAPER CONFIGURATION
@@ -924,7 +841,7 @@ else
     fi
 fi
 
-# STEP 2: Force default Debian wallpaper alternative to point to TaaOS wallpaper
+# STEP 2: Force default Debian & XFCE wallpapers to point to TaaOS wallpaper
 if [ -f /usr/share/backgrounds/taaos/wallpaper.png ]; then
     # Divert the default Debian wallpaper
     dpkg-divert --add --rename --divert /usr/share/desktop-base/active-theme/wallpaper/contents/images/1920x1080.svg.real /usr/share/desktop-base/active-theme/wallpaper/contents/images/1920x1080.svg || true
@@ -933,8 +850,23 @@ if [ -f /usr/share/backgrounds/taaos/wallpaper.png ]; then
     # Also enforce traditional alternatives
     ln -sf /usr/share/backgrounds/taaos/wallpaper.png /etc/alternatives/desktop-background || true
     ln -sf /usr/share/backgrounds/taaos/wallpaper.png /usr/share/images/desktop-base/default || true
+
+    # Overwrite XFCE built-in defaults (so even if xfdesktop falls back, it displays TaaOS wallpaper!)
+    mkdir -p /usr/share/backgrounds/xfce
+    for f in /usr/share/backgrounds/xfce/*.jpg /usr/share/backgrounds/xfce/*.png /usr/share/backgrounds/xfce/*.svg; do
+        [ -e "$f" ] || continue
+        ln -sf /usr/share/backgrounds/taaos/wallpaper.png "$f"
+    done
+    ln -sf /usr/share/backgrounds/taaos/wallpaper.png /usr/share/backgrounds/xfce/xfce-blue.jpg 2>/dev/null || true
+    ln -sf /usr/share/backgrounds/taaos/wallpaper.png /usr/share/backgrounds/xfce/xfce-stripes.png 2>/dev/null || true
+    ln -sf /usr/share/backgrounds/taaos/wallpaper.png /usr/share/backgrounds/xfce/xfce-teal.jpg 2>/dev/null || true
+    ln -sf /usr/share/backgrounds/taaos/wallpaper.png /usr/share/backgrounds/xfce/xfce-verticals.png 2>/dev/null || true
+
+    # Copy XFCE configs to skel so live user gets exact settings on first login
+    mkdir -p /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml
+    cp -r /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/* /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/ 2>/dev/null || true
     
-    echo "[BRANDING] Wallpaper enforced via dpkg-divert and alternatives"
+    echo "[BRANDING] Wallpaper enforced across all desktop channels and alternatives"
 else
     echo "[BRANDING] ERROR: Wallpaper still missing after all attempts!"
 fi
@@ -981,8 +913,9 @@ mkdir -p /etc/lightdm
 cat > /etc/lightdm/lightdm-gtk-greeter.conf << 'EOF'
 [greeter]
 background = /usr/share/backgrounds/taaos/wallpaper.png
-theme-name = WhiteSur-Dark
-icon-theme-name = WhiteSur-dark
+theme-name = Orchis-Dark
+icon-theme-name = Papirus-Dark
+cursor-theme-name = Adwaita
 font-name = Fira Sans 10
 default-user-image = /usr/share/pixmaps/taaos-logo.png
 indicators = ~host;~spacer;~clock;~spacer;~session;~power

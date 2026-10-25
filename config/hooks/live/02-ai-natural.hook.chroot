@@ -41,82 +41,18 @@ log_ai() {
 }
 
 # =============================================================================
-# SECTION 1: PYTHON AI DEPENDENCIES
+# SECTION 1: PYTHON BASE (Heavy ML packages moved to on-demand 'taaos-ai')
 # =============================================================================
 install_python_deps() {
-    log_info "Installing Python AI and Data Science dependencies..."
-
-    # Install pip and Python development tools
+    log_info "Ensuring base Python environment is available..."
+    # Note: Heavy PyTorch, TensorFlow, Scikit-learn, Jupyter are managed
+    # on-demand via 'taaos-ai' to keep the base image lightweight.
     apt-get update
     apt-get install -y --no-install-recommends \
         python3-pip \
         python3-dev \
-        python3-venv \
-        python3-wheel \
-        python3-setuptools
-
-    # Using --break-system-packages for Debian 12+ which uses externally-managed-environment
-    
-    # Step 1: Core Data Science Libraries
-    log_info "Installing NumPy, Pandas, SciPy, Matplotlib..."
-    pip3 install --break-system-packages \
-        numpy \
-        pandas \
-        scipy \
-        matplotlib \
-        seaborn \
-        || log_warning "Data science libs install failed, continuing..."
-    
-    # Step 2: Machine Learning Libraries
-    log_info "Installing scikit-learn, xgboost..."
-    pip3 install --break-system-packages \
-        scikit-learn \
-        xgboost \
-        || log_warning "ML libs install failed, continuing..."
-    
-    # Step 3: Jupyter Notebook
-    log_info "Installing Jupyter Notebook..."
-    pip3 install --break-system-packages \
-        jupyter \
-        jupyterlab \
-        notebook \
-        || log_warning "Jupyter install failed, continuing..."
-    
-    # Step 4: Web Development Libraries
-    log_info "Installing Flask, Django, FastAPI, Requests..."
-    pip3 install --break-system-packages \
-        requests \
-        flask \
-        django \
-        fastapi \
-        uvicorn \
-        httpx \
-        || log_warning "Web libs install failed, continuing..."
-    
-    # Step 5: Utility Libraries
-    log_info "Installing utility libraries..."
-    pip3 install --break-system-packages \
-        pillow \
-        opencv-python-headless \
-        pyyaml \
-        python-dotenv \
-        tqdm \
-        click \
-        || log_warning "Utility libs install failed, continuing..."
-    
-    # Step 6: Install ollama and rich (useful for users' own Python AI projects)
-    log_info "Installing ollama, rich from PyPI..."
-    pip3 install --break-system-packages ollama rich || log_warning "ollama/rich install failed, continuing..."
-    
-    # Step 7: Install PyTorch CPU-only version from special index
-    log_info "Installing torch (CPU-only)..."
-    pip3 install --break-system-packages torch --index-url https://download.pytorch.org/whl/cpu || log_warning "torch install failed, continuing..."
-    
-    # Step 8: Install tensorflow-cpu (optional, may fail in chroot)
-    log_info "Installing tensorflow-cpu..."
-    pip3 install --break-system-packages tensorflow-cpu || log_warning "tensorflow install failed, continuing..."
-
-    log_success "Python AI and Data Science dependencies installed"
+        python3-venv
+    log_success "Base Python environment verified"
 }
 
 # =============================================================================
@@ -141,10 +77,10 @@ install_ollama() {
 install_taanos() {
     log_ai "Installing TaaNOS (Natural Engine)..."
 
-    # Primary URL: raw binary from repo (always exists)
-    local TAANOS_RAW="https://raw.githubusercontent.com/taasezer/TaaNOS/main/taanos-linux"
-    # Fallback URL: GitHub release asset (if user uploads binaries to releases)
-    local TAANOS_RELEASE="https://github.com/taasezer/TaaNOS/releases/latest/download/taanos-linux"
+    # Release URLs for latest TaaNOS Linux binary
+    local TAANOS_RELEASE="https://github.com/taasezer/TaaNOS/releases/latest/download/taanos-linux-amd64"
+    local TAANOS_RELEASE_LEGACY="https://github.com/taasezer/TaaNOS/releases/latest/download/taanos-linux"
+    local TAANOS_RAW="https://raw.githubusercontent.com/taasezer/TaaNOS/main/bin/taanos-linux-amd64"
 
     # Check if TaaNOS was injected locally via includes.chroot
     if [ -x /usr/local/bin/taanos ]; then
@@ -160,11 +96,15 @@ install_taanos() {
     if command -v wget &> /dev/null; then
         if wget -qO /usr/local/bin/taanos "$TAANOS_RELEASE" 2>/dev/null; then
             download_ok=true
+        elif wget -qO /usr/local/bin/taanos "$TAANOS_RELEASE_LEGACY" 2>/dev/null; then
+            download_ok=true
         elif wget -qO /usr/local/bin/taanos "$TAANOS_RAW" 2>/dev/null; then
             download_ok=true
         fi
     elif command -v curl &> /dev/null; then
         if curl -fsSL -o /usr/local/bin/taanos "$TAANOS_RELEASE" 2>/dev/null; then
+            download_ok=true
+        elif curl -fsSL -o /usr/local/bin/taanos "$TAANOS_RELEASE_LEGACY" 2>/dev/null; then
             download_ok=true
         elif curl -fsSL -o /usr/local/bin/taanos "$TAANOS_RAW" 2>/dev/null; then
             download_ok=true
@@ -197,76 +137,9 @@ install_taanos() {
 }
 
 # =============================================================================
-# SECTION 4: N8N WORKFLOW AUTOMATION
+# SECTION 4: N8N (Moved to on-demand 'taaos-devops' / 'taaos-ai')
 # =============================================================================
-install_n8n() {
-    log_info "Installing n8n workflow automation..."
-    
-    # Configure npm for better network reliability
-    npm config set fetch-timeout 300000  # 5 minutes timeout
-    npm config set fetch-retries 5
-    npm config set fetch-retry-mintimeout 60000
-    npm config set fetch-retry-maxtimeout 120000
-    
-    # Clear npm cache to avoid corrupted packages
-    npm cache clean --force 2>/dev/null || true
-    
-    # Install n8n globally via npm with retry
-    log_info "Downloading and installing n8n (this may take several minutes)..."
-    
-    local retry_count=0
-    local max_retries=3
-    
-    while [ $retry_count -lt $max_retries ]; do
-        if npm install -g n8n --loglevel=error --no-fund --no-audit; then
-            log_success "n8n installed successfully"
-            break
-        else
-            retry_count=$((retry_count + 1))
-            if [ $retry_count -lt $max_retries ]; then
-                log_warning "n8n installation attempt $retry_count failed, retrying in 10 seconds..."
-                sleep 10
-                npm cache clean --force 2>/dev/null || true
-            else
-                log_error "n8n installation failed after $max_retries attempts"
-                exit 1
-            fi
-        fi
-    done
-
-    # Create n8n systemd service file
-    log_info "Creating n8n systemd service..."
-    cat > /etc/systemd/system/n8n.service << 'N8N_SERVICE_EOF'
-[Unit]
-Description=n8n - Workflow Automation
-Documentation=https://docs.n8n.io
-After=network.target
-
-[Service]
-Type=simple
-User=root
-Environment="N8N_PORT=5678"
-Environment="N8N_PROTOCOL=http"
-Environment="N8N_HOST=localhost"
-Environment="GENERIC_TIMEZONE=UTC"
-ExecStart=/usr/bin/n8n start
-Restart=on-failure
-RestartSec=10
-
-# Security hardening
-NoNewPrivileges=true
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target
-N8N_SERVICE_EOF
-
-    # Note: n8n service is intentionally NOT enabled by default (per user request)
-    # The user will start it manually when they actually need it.
-    # systemctl enable n8n || true
-
-    log_success "n8n installed and service created (port 5678)"
-}
+# n8n is available on-demand to avoid slowing down system builds.
 
 # =============================================================================
 # SECTION 5: SHELL INTEGRATION
@@ -330,9 +203,6 @@ main() {
     # TaaNOS download is non-fatal: if it fails (no internet in chroot),
     # the user can install it later via manual download
     install_taanos || log_warning "TaaNOS download failed (no internet?). Install manually after boot."
-    echo ""
-
-    install_n8n
     echo ""
 
     create_shell_integration

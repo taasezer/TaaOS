@@ -403,14 +403,50 @@ images:
     productLogo:         "logo.png"
     productIcon:         "logo.png"
 
+slideshow:               "show.qml"
+slideshowAPI:            2
+
 style:
-    sidebarBackground:   "#1a1a2e"
+    sidebarBackground:   "#0D1117"
     sidebarText:         "#FFFFFF"
-    sidebarTextSelect:   "#00d4ff"
-    sidebarTextHighlight: "#00d4ff"
+    sidebarTextSelect:   "#D40000"
+    sidebarTextHighlight: "#D40000"
 BRANDING_DESC
 
-    # Slideshow removed per user request
+    cat > "${BRAND_DIR}/show.qml" << 'QML_DESC'
+import QtQuick 2.0
+import QtQuick.Controls 2.0
+
+Item {
+    id: presentation
+    anchors.fill: parent
+
+    Rectangle {
+        anchors.fill: parent
+        color: "#0D1117"
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 16
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "TaaOS"
+                font.pixelSize: 32
+                font.bold: true
+                color: "#D40000"
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "Developer Distribution — Deterministic, Fast, Modular"
+                font.pixelSize: 14
+                color: "#8B949E"
+            }
+        }
+    }
+}
+QML_DESC
 
     # Create placeholder images
     if command -v convert &> /dev/null; then

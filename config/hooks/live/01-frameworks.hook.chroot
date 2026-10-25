@@ -39,7 +39,7 @@ log_error() {
 # SECTION 1: FLATPAK & SNAP (Universal Package Managers)
 # =============================================================================
 install_universal_managers() {
-    log_info "Installing Flatpak and Snap..."
+    log_info "Configuring Flatpak..."
 
     # Install Flatpak and GNOME Software plugin
     apt-get update
@@ -47,15 +47,11 @@ install_universal_managers() {
         flatpak \
         gnome-software-plugin-flatpak
 
-    # Install Snapd
-    apt-get install -y --no-install-recommends \
-        snapd
-
     # Add Flathub repository (the main Flatpak app store)
     log_info "Adding Flathub repository..."
-    flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+    flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
 
-    log_success "Flatpak and Snap installed successfully"
+    log_success "Flatpak configured successfully"
 }
 
 # =============================================================================
@@ -105,19 +101,10 @@ install_cpp_tools() {
         clang-format \
         clang-tidy
     
-    # Cross-compilation tools (for different architectures)
-    log_info "Installing cross-compilation tools..."
-    apt-get install -y --no-install-recommends \
-        gcc-multilib \
-        g++-multilib \
-        mingw-w64 \
-        || log_warning "Cross-compilation tools partially installed"
-    
     # Common libraries for C/C++ development
     log_info "Installing common development libraries..."
     apt-get install -y --no-install-recommends \
-        libstdc++-12-dev \
-        libboost-all-dev \
+        libstdc++-dev \
         libssl-dev \
         libcurl4-openssl-dev \
         libjson-c-dev \
@@ -380,19 +367,10 @@ main() {
     install_cpp_tools
     echo ""
 
-    install_dotnet
-    echo ""
-
-    install_nodejs
-    echo ""
+    # Note: Dotnet, Node.js, Rust are managed on-demand via 'taaos-backend'
+    # Note: Docker is managed on-demand via 'taaos-devops'
 
     install_vscode
-    echo ""
-
-    install_rust
-    echo ""
-
-    install_docker
     echo ""
 
     cleanup

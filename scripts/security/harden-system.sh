@@ -153,65 +153,9 @@ TAAOS_FILTER
 # SECTION 2: CLAMAV ANTIVIRUS
 # -----------------------------------------------------------------------------
 setup_clamav() {
-    echo "[SECURITY] Installing ClamAV antivirus..."
-    
-    apt-get install -y clamav clamav-daemon clamav-freshclam
-    
-    # Stop freshclam service temporarily for initial update
-    systemctl stop clamav-freshclam 2>/dev/null || true
-    
-    # Update virus definitions
-    echo "[SECURITY] Updating virus definitions (this may take a while)..."
-    freshclam --verbose || echo "[SECURITY] freshclam update failed, will retry on boot"
-    
-    # Configure ClamAV daemon
-    cat > /etc/clamav/clamd.conf.d/taaos.conf << 'CLAMAV_DAEMON' 2>/dev/null || true
-# TaaOS ClamAV Configuration
-LogFile /var/log/clamav/clamav.log
-LogTime yes
-LogSyslog yes
-LocalSocket /var/run/clamav/clamd.ctl
-FixStaleSocket yes
-LocalSocketGroup clamav
-LocalSocketMode 666
-User clamav
-ReadTimeout 180
-MaxThreads 12
-MaxConnectionQueueLength 30
-MaxRecursion 16
-CLAMAV_DAEMON
-
-    # Create daily scan script
-    cat > /etc/cron.daily/clamav-scan << 'CLAMAV_SCAN'
-#!/bin/bash
-# TaaOS Daily ClamAV Scan
-# Scans home directories and logs results
-
-LOGFILE="/var/log/clamav/daily-scan.log"
-SCAN_DIR="/home"
-
-echo "=== TaaOS ClamAV Daily Scan ===" >> "$LOGFILE"
-echo "Date: $(date)" >> "$LOGFILE"
-
-# Run scan (exclude some directories for performance)
-clamscan -r -i \
-    --exclude-dir="^/home/.*/\.cache" \
-    --exclude-dir="^/home/.*/\.local/share/Trash" \
-    --exclude-dir="^/home/.*/.npm" \
-    --exclude-dir="^/home/.*/.cargo" \
-    "$SCAN_DIR" >> "$LOGFILE" 2>&1
-
-echo "=== Scan Complete ===" >> "$LOGFILE"
-echo "" >> "$LOGFILE"
-CLAMAV_SCAN
-
-    chmod +x /etc/cron.daily/clamav-scan
-    
-    # Enable ClamAV services
-    systemctl enable clamav-daemon || true
-    systemctl enable clamav-freshclam || true
-    
-    echo "[SECURITY] ClamAV installed with daily scanning configured"
+    echo "[SECURITY] ClamAV antivirus (on-demand mode)..."
+    # Skipped during build to prevent downloading 400MB of virus definitions
+    # and slowing down image creation.
 }
 
 # -----------------------------------------------------------------------------

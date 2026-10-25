@@ -44,7 +44,6 @@ lightdm
 # XFCE4 Additional Plugins and Tools
 xfce4-goodies
 polybar
-plank
 rofi
 
 # Terminal Emulator
@@ -120,7 +119,7 @@ bat
 
 # Privilege Escalation & Authentication
 sudo
-policykit-1-gnome
+mate-polkit
 
 # Download Utilities
 wget
@@ -129,8 +128,8 @@ curl
 # System Monitoring (Interactive Process Viewer)
 htop
 
-# System Information Display
-neofetch
+# System Information Display (Modern fastfetch in Debian 13)
+fastfetch
 
 # Build Tools (GCC, Make, etc.)
 build-essential

@@ -1,38 +1,68 @@
 #!/bin/bash
 # =============================================================================
-# TaaOS Quick Help Menu
+# TaaOS Quick Help Menu — Commands & Modular Suites
 # =============================================================================
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
+set -e
+
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+CYAN='\033[1;36m'
 YELLOW='\033[1;33m'
+BOLD='\033[1m'
 NC='\033[0m'
 
-echo -e "${CYAN}==============================================${NC}"
-echo -e "${GREEN}  TaaOS Komutları - Hızlı Yardım Menüsü${NC}"
-echo -e "${CYAN}==============================================${NC}"
+# Locale / Language detection
+TAAOS_LANG="en"
+_SYS_LOCALE="${LC_ALL:-${LC_MESSAGES:-${LANG:-en}}}"
+if [[ "$_SYS_LOCALE" =~ ^tr ]]; then
+    TAAOS_LANG="tr"
+fi
+for arg in "$@"; do
+    case "$arg" in
+        --lang=tr) TAAOS_LANG="tr" ;;
+        --lang=en) TAAOS_LANG="en" ;;
+    esac
+done
+
+t() {
+    if [ "$TAAOS_LANG" = "tr" ]; then
+        echo -e "$1"
+    else
+        echo -e "$2"
+    fi
+}
+
+echo -e "${RED}==============================================${NC}"
+echo -e "${BOLD}  $(t 'TaaOS Komutları - Hızlı Kılavuz & Yardım' 'TaaOS Commands - Quick Guide & Help')${NC}"
+echo -e "${RED}==============================================${NC}"
 echo ""
-echo -e "${YELLOW}Sistem Yönetimi:${NC}"
-echo -e "  ${GREEN}taaos-update${NC}      Sistemi ve Flatpak paketlerini günceller"
-echo -e "  ${GREEN}taaos-clean${NC}       APT önbellek, yetim paket, eski log temizliği"
-echo -e "  ${GREEN}taaos-doctor${NC}      Sistem sağlık raporu (Disk, RAM, CPU, Servisler)"
-echo -e "  ${GREEN}taaos-help${NC}        Bu yardım menüsünü gösterir"
+
+echo -e "${YELLOW}$(t 'Modüler Geliştirici Yığını (İsteğe Bağlı CRUD):' 'Modular Developer Suites (On-Demand CRUD):')${NC}"
+echo -e "  ${GREEN}taaos-backend${NC}     $(t 'Python (FastAPI/uv), Node.js (pnpm), Go, Rust ve Veritabanı araçları' 'Python (FastAPI/uv), Node.js (pnpm), Go, Rust, and Database tools')"
+echo -e "  ${GREEN}taaos-frontend${NC}    $(t 'Bun, pnpm, Yarn, Vite, Tailwind CSS CLI ve Tauri masaüstü araçları' 'Bun, pnpm, Yarn, Vite, Tailwind CSS CLI, and Tauri desktop tools')"
+echo -e "  ${GREEN}taaos-devops${NC}      $(t 'Docker, Kubernetes (kubectl/helm/k9s), Terraform ve Ansible' 'Docker, Kubernetes (kubectl/helm/k9s), Terraform, and Ansible')"
+echo -e "  ${GREEN}taaos-ai${NC}          $(t 'İzole AI laboratuvarı (~/.taaos/ai-env, PyTorch, JupyterLab, Ollama)' 'Isolated AI lab (~/.taaos/ai-env, PyTorch, JupyterLab, Ollama)')"
+echo -e "  ${GREEN}taaos-linux${NC}       $(t 'Kernel headers, eBPF/perf profil çıkarma ve sysctl ince ayarı' 'Kernel headers, eBPF/perf profiling, and sysctl tuning')"
 echo ""
-echo -e "${YELLOW}Yapay Zeka (TaaNOS):${NC}"
-echo -e "  ${GREEN}taanos \"mesaj\"${NC}     Doğal dilde komut yazdırır (Örn: taanos \"sistemi güncelle\")"
-echo -e "  ${GREEN}taanos init${NC}        İlk kurulum sihirbazı (model seçimi)"
-echo -e "  ${GREEN}natural \"mesaj\"${NC}    taanos kısayolu"
+
+echo -e "${YELLOW}$(t 'Sistem Bakımı & Yönetimi:' 'System Health & Maintenance:')${NC}"
+echo -e "  ${GREEN}taaos-doctor${NC}      $(t 'Kapsamlı sistem kaynakları ve modül sağlık raporu' 'Comprehensive system resources and module health report')"
+echo -e "  ${GREEN}taaos-update${NC}      $(t 'Sistemi, paketleri ve modülleri günceller' 'Updates the operating system, packages, and modules')"
+echo -e "  ${GREEN}taaos-clean${NC}       $(t 'APT önbellek, yetim paket ve geçici dosya temizliği' 'Cleans APT cache, orphan packages, and temporary files')"
+echo -e "  ${GREEN}taaos-help${NC}        $(t 'Bu yardım menüsünü görüntüler' 'Displays this help menu')"
 echo ""
-echo -e "${YELLOW}Geliştirici Araçları:${NC}"
-echo -e "  ${GREEN}bat <dosya>${NC}       Syntax highlighting'li dosya görüntüleme"
-echo -e "  ${GREEN}eza${NC}              Renkli, ikonlu dosya listesi (ls yerine)"
-echo -e "  ${GREEN}fzf${NC}              Fuzzy dosya arama (Ctrl+R = geçmiş arama)"
-echo -e "  ${GREEN}tldr <komut>${NC}      Kısa ve pratik komut örnekleri"
+
+echo -e "${YELLOW}$(t 'Yapay Zeka (TaaNOS):' 'Artificial Intelligence (TaaNOS):')${NC}"
+echo -e "  ${GREEN}taanos \"istek\"${NC}     $(t '0ms çevrimdışı fast-match & yerel AI doğal dil komut motoru' '0ms offline fast-match & local AI natural language command engine')"
+echo -e "  ${GREEN}taanos update${NC}     $(t 'TaaNOS ikili dosyasını GitHub üzerinden otomatik günceller' 'Updates TaaNOS binary from GitHub releases')"
+echo -e "  ${GREEN}taanos status${NC}     $(t 'Aktif yapay zeka modelini ve bağlantı durumunu görüntüler' 'Displays active AI model and connection status')"
+echo -e "  ${GREEN}taanos model${NC}      $(t 'Yerel modelleri listeler ve aktif modeli değiştirir' 'Lists local models and changes the active model')"
 echo ""
-echo -e "${YELLOW}Kısayollar:${NC}"
-echo -e "  ${GREEN}update${NC}            Hızlı APT güncelleme"
-echo -e "  ${GREEN}ports${NC}             Açık portları listeler"
-echo -e "  ${GREEN}ll${NC}                Ayrıntılı dosya listesi"
-echo -e "  ${GREEN}health-check${NC}      Sistem bütünlük kontrolü"
+
+echo -e "${YELLOW}$(t 'Terminal Kısayolları & Araçlar:' 'Terminal Utilities & Hotkeys:')${NC}"
+echo -e "  ${GREEN}fastfetch${NC}         $(t 'TaaOS Rosso Corsa sistem ve donanım kartı' 'TaaOS Rosso Corsa hardware and system info card')"
+echo -e "  ${GREEN}bat / cat${NC}         $(t 'Sözdizimi renklendirmeli modern dosya görüntüleyici' 'Modern file viewer with syntax highlighting')"
+echo -e "  ${GREEN}fzf${NC}               $(t 'Etkileşimli fuzzy arama (Ctrl+R: komut geçmişi)' 'Fuzzy finder (Ctrl+R: command history)')"
+echo -e "  ${GREEN}ports${NC}             $(t 'Açık portlar ve dinleyen ağ soketleri' 'Open network ports and listening sockets')"
 echo ""

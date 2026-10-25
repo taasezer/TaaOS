@@ -5,8 +5,8 @@
 # Location: config/package-lists/themes.list.chroot
 # =============================================================================
 
-# Material Design GTK Theme
-materia-gtk-theme
+# Material Design GTK Theme (Orchis modern dark GTK theme)
+orchis-gtk-theme
 
 # Papirus Icon Theme (modern, flat icons)
 papirus-icon-theme

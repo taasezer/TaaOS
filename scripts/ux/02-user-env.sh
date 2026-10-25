@@ -19,7 +19,7 @@ echo "=============================================="
 setup_neofetch() {
     echo "[USER-ENV] Installing Neofetch..."
     apt-get update
-    apt-get install -y neofetch
+    command -v fastfetch >/dev/null 2>&1 || true
 
     echo "[USER-ENV] Creating TaaOS Neofetch configuration..."
     

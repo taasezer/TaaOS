@@ -1,34 +1,33 @@
 #!/bin/bash
-# TaaOS Wallpaper Enforcer - Runs at desktop startup
-# Forces the wallpaper no matter what the monitor is named
-
+# TaaOS Wallpaper Enforcer — Sets dark Rosso Corsa wallpaper on all monitors
 WALLPAPER="/usr/share/backgrounds/taaos/wallpaper.png"
 
 if [ ! -f "$WALLPAPER" ]; then
     exit 0
 fi
 
-sleep 2  # Wait for xfdesktop to fully initialize
+sleep 1
 
-# Get real monitor name from xrandr
-MONITOR=$(xrandr --listactivemonitors 2>/dev/null | awk 'NR>1 {print $NF; exit}')
+# 1. Update every existing backdrop image property in xfconf
+for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "last-image"); do
+    xfconf-query -c xfce4-desktop -p "$prop" -s "$WALLPAPER" 2>/dev/null || true
+done
 
-if [ -z "$MONITOR" ]; then
-    MONITOR="monitor0"
+# 2. Also set explicitly for active monitors detected by xrandr
+if command -v xrandr >/dev/null 2>&1; then
+    while read -r m; do
+        [ -z "$m" ] && continue
+        for p in "monitor${m}" "${m}"; do
+            xfconf-query -c xfce4-desktop -p "/backdrop/screen0/${p}/workspace0/last-image" --create -t string -s "$WALLPAPER" 2>/dev/null || true
+            xfconf-query -c xfce4-desktop -p "/backdrop/screen0/${p}/workspace0/image-style" --create -t int -s 5 2>/dev/null || true
+            xfconf-query -c xfce4-desktop -p "/backdrop/screen0/${p}/workspace0/color-style" --create -t int -s 0 2>/dev/null || true
+        done
+    done < <(xrandr --listactivemonitors 2>/dev/null | awk 'NR>1 {print $NF}')
 fi
 
-# Force wallpaper on the detected monitor using xfconf
-xfconf-query --channel xfce4-desktop \
-    --property "/backdrop/screen0/${MONITOR}/workspace0/last-image" \
-    --create --type string --set "$WALLPAPER" 2>/dev/null || true
+# 3. Fallback monitor0
+xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace0/last-image" --create -t string -s "$WALLPAPER" 2>/dev/null || true
+xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace0/image-style" --create -t int -s 5 2>/dev/null || true
 
-xfconf-query --channel xfce4-desktop \
-    --property "/backdrop/screen0/${MONITOR}/workspace0/image-style" \
-    --create --type int --set 5 2>/dev/null || true
-
-xfconf-query --channel xfce4-desktop \
-    --property "/backdrop/screen0/${MONITOR}/workspace0/color-style" \
-    --create --type int --set 0 2>/dev/null || true
-
-# Restart xfdesktop to pick up changes
+# Reload xfdesktop
 xfdesktop --reload 2>/dev/null || true
