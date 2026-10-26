@@ -216,14 +216,7 @@ setup_wallpapers() {
     else
         echo "[USER-ENV] No local wallpapers found, downloading dark collection..."
         
-        # Download dark wallpapers
-        curl -L -o "${WALLPAPER_DIR}/taaos-dark-abstract.jpg" \
-            "https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1920&q=80" \
-            2>/dev/null || echo "[USER-ENV] Could not download wallpaper 1"
-        
-        curl -L -o "${WALLPAPER_DIR}/taaos-dark-minimal.jpg" \
-            "https://images.unsplash.com/photo-1557683316-973673baf926?w=1920&q=80" \
-            2>/dev/null || echo "[USER-ENV] Could not download wallpaper 2"
+        if [ -f "/opt/taaos/assets/wallpaper.png" ]; then cp "/opt/taaos/assets/wallpaper.png" "${WALLPAPER_DIR}/wallpaper.png"; fi
     fi
     
     # Create fallback wallpapers - Black + Rosso Corsa theme
@@ -439,20 +432,8 @@ THEME_ALIAS
     mkdir -p /etc/skel/.config/taaos
     echo "dark" > /etc/skel/.config/taaos/theme
     
-    # Create desktop shortcut for theme switcher
-    mkdir -p /etc/skel/Desktop
-    cat > /etc/skel/Desktop/theme-switcher.desktop << 'THEME_DESKTOP'
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=TaaOS Theme
-Comment=Toggle between Dark and Light themes
-Icon=preferences-desktop-theme
-Exec=taaos-theme toggle
-Terminal=false
-Categories=Settings;DesktopSettings;
-THEME_DESKTOP
-    chmod +x /etc/skel/Desktop/theme-switcher.desktop
+    # CachyOS clean zero-clutter desktop
+    rm -rf /etc/skel/Desktop/* 2>/dev/null || true
     
     echo "[USER-ENV] Theme system setup completed!"
 }

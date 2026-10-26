@@ -142,36 +142,30 @@ echo "[BRANDING] Configuring XFCE theme..."
 # Create default XFCE settings
 mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml
 
-echo "[BRANDING] Downloading and installing custom themes (WhiteSur GTK, WhiteSur Icons, Capitaine Cursors)..."
+echo "[BRANDING] Installing modern dark theme (Orchis-Red-Dark / Orchis-Dark)..."
 
 cd /tmp
 
-# 1. WhiteSur GTK Theme
-if [ ! -d "/usr/share/themes/WhiteSur-Dark" ]; then
-    git clone https://github.com/vinceliuice/WhiteSur-gtk-theme.git --depth=1 || true
-    if [ -d "WhiteSur-gtk-theme" ]; then
-        cd WhiteSur-gtk-theme
-        ./install.sh -c dark -a alt -m -d /usr/share/themes || echo "WhiteSur GTK install failed"
+# 1. Orchis Dark GTK & Window Theme (Rosso Corsa Red accent)
+if [ ! -d "/usr/share/themes/Orchis-Red-Dark" ] && [ ! -d "/usr/share/themes/Orchis-Dark" ]; then
+    git clone https://github.com/vinceliuice/Orchis-theme.git --depth=1 || true
+    if [ -d "Orchis-theme" ]; then
+        cd Orchis-theme
+        ./install.sh -c dark -t red -d /usr/share/themes || ./install.sh -c dark -d /usr/share/themes || echo "Orchis GTK install failed"
         cd ..
-        rm -rf WhiteSur-gtk-theme
+        rm -rf Orchis-theme
     fi
 fi
 
-# 2. WhiteSur Icon Theme
-if [ ! -d "/usr/share/icons/WhiteSur-dark" ]; then
-    git clone https://github.com/vinceliuice/WhiteSur-icon-theme.git --depth=1 || true
-    if [ -d "WhiteSur-icon-theme" ]; then
-        cd WhiteSur-icon-theme
-        ./install.sh -d /usr/share/icons -a || echo "WhiteSur Icons install failed"
-        cd ..
-        rm -rf WhiteSur-icon-theme
-    fi
+# Detect installed theme name
+if [ -d "/usr/share/themes/Orchis-Red-Dark" ]; then
+    TAAOS_THEME="Orchis-Red-Dark"
+elif [ -d "/usr/share/themes/Orchis-Dark" ]; then
+    TAAOS_THEME="Orchis-Dark"
+else
+    TAAOS_THEME="Arc-Dark"
 fi
-
-# 3. Capitaine Cursors
-if [ ! -d "/usr/share/icons/capitaine-cursors" ]; then
-    wget -qO- https://github.com/keeferrourke/capitaine-cursors/releases/download/r4/capitaine-cursors-r4.tar.gz | tar -xzC /usr/share/icons/ || echo "Capitaine cursors download failed"
-fi
+echo "[BRANDING] Selected unified dark theme: $TAAOS_THEME"
 
 # 4. Fira Sans Font (Absolute Guarantee via Mozilla GitHub)
 if [ ! -d "/usr/share/fonts/truetype/fira" ] && ! fc-list | grep -qi "Fira Sans"; then
@@ -191,12 +185,12 @@ fi
 
 cd /
 
-# XFCE Settings - Window Manager (xfwm4) - Orchis-Dark with Fluid Alt-Tab Preview
-cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'EOF'
+# XFCE Settings - Window Manager (xfwm4) - Fluid Alt-Tab Preview and Dark Theme
+cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfwm4" version="1.0">
   <property name="general" type="empty">
-    <property name="theme" type="string" value="Orchis-Dark"/>
+    <property name="theme" type="string" value="${TAAOS_THEME}"/>
     <property name="title_font" type="string" value="Fira Sans Bold 10"/>
     <property name="button_layout" type="string" value="O|HMC"/>
     <property name="cycle_tabwin_mode" type="int" value="1"/>
@@ -213,12 +207,12 @@ cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << 'EOF'
 </channel>
 EOF
 
-# XFCE Settings - GTK Theme (xsettings) - Orchis-Dark + Papirus-Dark
-cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << 'EOF'
+# XFCE Settings - GTK Theme (xsettings) - Unified Dark + Papirus-Dark
+cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xsettings" version="1.0">
   <property name="Net" type="empty">
-    <property name="ThemeName" type="string" value="Orchis-Dark"/>
+    <property name="ThemeName" type="string" value="${TAAOS_THEME}"/>
     <property name="IconThemeName" type="string" value="Papirus-Dark"/>
   </property>
   <property name="Gtk" type="empty">
@@ -319,6 +313,7 @@ cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml << 'EOF'
     </property>
   </property>
   <property name="desktop-icons" type="empty">
+    <property name="style" type="int" value="0"/>
     <property name="file-icons" type="empty">
       <property name="show-home" type="bool" value="false"/>
       <property name="show-filesystem" type="bool" value="false"/>
@@ -855,7 +850,7 @@ EOF
 cat > /etc/skel/.config/autostart/picom.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
-Exec=bash -c "if lspci 2>/dev/null | grep -qi virtualbox; then picom --backend xrender --vsync -b; else picom --config $HOME/.config/picom/picom.conf -b; fi"
+Exec=bash -c "if lspci 2>/dev/null | grep -qi 'virtualbox\|innotek\|vbox'; then picom --backend xrender --no-vsync -b; else picom --config $HOME/.config/picom/picom.conf -b; fi"
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true

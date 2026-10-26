@@ -2,6 +2,8 @@
 *.iso
 *.tar.gz
 *.swp
+*.vdi
+*.vmdk
 
 # Logs & temp files
 logs/*.log

@@ -72,10 +72,13 @@ EOF
 # Set timezone (default to UTC, can be changed during install)
 ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 
-# Configure locale
-echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+# Configure locales (generate both English and Turkish for zero-warning UTF-8 support)
+cat > /etc/locale.gen << 'LOCALE_EOF'
+en_US.UTF-8 UTF-8
+tr_TR.UTF-8 UTF-8
+LOCALE_EOF
 locale-gen
-update-locale LANG=en_US.UTF-8
+update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
 # =============================================================================
 # SECTION 2: FILESYSTEM CONFIGURATION

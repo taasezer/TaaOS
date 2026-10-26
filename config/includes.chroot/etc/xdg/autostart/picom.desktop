@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Exec=bash -c "if lspci 2>/dev/null | grep -qi 'virtualbox\|innotek\|vbox'; then picom --backend xrender --no-vsync -b; else picom --config $HOME/.config/picom/picom.conf -b; fi"
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Picom
+Comment=TaaOS Compositor (auto-detects VM)
