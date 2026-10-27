@@ -54,7 +54,18 @@ lb config \
     --parent-mirror-binary-security "http://security.debian.org/debian-security" \
     --mirror-binary-security "http://security.debian.org/debian-security" \
     --win32-loader false \
-    --loadlin false
+    --loadlin false \
+    --firmware-chroot false \
+    --firmware-binary false
+
+# Block broken external-download firmware installer packages (firmware-b43*-installer) during chroot apt install
+mkdir -p config/apt config/includes.chroot/etc/apt/preferences.d
+cat > config/apt/preferences << 'APT_PREF_EOF'
+Package: firmware-b43-installer firmware-b43legacy-installer b43-fwcutter
+Pin: release *
+Pin-Priority: -1
+APT_PREF_EOF
+cp -f config/apt/preferences config/includes.chroot/etc/apt/preferences.d/99-no-b43-installer
 
 # Copy custom bootloader configurations
 echo "[CONFIG] Copying custom bootloader configs..."
