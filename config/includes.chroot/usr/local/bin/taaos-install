@@ -1,0 +1,29 @@
+#!/bin/bash
+# TaaOS Installer Launcher & Auto-Root Wrapper
+xhost +local:root 2>/dev/null || true
+
+if [ "$EUID" -ne 0 ]; then
+    exec sudo -E /usr/local/bin/taaos-install "$@"
+fi
+
+echo "[TaaOS] Preparing installer..."
+
+# Release any active swap or leftover mounts on target disks so Calamares kpmcore can read full disk capacity
+swapoff -a 2>/dev/null || true
+umount -R /tmp/calamares-* 2>/dev/null || true
+
+# Absolute failsafe for UnpackFS
+SQ_PATH=$(find /run /lib /media -type f -name "*.squashfs" 2>/dev/null | head -n 1)
+if [ -n "$SQ_PATH" ]; then
+    echo "[TaaOS] Found live filesystem at: $SQ_PATH"
+    mkdir -p /etc/calamares/modules
+    cat > /etc/calamares/modules/unpackfs.conf << UNPACKEOF
+---
+unpack:
+    -   source: "$SQ_PATH"
+        sourcefs: "squashfs"
+        destination: ""
+UNPACKEOF
+fi
+
+exec /usr/bin/calamares "$@"

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=TaaOS Radial Wheel Settings
+Name[tr]=TaaOS Çark Ayarları
+Comment=Customize the right-click hold radial application launcher
+Comment[tr]=Sağ tık basılı tutma ile açılan uygulama çarkını özelleştirin
+Exec=/usr/local/bin/taaos-wheel --config
+Icon=preferences-desktop-launch-feedback
+Terminal=false
+Categories=Settings;DesktopSettings;

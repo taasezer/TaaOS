@@ -34,43 +34,28 @@ ImageDir=/usr/share/plymouth/themes/taaos
 ScriptFile=/usr/share/plymouth/themes/taaos/taaos.script
 EOF
 
-# Create Plymouth script — macOS-style welcome greetings during boot
+# Create Plymouth script — Clean minimal logo + Rosso Corsa progress bar (zero text clutter)
 cat > /usr/share/plymouth/themes/taaos/taaos.script << 'EOF'
 # =============================================================================
-# TaaOS Plymouth Theme Script — Premium Boot Experience
-# =============================================================================
-# Shows logo, multilingual welcome greetings with fade animation,
-# and a sleek progress bar during system boot.
+# TaaOS Plymouth Theme Script — Minimalist Boot Splash
 # =============================================================================
 
-# Dark gradient background
-Window.SetBackgroundTopColor(0.06, 0.06, 0.12);
-Window.SetBackgroundBottomColor(0.02, 0.02, 0.06);
+# Pure dark obsidian background
+Window.SetBackgroundTopColor(0.04, 0.05, 0.07);
+Window.SetBackgroundBottomColor(0.03, 0.04, 0.05);
 
-# ─── Logo ────────────────────────────────────────────────────────────────
-logo_image = Image("logo.png");
+# ─── Logo (Centered & Scaled to 200x200) ─────────────────────────────────
+raw_logo = Image("logo.png");
+logo_image = raw_logo.Scale(200, 200);
 logo_sprite = Sprite(logo_image);
 logo_sprite.SetX(Window.GetWidth() / 2 - logo_image.GetWidth() / 2);
-logo_sprite.SetY(Window.GetHeight() / 2 - logo_image.GetHeight() / 2 - 80);
-
-# ─── Welcome Greeting ─────────────────────────────────────────────────────
-greeting_text = "Hoşgeldin Mühendis";
-greeting_image = Image.Text(greeting_text, 0.9, 0.9, 0.9);
-greeting_sprite = Sprite(greeting_image);
-greeting_sprite.SetX(Window.GetWidth() / 2 - greeting_image.GetWidth() / 2);
-greeting_sprite.SetY(Window.GetHeight() / 2 + 40);
-
-# Subtitle sprite (always visible)
-subtitle_image = Image.Text("TaaOS — Professional Linux for Engineers", 0.4, 0.4, 0.5);
-subtitle_sprite = Sprite(subtitle_image);
-subtitle_sprite.SetX(Window.GetWidth() / 2 - subtitle_image.GetWidth() / 2);
-subtitle_sprite.SetY(Window.GetHeight() / 2 + 90);
+logo_sprite.SetY(Window.GetHeight() / 2 - logo_image.GetHeight() / 2 - 20);
 
 # ─── Progress Bar ────────────────────────────────────────────────────────
 progress_box.image = Image("progress_box.png");
 progress_box.sprite = Sprite(progress_box.image);
 progress_box.x = Window.GetWidth() / 2 - progress_box.image.GetWidth() / 2;
-progress_box.y = Window.GetHeight() / 2 + 140;
+progress_box.y = Window.GetHeight() / 2 + 110;
 progress_box.sprite.SetPosition(progress_box.x, progress_box.y, 0);
 
 progress_bar.original_image = Image("progress_bar.png");
@@ -86,42 +71,23 @@ fun progress_callback(duration, progress) {
     }
 }
 Plymouth.SetBootProgressFunction(progress_callback);
-
-# ─── System Messages ──────────────────────────────────────────────────────
-message_sprite = Sprite();
-message_sprite.SetPosition(Window.GetWidth() / 2 - 100, Window.GetHeight() / 2 + 180, 1);
-
-fun message_callback(text) {
-    my_image = Image.Text(text, 0.5, 0.5, 0.6);
-    message_sprite.SetImage(my_image);
-}
-
-Plymouth.SetMessageFunction(message_callback);
 EOF
 
-# Copy and scale logo for Plymouth (resize 1536px source to 180x180 so it's not cropped)
-if [ -f /opt/taaos/assets/logo.png ]; then
+# Only generate/scale logo if pre-scaled Plymouth logo from includes.chroot is missing
+if [ ! -f /usr/share/plymouth/themes/taaos/logo.png ] && [ -f /opt/taaos/assets/logo.png ]; then
     if command -v convert &> /dev/null; then
-        convert /opt/taaos/assets/logo.png -resize 180x180 /usr/share/plymouth/themes/taaos/logo.png 2>/dev/null || cp /opt/taaos/assets/logo.png /usr/share/plymouth/themes/taaos/
+        convert /opt/taaos/assets/logo.png -resize 200x200 /usr/share/plymouth/themes/taaos/logo.png 2>/dev/null || cp /opt/taaos/assets/logo.png /usr/share/plymouth/themes/taaos/
     else
         cp /opt/taaos/assets/logo.png /usr/share/plymouth/themes/taaos/
     fi
 fi
 
-# Create simple progress bar images (Rosso Corsa #D40000 theme)
-if command -v convert &> /dev/null; then
-    convert -size 200x16 xc:'#0D1117' -fill '#21262D' -draw "roundrectangle 0,0 199,15 5,5" /usr/share/plymouth/themes/taaos/progress_box.png 2>/dev/null || true
-    convert -size 196x12 xc:'#D40000' -draw "roundrectangle 0,0 195,11 4,4" /usr/share/plymouth/themes/taaos/progress_bar.png 2>/dev/null || true
-fi
-
-# Ensure progress bar images exist (fallback: create minimal 1x1 PNGs if ImageMagick failed)
+# Ensure progress bar images exist
 if [ ! -f /usr/share/plymouth/themes/taaos/progress_box.png ]; then
     printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\x10\x15\x15\x05\x00\x00\x12\x00\x05\x97\xe7\x93\xc4\x00\x00\x00\x00IEND\xaeB`\x82' > /usr/share/plymouth/themes/taaos/progress_box.png
-    echo "[BRANDING] Created fallback progress_box.png (ImageMagick not available)"
 fi
 if [ ! -f /usr/share/plymouth/themes/taaos/progress_bar.png ]; then
     printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82' > /usr/share/plymouth/themes/taaos/progress_bar.png
-    echo "[BRANDING] Created fallback progress_bar.png (ImageMagick not available)"
 fi
 
 # Set TaaOS as default Plymouth theme
@@ -416,6 +382,7 @@ content-foreground = #d40000
 content-background = ${colors.background}
 content-padding = 0
 click-left = rofi -show drun -show-icons
+click-right = /usr/local/bin/taaos-wheel
 
 [module/xworkspaces]
 type = internal/xworkspaces

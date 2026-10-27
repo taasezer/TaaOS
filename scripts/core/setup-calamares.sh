@@ -138,14 +138,15 @@ showKnownIssuesUrl: true
 showReleaseNotesUrl: false
 
 requirements:
-    requiredStorage: 8
+    requiredStorage: 5.5
     requiredRam: 1.0
-    internetCheckUrl: https://example.com
+    internetCheckUrl: https://deb.debian.org
     check:
         - storage
         - ram
+        - root
     required:
-        - storage
+        - ram
 
 geoip:
     style: "none"
@@ -490,13 +491,22 @@ QML_DESC
 create_desktop_entry() {
     echo "[INSTALLER] Creating desktop entry..."
     
-    # Create Calamares launcher wrapper (fixes unpackfs + runs calamares)
-    mkdir -p /usr/lib/taaos
+    # Create Calamares launcher wrapper (auto-elevates to root, releases swap locks on target disks, fixes unpackfs)
+    mkdir -p /usr/lib/taaos /usr/local/bin
     cat > /usr/local/bin/taaos-install << 'WRAPPER_SCRIPT'
 #!/bin/bash
-# TaaOS Installer Launcher
+# TaaOS Installer Launcher & Auto-Root Wrapper
 xhost +local:root 2>/dev/null || true
+
+if [ "$EUID" -ne 0 ]; then
+    exec sudo -E /usr/local/bin/taaos-install "$@"
+fi
+
 echo "[TaaOS] Preparing installer..."
+
+# Release any active swap or leftover mounts on target disks so Calamares kpmcore can read full disk capacity
+swapoff -a 2>/dev/null || true
+umount -R /tmp/calamares-* 2>/dev/null || true
 
 # Absolute failsafe for UnpackFS
 SQ_PATH=$(find /run /lib /media -type f -name "*.squashfs" 2>/dev/null | head -n 1)
@@ -512,14 +522,10 @@ unpack:
 UNPACKEOF
 fi
 
-# Run Calamares with sudo, pkexec as fallback
-if command -v pkexec &> /dev/null; then
-    exec pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY calamares "$@"
-else
-    exec sudo -E calamares "$@"
-fi
+exec /usr/bin/calamares "$@"
 WRAPPER_SCRIPT
     chmod +x /usr/local/bin/taaos-install
+    ln -sf /usr/local/bin/taaos-install /usr/local/bin/calamares
 
     # Desktop entry for installer — runs the wrapper which escalates to root securely via sudo
     mkdir -p /usr/share/applications

@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+# =============================================================================
+# TaaOS Appearance & Visual FX Control Center (taaos-appearance)
+# =============================================================================
+# Provides real-time visual enhancement presets:
+#   - Compositor FX Profiles (Performance / Balanced Smooth / Ultra GPU Glass)
+#   - Polybar Layout Style (Full-Width Bar vs Floating Island Bar)
+#   - Terminal Transparency Level (100% Opaque / 95% Translucent / 85% Glass)
+#   - Radial Wheel (Çark) Customization Shortcut
+# =============================================================================
+
+import os
+import sys
+import subprocess
+from pathlib import Path
+
+_LOCALE = os.environ.get("LC_ALL") or os.environ.get("LC_MESSAGES") or os.environ.get("LANG") or "en"
+IS_TR = _LOCALE.lower().startswith("tr")
+
+def tr(tr_text, en_text):
+    return tr_text if IS_TR else en_text
+
+HOME = Path.home()
+PICOM_CONF = HOME / ".config" / "picom" / "picom.conf"
+POLYBAR_CONF = HOME / ".config" / "polybar" / "config.ini"
+TERMINAL_RC = HOME / ".config" / "xfce4" / "terminal" / "terminalrc"
+AUTOSTART_PICOM = HOME / ".config" / "autostart" / "picom.desktop"
+
+PICOM_PROFILES = {
+    "performance": """# TaaOS Picom — Performance Mode (Zero Lag / VM Optimized)
+backend = "xrender";
+vsync = false;
+fading = false;
+shadow = false;
+corner-radius = 0;
+inactive-opacity = 1.0;
+active-opacity = 1.0;
+""",
+    "balanced": """# TaaOS Picom — Balanced CachyOS Mode (Smooth Fades & Soft Shadows)
+backend = "xrender";
+vsync = false;
+fading = true;
+fade-in-step = 0.09;
+fade-out-step = 0.09;
+fade-delta = 3;
+shadow = true;
+shadow-radius = 12;
+shadow-offset-x = -6;
+shadow-offset-y = -6;
+shadow-opacity = 0.35;
+shadow-exclude = [
+  "class_g = 'Polybar'",
+  "class_g = 'TaaOS Wheel'",
+  "_GTK_FRAME_EXTENTS@:c"
+];
+inactive-opacity = 0.97;
+active-opacity = 1.0;
+""",
+    "ultra": """# TaaOS Picom — Ultra GPU Glass Mode (GLX, Rounded Corners, Shadows & Fades)
+backend = "glx";
+vsync = true;
+fading = true;
+fade-in-step = 0.08;
+fade-out-step = 0.08;
+fade-delta = 4;
+corner-radius = 10;
+rounded-corners-exclude = [
+  "class_g = 'Polybar'",
+  "window_type = 'dock'",
+  "window_type = 'desktop'"
+];
+shadow = true;
+shadow-radius = 14;
+shadow-offset-x = -7;
+shadow-offset-y = -7;
+shadow-opacity = 0.40;
+shadow-exclude = [
+  "class_g = 'Polybar'",
+  "class_g = 'TaaOS Wheel'",
+  "_GTK_FRAME_EXTENTS@:c"
+];
+inactive-opacity = 0.95;
+active-opacity = 1.0;
+"""
+}
+
+def apply_picom_profile(profile_key):
+    if profile_key not in PICOM_PROFILES:
+        return
+    PICOM_CONF.parent.mkdir(parents=True, exist_ok=True)
+    PICOM_CONF.write_text(PICOM_PROFILES[profile_key], encoding="utf-8")
+
+    # Update autostart so choice persists across reboots
+    AUTOSTART_PICOM.parent.mkdir(parents=True, exist_ok=True)
+    AUTOSTART_PICOM.write_text(f"""[Desktop Entry]
+Type=Application
+Exec=picom --config {PICOM_CONF} -b
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Picom
+Comment=TaaOS Compositor ({profile_key})
+""", encoding="utf-8")
+
+    subprocess.run("killall -q picom 2>/dev/null || true", shell=True)
+    subprocess.Popen(f"picom --config {PICOM_CONF} -b", shell=True, start_new_session=True)
+
+def apply_polybar_style(style_key):
+    if not POLYBAR_CONF.exists():
+        return
+    text = POLYBAR_CONF.read_text(encoding="utf-8")
+    import re
+    if style_key == "floating":
+        text = re.sub(r"width\s*=\s*.*", "width = 98%", text)
+        text = re.sub(r"offset-x\s*=\s*.*", "offset-x = 1%", text)
+        text = re.sub(r"offset-y\s*=\s*.*", "offset-y = 6px", text)
+        text = re.sub(r"radius\s*=\s*.*", "radius = 10", text)
+        if "offset-x" not in text:
+            text = text.replace("[bar/taaos]\n", "[bar/taaos]\noffset-x = 1%\noffset-y = 6px\n")
+    else:
+        text = re.sub(r"width\s*=\s*.*", "width = 100%", text)
+        text = re.sub(r"offset-x\s*=\s*.*\n?", "", text)
+        text = re.sub(r"offset-y\s*=\s*.*\n?", "", text)
+        text = re.sub(r"radius\s*=\s*.*", "radius = 0", text)
+
+    POLYBAR_CONF.write_text(text, encoding="utf-8")
+    subprocess.Popen("bash ~/.config/polybar/launch.sh >/dev/null 2>&1 &", shell=True)
+
+def apply_terminal_opacity(level):
+    TERMINAL_RC.parent.mkdir(parents=True, exist_ok=True)
+    if not TERMINAL_RC.exists():
+        return
+    text = TERMINAL_RC.read_text(encoding="utf-8")
+    import re
+    if level == "opaque":
+        text = re.sub(r"BackgroundMode=.*", "BackgroundMode=TERMINAL_BACKGROUND_SOLID", text)
+        text = re.sub(r"BackgroundDarkness=.*", "BackgroundDarkness=1.000000", text)
+    elif level == "translucent":
+        text = re.sub(r"BackgroundMode=.*", "BackgroundMode=TERMINAL_BACKGROUND_TRANSPARENT", text)
+        text = re.sub(r"BackgroundDarkness=.*", "BackgroundDarkness=0.950000", text)
+    elif level == "glass":
+        text = re.sub(r"BackgroundMode=.*", "BackgroundMode=TERMINAL_BACKGROUND_TRANSPARENT", text)
+        text = re.sub(r"BackgroundDarkness=.*", "BackgroundDarkness=0.850000", text)
+    TERMINAL_RC.write_text(text, encoding="utf-8")
+
+def run_gui():
+    import gi
+    gi.require_version('Gtk', '3.0')
+    from gi.repository import Gtk
+
+    win = Gtk.Window(title=tr("TaaOS Görünüm & Efekt Merkezi", "TaaOS Appearance & FX Center"))
+    win.set_default_size(500, 430)
+    win.set_position(Gtk.WindowPosition.CENTER)
+
+    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+    vbox.set_margin_top(16)
+    vbox.set_margin_bottom(16)
+    vbox.set_margin_start(16)
+    vbox.set_margin_end(16)
+    win.add(vbox)
+
+    hdr = Gtk.Label()
+    hdr.set_markup(
+        f"<b><span size='large' foreground='#D40000'>{tr('TaaOS Görünüm İyileştirme Seçenekleri', 'TaaOS Visual Enhancement Options')}</span></b>\n"
+        f"<span size='small'>{tr('Donanımınıza göre pencere efektlerini, üst bar stilini ve şeffaflığı anında değiştirin.', 'Customize compositor effects, top bar layout, and transparency on the fly.')}</span>"
+    )
+    hdr.set_xalign(0)
+    vbox.pack_start(hdr, False, False, 0)
+
+    # 1. Compositor Section
+    frame1 = Gtk.Frame(label=tr(" 1. Pencere Efektleri & Akıcılık (Picom) ", " 1. Window Effects & Fluidity (Picom) "))
+    box1 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+    box1.set_margin_top(8)
+    box1.set_margin_bottom(8)
+    box1.set_margin_start(10)
+    box1.set_margin_end(10)
+    frame1.add(box1)
+
+    btn_perf = Gtk.Button(label=tr("⚡ Performans Modu (Sıfır Gecikme / Sanal Makine İçin İdeal)", "⚡ Performance Mode (Zero Lag / Ideal for VMs)"))
+    btn_perf.connect("clicked", lambda _: apply_picom_profile("performance"))
+    btn_bal = Gtk.Button(label=tr("✨ Dengeli CachyOS Modu (Yumuşak Gölgeler & Akıcı Geçişler)", "✨ Balanced CachyOS Mode (Soft Shadows & Smooth Fades)"))
+    btn_bal.connect("clicked", lambda _: apply_picom_profile("balanced"))
+    btn_ult = Gtk.Button(label=tr("💎 Ultra GPU Modu (Yuvarlatılmış Köşeler, GLX & Derin Gölge)", "💎 Ultra GPU Mode (Rounded Corners, GLX & Deep Shadows)"))
+    btn_ult.connect("clicked", lambda _: apply_picom_profile("ultra"))
+
+    box1.pack_start(btn_perf, False, False, 0)
+    box1.pack_start(btn_bal, False, False, 0)
+    box1.pack_start(btn_ult, False, False, 0)
+    vbox.pack_start(frame1, False, False, 0)
+
+    # 2. Polybar Style Section
+    frame2 = Gtk.Frame(label=tr(" 2. Üst Panel (Polybar) Tasarımı ", " 2. Top Bar (Polybar) Layout "))
+    box2 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    box2.set_margin_top(8)
+    box2.set_margin_bottom(8)
+    box2.set_margin_start(10)
+    box2.set_margin_end(10)
+    frame2.add(box2)
+
+    btn_full = Gtk.Button(label=tr("Tam Genişlik Bar (Klasik)", "Full-Width Bar (Classic)"))
+    btn_full.connect("clicked", lambda _: apply_polybar_style("full"))
+    btn_float = Gtk.Button(label=tr("Yüzen Ada Bar (Yuvarlatılmış)", "Floating Island Bar (Rounded)"))
+    btn_float.connect("clicked", lambda _: apply_polybar_style("floating"))
+
+    box2.pack_start(btn_full, True, True, 0)
+    box2.pack_start(btn_float, True, True, 0)
+    vbox.pack_start(frame2, False, False, 0)
+
+    # 3. Terminal Transparency
+    frame3 = Gtk.Frame(label=tr(" 3. Terminal Şeffaflık Seviyesi ", " 3. Terminal Transparency "))
+    box3 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    box3.set_margin_top(8)
+    box3.set_margin_bottom(8)
+    box3.set_margin_start(10)
+    box3.set_margin_end(10)
+    frame3.add(box3)
+
+    btn_t100 = Gtk.Button(label=tr("%100 Opak", "100% Opaque"))
+    btn_t100.connect("clicked", lambda _: apply_terminal_opacity("opaque"))
+    btn_t95 = Gtk.Button(label=tr("%95 Yarı Saydam", "95% Translucent"))
+    btn_t95.connect("clicked", lambda _: apply_terminal_opacity("translucent"))
+    btn_t85 = Gtk.Button(label=tr("%85 Cam (Glass)", "85% Glass"))
+    btn_t85.connect("clicked", lambda _: apply_terminal_opacity("glass"))
+
+    box3.pack_start(btn_t100, True, True, 0)
+    box3.pack_start(btn_t95, True, True, 0)
+    box3.pack_start(btn_t85, True, True, 0)
+    vbox.pack_start(frame3, False, False, 0)
+
+    # 4. Radial Wheel Settings Shortcut
+    hbox_bot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    btn_wheel = Gtk.Button(label=tr("🎡 Sağ Tık Uygulama Çarkını (Wheel) Özelleştir", "🎡 Customize Right-Click Radial Wheel"))
+    btn_wheel.connect("clicked", lambda _: subprocess.Popen(["/usr/local/bin/taaos-wheel", "--config"]))
+    btn_close = Gtk.Button(label=tr("Kapat", "Close"))
+    btn_close.connect("clicked", lambda _: Gtk.main_quit())
+
+    hbox_bot.pack_start(btn_wheel, True, True, 0)
+    hbox_bot.pack_end(btn_close, False, False, 0)
+    vbox.pack_end(hbox_bot, False, False, 0)
+
+    win.connect("destroy", Gtk.main_quit)
+    win.show_all()
+    Gtk.main()
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        arg = sys.argv[1].lower()
+        if arg in ("performance", "balanced", "ultra"):
+            apply_picom_profile(arg)
+            print(f"[TaaOS] Applied compositor profile: {arg}")
+        elif arg in ("floating", "floating-bar"):
+            apply_polybar_style("floating")
+            print("[TaaOS] Applied floating Polybar layout")
+        elif arg in ("full", "full-bar"):
+            apply_polybar_style("full")
+            print("[TaaOS] Applied full-width Polybar layout")
+        else:
+            print("Usage: taaos-appearance [performance|balanced|ultra|floating|full]")
+    else:
+        run_gui()

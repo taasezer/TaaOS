@@ -164,6 +164,10 @@ echo "[POLISH] Setting executable permissions on TaaOS scripts..."
 # UI and helper scripts
 chmod +x /usr/local/bin/taaos-node-repl 2>/dev/null || true
 chmod +x /usr/local/bin/taanos 2>/dev/null || true
+chmod +x /usr/local/bin/calamares 2>/dev/null || true
+chmod +x /usr/local/bin/taaos-install 2>/dev/null || true
+chmod +x /usr/local/bin/taaos-wheel 2>/dev/null || true
+chmod +x /usr/local/bin/taaos-appearance 2>/dev/null || true
 chmod +x /usr/lib/taaos/post-install.sh 2>/dev/null || true
 chmod +x /usr/local/bin/10022006 2>/dev/null || true
 

@@ -1,0 +1,3 @@
+#!/bin/bash
+# TaaOS Calamares CLI Auto-Root Wrapper
+exec /usr/local/bin/taaos-install "$@"

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=TaaOS Radial Wheel Daemon
+Comment=Right-click hold radial application launcher
+Exec=/usr/local/bin/taaos-wheel --daemon
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true

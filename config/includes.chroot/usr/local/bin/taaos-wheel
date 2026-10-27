@@ -1,0 +1,692 @@
+#!/usr/bin/env python3
+# =============================================================================
+# TaaOS Radial Wheel (Çark) — Right-Click Hold Application Launcher
+# =============================================================================
+# Opens a CachyOS Dark + Rosso Corsa Red circular pie menu right at the mouse
+# cursor when holding Down Right-Click (>= 260ms), or when invoked directly.
+# Supports both:
+#   1. Hold Right-Click -> Drag to slice -> Release Right-Click (Fast Gesture)
+#   2. Hold Right-Click -> Release in center -> Left-Click slice (Browse Mode)
+#   3. 'taaos-wheel --config' GUI to add, edit, or remove favorite apps.
+# =============================================================================
+
+import os
+import sys
+import math
+import json
+import time
+import signal
+import ctypes
+import subprocess
+from pathlib import Path
+
+import gi
+gi.require_version('Gtk', '3.0')
+gi.require_version('Gdk', '3.0')
+from gi.repository import Gtk, Gdk, GLib, Pango
+import cairo
+
+# -----------------------------------------------------------------------------
+# Locale & Language Detection (TR if system locale starts with 'tr', else EN)
+# -----------------------------------------------------------------------------
+_LOCALE = os.environ.get("LC_ALL") or os.environ.get("LC_MESSAGES") or os.environ.get("LANG") or "en"
+IS_TR = _LOCALE.lower().startswith("tr")
+
+def tr(tr_text, en_text):
+    return tr_text if IS_TR else en_text
+
+# -----------------------------------------------------------------------------
+# Configuration Management (~/.config/taaos/wheel.json)
+# -----------------------------------------------------------------------------
+CONFIG_DIR = Path.home() / ".config" / "taaos"
+CONFIG_FILE = CONFIG_DIR / "wheel.json"
+PID_FILE = Path(f"/tmp/taaos-wheel-{os.getuid()}.pid")
+
+DEFAULT_CONFIG = {
+    "enabled": True,
+    "hold_ms": 260,
+    "items": [
+        {
+            "name": "Terminal",
+            "desc": tr("Komut Satırı", "Terminal Emulator"),
+            "cmd": "xfce4-terminal",
+            "icon": "utilities-terminal"
+        },
+        {
+            "name": "TaaNOS AI",
+            "desc": tr("Yapay Zeka Asistanı", "AI System Assistant"),
+            "cmd": "xfce4-terminal --title='TaaNOS AI' -e taanos",
+            "icon": "applications-science"
+        },
+        {
+            "name": tr("Uygulamalar", "All Apps"),
+            "desc": tr("Rofi Uygulama Bulucu", "Rofi Application Finder"),
+            "cmd": "rofi -show drun -show-icons",
+            "icon": "system-search"
+        },
+        {
+            "name": "Code / IDE",
+            "desc": tr("Kod Düzenleyici", "Code Editor"),
+            "cmd": "bash -c 'if command -v code >/dev/null 2>&1; then code --no-sandbox; elif command -v mousepad >/dev/null 2>&1; then mousepad; else xfce4-terminal -e nvim; fi'",
+            "icon": "accessories-text-editor"
+        },
+        {
+            "name": tr("Tarayıcı", "Browser"),
+            "desc": tr("Web Tarayıcısı", "Web Browser"),
+            "cmd": "x-www-browser",
+            "icon": "web-browser"
+        },
+        {
+            "name": tr("Dosyalar", "Files"),
+            "desc": tr("Thunar Dosya Yöneticisi", "Thunar File Manager"),
+            "cmd": "thunar",
+            "icon": "system-file-manager"
+        },
+        {
+            "name": tr("Görünüm", "Appearance"),
+            "desc": tr("Efekt & Görünüm Ayarları", "Visual Effects & Theme"),
+            "cmd": "taaos-appearance",
+            "icon": "preferences-desktop-theme"
+        },
+        {
+            "name": tr("Sistem / Kur", "System / Install"),
+            "desc": tr("Sistem Monitörü veya Kurulum", "System Monitor or Installer"),
+            "cmd": "bash -c 'if [ -d /run/live ]; then /usr/local/bin/taaos-install; else xfce4-terminal -e btop; fi'",
+            "icon": "system-software-install"
+        }
+    ]
+}
+
+def load_config():
+    try:
+        if CONFIG_FILE.exists():
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if "items" in data and isinstance(data["items"], list) and len(data["items"]) >= 3:
+                    return data
+    except Exception:
+        pass
+    save_config(DEFAULT_CONFIG)
+    return DEFAULT_CONFIG.copy()
+
+def save_config(cfg):
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+# -----------------------------------------------------------------------------
+# X11 Direct Pointer Query (Bypasses X11 Implicit Button Grabs at 0% CPU)
+# -----------------------------------------------------------------------------
+class X11Pointer:
+    BUTTON1_MASK = 1 << 8   # Left Click (256)
+    BUTTON2_MASK = 1 << 9   # Middle Click (512)
+    BUTTON3_MASK = 1 << 10  # Right Click (1024)
+
+    def __init__(self):
+        self.libX11 = None
+        self.dpy = None
+        self.root = None
+        try:
+            self.libX11 = ctypes.cdll.LoadLibrary("libX11.so.6")
+            self.libX11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+            self.libX11.XOpenDisplay.restype = ctypes.c_void_p
+            self.libX11.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
+            self.libX11.XDefaultRootWindow.restype = ctypes.c_ulong
+            self.libX11.XQueryPointer.argtypes = [
+                ctypes.c_void_p, ctypes.c_ulong,
+                ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_ulong),
+                ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_uint)
+            ]
+            self.libX11.XQueryPointer.restype = ctypes.c_int
+
+            self.dpy = self.libX11.XOpenDisplay(None)
+            if self.dpy:
+                self.root = self.libX11.XDefaultRootWindow(self.dpy)
+        except Exception:
+            self.dpy = None
+
+    def query(self):
+        if not self.dpy:
+            display = Gdk.Display.get_default()
+            if display:
+                seat = display.get_default_seat()
+                if seat and seat.get_pointer():
+                    _, x, y = seat.get_pointer().get_position()
+                    return x, y, 0
+            return 500, 500, 0
+
+        root_ret = ctypes.c_ulong()
+        child_ret = ctypes.c_ulong()
+        rx = ctypes.c_int()
+        ry = ctypes.c_int()
+        wx = ctypes.c_int()
+        wy = ctypes.c_int()
+        mask = ctypes.c_uint()
+        self.libX11.XQueryPointer(
+            self.dpy, self.root,
+            ctypes.byref(root_ret), ctypes.byref(child_ret),
+            ctypes.byref(rx), ctypes.byref(ry),
+            ctypes.byref(wx), ctypes.byref(wy),
+            ctypes.byref(mask)
+        )
+        return rx.value, ry.value, mask.value
+
+# -----------------------------------------------------------------------------
+# Radial Wheel GTK3 Window
+# -----------------------------------------------------------------------------
+class RadialWheelWindow(Gtk.Window):
+    SIZE = 420
+    CENTER = SIZE // 2
+    OUTER_R = 192
+    INNER_R = 64
+    HUB_R = 56
+
+    def __init__(self, x11_ptr, standalone=False):
+        # POPUP window avoids WM focus/grab restrictions so it opens over anything
+        super().__init__(type=Gtk.WindowType.POPUP)
+        self.x11 = x11_ptr
+        self.standalone = standalone
+        self.cfg = load_config()
+        self.items = self.cfg.get("items", DEFAULT_CONFIG["items"])
+        self.hovered_index = -1
+        self.edit_hovered = False
+        self.is_active = False
+        self.opened_by_hold = False
+        self.origin_x = 0
+        self.origin_y = 0
+        self.icon_cache = {}
+
+        self.set_title("TaaOS Wheel")
+        self.set_default_size(self.SIZE, self.SIZE)
+        self.set_size_request(self.SIZE, self.SIZE)
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self.set_keep_above(True)
+        self.set_skip_taskbar_hint(True)
+        self.set_skip_pager_hint(True)
+        self.set_app_paintable(True)
+
+        screen = self.get_screen()
+        visual = screen.get_rgba_visual()
+        self.has_rgba = visual is not None and screen.is_composited()
+        if visual:
+            self.set_visual(visual)
+
+        self.drawing_area = Gtk.DrawingArea()
+        self.drawing_area.set_size_request(self.SIZE, self.SIZE)
+        self.drawing_area.connect("draw", self.on_draw)
+        self.add(self.drawing_area)
+
+        self.add_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK |
+            Gdk.EventMask.BUTTON_RELEASE_MASK |
+            Gdk.EventMask.POINTER_MOTION_MASK |
+            Gdk.EventMask.KEY_PRESS_MASK
+        )
+        self.connect("button-press-event", self.on_button_press)
+        self.connect("button-release-event", self.on_button_release)
+        self.connect("key-press-event", self.on_key_press)
+        self.connect("realize", self.on_realize)
+
+    def on_realize(self, widget):
+        # Apply circular shape region so even without a compositor, there are NO square corners!
+        surface = cairo.ImageSurface(cairo.FORMAT_A8, self.SIZE, self.SIZE)
+        cr = cairo.Context(surface)
+        cr.arc(self.CENTER, self.CENTER, self.OUTER_R + 4, 0, 2 * math.pi)
+        cr.fill()
+        region = Gdk.cairo_region_create_from_surface(surface)
+        self.shape_combine_region(region)
+
+    def get_icon_pixbuf(self, icon_name, size=32):
+        key = (icon_name, size)
+        if key in self.icon_cache:
+            return self.icon_cache[key]
+        theme = Gtk.IconTheme.get_default()
+        for candidate in [icon_name, "application-x-executable", "system-run"]:
+            try:
+                if theme.has_icon(candidate):
+                    pb = theme.load_icon(candidate, size, Gtk.IconLookupFlags.FORCE_SIZE)
+                    self.icon_cache[key] = pb
+                    return pb
+            except Exception:
+                continue
+        self.icon_cache[key] = None
+        return None
+
+    def popup_at_cursor(self, opened_by_hold=False):
+        self.cfg = load_config()
+        self.items = self.cfg.get("items", DEFAULT_CONFIG["items"])
+        rx, ry, _ = self.x11.query()
+
+        # Clamp within screen bounds
+        screen = Gdk.Screen.get_default()
+        sw = screen.get_width() if screen else 1920
+        sh = screen.get_height() if screen else 1080
+        half = self.SIZE // 2
+        cx = max(half + 8, min(sw - half - 8, rx))
+        cy = max(half + 8, min(sh - half - 8, ry))
+
+        self.origin_x = cx
+        self.origin_y = cy
+        self.hovered_index = -1
+        self.edit_hovered = False
+        self.opened_by_hold = opened_by_hold
+        self.is_active = True
+
+        self.move(cx - half, cy - half)
+        self.show_all()
+        self.present()
+        self.queue_draw()
+
+    def close_wheel(self):
+        self.is_active = False
+        self.hide()
+        if self.standalone:
+            Gtk.main_quit()
+
+    def update_hover_from_global(self, rx, ry):
+        dx = rx - self.origin_x
+        dy = ry - self.origin_y
+        dist = math.hypot(dx, dy)
+
+        new_hover = -1
+        new_edit = False
+
+        if dist < self.INNER_R - 4:
+            # Inside center hub: check if hovering bottom 'Edit' pill
+            if dy > 16 and abs(dx) < 38:
+                new_edit = True
+        elif dist <= self.OUTER_R + 40 and len(self.items) > 0:
+            n = len(self.items)
+            # Angle where 0 is top (12 o'clock)
+            angle = math.atan2(dy, dx) + math.pi / 2 + (math.pi / n)
+            while angle < 0:
+                angle += 2 * math.pi
+            while angle >= 2 * math.pi:
+                angle -= 2 * math.pi
+            new_hover = int(angle / (2 * math.pi / n)) % n
+
+        if new_hover != self.hovered_index or new_edit != self.edit_hovered:
+            self.hovered_index = new_hover
+            self.edit_hovered = new_edit
+            self.queue_draw()
+
+    def trigger_selection(self):
+        if self.edit_hovered:
+            self.close_wheel()
+            subprocess.Popen([sys.executable, __file__, "--config"])
+            return
+        if 0 <= self.hovered_index < len(self.items):
+            cmd = self.items[self.hovered_index].get("cmd", "")
+            self.close_wheel()
+            if cmd:
+                subprocess.Popen(cmd, shell=True, start_new_session=True)
+        else:
+            self.close_wheel()
+
+    def on_button_press(self, widget, event):
+        rx, ry, _ = self.x11.query()
+        self.update_hover_from_global(rx, ry)
+        if event.button == 1:
+            self.trigger_selection()
+        elif event.button == 3 and not self.opened_by_hold:
+            self.close_wheel()
+        return True
+
+    def on_button_release(self, widget, event):
+        if event.button == 3 and self.opened_by_hold:
+            rx, ry, _ = self.x11.query()
+            self.update_hover_from_global(rx, ry)
+            if self.hovered_index >= 0 or self.edit_hovered:
+                self.trigger_selection()
+            else:
+                self.opened_by_hold = False
+        return True
+
+    def on_key_press(self, widget, event):
+        if event.keyval == Gdk.KEY_Escape:
+            self.close_wheel()
+        return True
+
+    def on_draw(self, widget, cr):
+        cr.set_antialias(cairo.ANTIALIAS_BEST)
+        cr.save()
+        cr.set_operator(cairo.OPERATOR_SOURCE)
+        cr.set_source_rgba(0, 0, 0, 0.0)
+        cr.paint()
+        cr.restore()
+
+        cx, cy = self.CENTER, self.CENTER
+        n = len(self.items)
+        if n == 0:
+            return False
+
+        # Outer subtle backdrop ring
+        cr.arc(cx, cy, self.OUTER_R + 2, 0, 2 * math.pi)
+        cr.set_source_rgba(9/255, 12/255, 16/255, 0.92)
+        cr.fill_preserve()
+        cr.set_line_width(2.0)
+        cr.set_source_rgba(212/255, 0, 0, 0.65)
+        cr.stroke()
+
+        slice_angle = (2 * math.pi) / n
+        gap = 0.035
+
+        for i, item in enumerate(self.items):
+            a1 = i * slice_angle - math.pi / 2 - (slice_angle / 2) + gap / 2
+            a2 = (i + 1) * slice_angle - math.pi / 2 - (slice_angle / 2) - gap / 2
+            is_hov = (i == self.hovered_index)
+
+            r_in = self.INNER_R
+            r_out = self.OUTER_R - (2 if not is_hov else 0)
+
+            # Wedge path
+            cr.new_path()
+            cr.arc(cx, cy, r_out, a1, a2)
+            cr.arc_negative(cx, cy, r_in, a2, a1)
+            cr.close_path()
+
+            if is_hov:
+                cr.set_source_rgba(212/255, 0/255, 0/255, 0.95)
+                cr.fill_preserve()
+                cr.set_line_width(2.0)
+                cr.set_source_rgba(1.0, 0.35, 0.35, 1.0)
+                cr.stroke()
+            else:
+                cr.set_source_rgba(22/255, 27/255, 34/255, 0.94)
+                cr.fill_preserve()
+                cr.set_line_width(1.2)
+                cr.set_source_rgba(48/255, 54/255, 61/255, 0.9)
+                cr.stroke()
+
+            # Icon and Label placement
+            mid_a = (a1 + a2) / 2
+            mid_r = (r_in + r_out) / 2
+            ix = cx + math.cos(mid_a) * mid_r
+            iy = cy + math.sin(mid_a) * mid_r
+
+            pb = self.get_icon_pixbuf(item.get("icon", "system-run"), 30)
+            if pb:
+                Gdk.cairo_set_source_pixbuf(cr, pb, ix - 15, iy - 22)
+                cr.paint()
+
+            # Label text
+            cr.select_font_face("Fira Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+            cr.set_font_size(11.5)
+            label = item.get("name", "App")
+            ext = cr.text_extents(label)
+            cr.move_to(ix - ext.width / 2, iy + 20)
+            cr.set_source_rgba(1.0, 1.0, 1.0, 1.0 if is_hov else 0.90)
+            cr.show_text(label)
+
+        # Center Hub
+        cr.arc(cx, cy, self.HUB_R, 0, 2 * math.pi)
+        cr.set_source_rgba(13/255, 17/255, 23/255, 0.98)
+        cr.fill_preserve()
+        cr.set_line_width(2.5)
+        cr.set_source_rgba(212/255, 0, 0, 0.95)
+        cr.stroke()
+
+        # Center Hub Text
+        if 0 <= self.hovered_index < n:
+            title = self.items[self.hovered_index].get("name", "")
+            sub = tr("Başlat", "Launch")
+        elif self.edit_hovered:
+            title = tr("Düzenle", "Customize")
+            sub = tr("Çark Ayarları", "Wheel Settings")
+        else:
+            title = "TaaOS"
+            sub = tr("Hızlı Çark", "Quick Wheel")
+
+        cr.select_font_face("Fira Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        cr.set_font_size(13.0)
+        ext = cr.text_extents(title)
+        cr.move_to(cx - ext.width / 2, cy - 6)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
+        cr.show_text(title)
+
+        cr.select_font_face("Fira Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+        cr.set_font_size(10.0)
+        ext2 = cr.text_extents(sub)
+        cr.move_to(cx - ext2.width / 2, cy + 11)
+        cr.set_source_rgba(139/255, 148/255, 158/255, 1.0)
+        cr.show_text(sub)
+
+        # Bottom '⚙' Edit pill inside Hub
+        pill_label = tr("⚙ Düzenle", "⚙ Edit")
+        cr.set_font_size(9.5)
+        ext3 = cr.text_extents(pill_label)
+        cr.move_to(cx - ext3.width / 2, cy + 32)
+        if self.edit_hovered:
+            cr.set_source_rgba(255/255, 80/255, 80/255, 1.0)
+        else:
+            cr.set_source_rgba(212/255, 0, 0, 0.85)
+        cr.show_text(pill_label)
+
+        return False
+
+# -----------------------------------------------------------------------------
+# Configuration GUI (--config)
+# -----------------------------------------------------------------------------
+class WheelConfigDialog(Gtk.Window):
+    def __init__(self):
+        super().__init__(title=tr("TaaOS Çark (Radial Wheel) Ayarları", "TaaOS Radial Wheel Settings"))
+        self.set_default_size(560, 460)
+        self.set_position(Gtk.WindowPosition.CENTER)
+        self.cfg = load_config()
+
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        vbox.set_margin_top(14)
+        vbox.set_margin_bottom(14)
+        vbox.set_margin_start(14)
+        vbox.set_margin_end(14)
+        self.add(vbox)
+
+        header = Gtk.Label()
+        header.set_markup(
+            f"<b><span size='large' foreground='#D40000'>{tr('TaaOS Hızlı Uygulama Çarkı', 'TaaOS Quick Application Wheel')}</span></b>\n"
+            f"<span size='small'>{tr('Sağ tıka basılı tutarak açılan çarktaki uygulamaları buradan özelleştirebilirsiniz.', 'Customize the applications shown when holding down right-click.')}</span>"
+        )
+        header.set_xalign(0)
+        vbox.pack_start(header, False, False, 0)
+
+        # Hold delay control
+        hbox_top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        self.chk_enabled = Gtk.CheckButton(label=tr("Sağ Tık Basılı Tutma ile Çarkı Etkinleştir", "Enable Right-Click Hold Trigger"))
+        self.chk_enabled.set_active(self.cfg.get("enabled", True))
+        hbox_top.pack_start(self.chk_enabled, False, False, 0)
+
+        lbl_ms = Gtk.Label(label=tr("Basılı Tutma Süresi (ms):", "Hold Delay (ms):"))
+        hbox_top.pack_start(lbl_ms, False, False, 0)
+        adj = Gtk.Adjustment(value=self.cfg.get("hold_ms", 260), lower=150, upper=800, step_increment=20)
+        self.spin_ms = Gtk.SpinButton(adjustment=adj, climb_rate=1, digits=0)
+        hbox_top.pack_start(self.spin_ms, False, False, 0)
+        vbox.pack_start(hbox_top, False, False, 4)
+
+        # ListStore: Name, Command, Icon
+        self.store = Gtk.ListStore(str, str, str)
+        for item in self.cfg.get("items", []):
+            self.store.append([item.get("name", ""), item.get("cmd", ""), item.get("icon", "system-run")])
+
+        tree = Gtk.TreeView(model=self.store)
+        for idx, col_title in enumerate([tr("Uygulama Adı", "App Name"), tr("Komut", "Command"), tr("İkon Adı", "Icon Name")]):
+            renderer = Gtk.CellRendererText()
+            renderer.set_property("editable", True)
+            renderer.connect("edited", self.on_cell_edited, idx)
+            col = Gtk.TreeViewColumn(col_title, renderer, text=idx)
+            col.set_expand(idx == 1)
+            col.set_resizable(True)
+            tree.append_column(col)
+
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_vexpand(True)
+        scroll.add(tree)
+        vbox.pack_start(scroll, True, True, 0)
+        self.tree = tree
+
+        # Action Buttons
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        btn_add = Gtk.Button(label=tr("+ Yeni Ekle", "+ Add App"))
+        btn_add.connect("clicked", self.on_add)
+        btn_del = Gtk.Button(label=tr("- Seçileni Sil", "- Remove Selected"))
+        btn_del.connect("clicked", self.on_remove)
+        btn_reset = Gtk.Button(label=tr("Varsayılana Dön", "Reset Defaults"))
+        btn_reset.connect("clicked", self.on_reset)
+        btn_save = Gtk.Button(label=tr("Kaydet ve Kapat", "Save & Close"))
+        btn_save.connect("clicked", self.on_save)
+
+        btn_box.pack_start(btn_add, False, False, 0)
+        btn_box.pack_start(btn_del, False, False, 0)
+        btn_box.pack_start(btn_reset, False, False, 0)
+        btn_box.pack_end(btn_save, False, False, 0)
+        vbox.pack_start(btn_box, False, False, 0)
+
+        self.connect("destroy", Gtk.main_quit)
+
+    def on_cell_edited(self, widget, path, text, col_idx):
+        self.store[path][col_idx] = text
+
+    def on_add(self, btn):
+        self.store.append([tr("Yeni Uygulama", "New App"), "xfce4-terminal", "system-run"])
+
+    def on_remove(self, btn):
+        sel = self.tree.get_selection()
+        model, treeiter = sel.get_selected()
+        if treeiter and len(self.store) > 3:
+            model.remove(treeiter)
+
+    def on_reset(self, btn):
+        self.store.clear()
+        for item in DEFAULT_CONFIG["items"]:
+            self.store.append([item["name"], item["cmd"], item["icon"]])
+        self.chk_enabled.set_active(True)
+        self.spin_ms.set_value(260)
+
+    def on_save(self, btn):
+        items = []
+        for row in self.store:
+            items.append({
+                "name": row[0],
+                "desc": row[0],
+                "cmd": row[1],
+                "icon": row[2]
+            })
+        self.cfg["enabled"] = self.chk_enabled.get_active()
+        self.cfg["hold_ms"] = int(self.spin_ms.get_value())
+        self.cfg["items"] = items
+        save_config(self.cfg)
+        Gtk.main_quit()
+
+# -----------------------------------------------------------------------------
+# Background Daemon (Monitors Right-Click Hold & Manages Instant Popup)
+# -----------------------------------------------------------------------------
+class WheelDaemon:
+    def __init__(self):
+        self.x11 = X11Pointer()
+        self.wheel = RadialWheelWindow(self.x11, standalone=False)
+        self.rclick_down_since = None
+        self.down_x = 0
+        self.down_y = 0
+        self.triggered_this_hold = False
+
+        # Write PID for instant CLI signalling
+        try:
+            PID_FILE.write_text(str(os.getpid()))
+        except Exception:
+            pass
+
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, int(signal.SIGUSR1), self.on_sigusr1)
+        GLib.timeout_add(20, self.tick)
+
+    def on_sigusr1(self):
+        self.wheel.popup_at_cursor(opened_by_hold=False)
+        return True
+
+    def tick(self):
+        rx, ry, mask = self.x11.query()
+        right_down = bool(mask & X11Pointer.BUTTON3_MASK)
+        left_down = bool(mask & X11Pointer.BUTTON1_MASK)
+
+        if self.wheel.is_active:
+            self.wheel.update_hover_from_global(rx, ry)
+            if self.wheel.opened_by_hold and not right_down:
+                # User released Right-Click after holding!
+                if self.wheel.hovered_index >= 0 or self.wheel.edit_hovered:
+                    self.wheel.trigger_selection()
+                else:
+                    # Released inside the center hub -> stay open in browse mode
+                    self.wheel.opened_by_hold = False
+            elif not self.wheel.opened_by_hold and left_down:
+                # User clicked while in browse mode
+                dist = math.hypot(rx - self.wheel.origin_x, ry - self.wheel.origin_y)
+                if dist > self.wheel.OUTER_R + 20:
+                    self.wheel.close_wheel()
+                else:
+                    self.wheel.trigger_selection()
+            return True
+
+        # Wheel is currently hidden: check for Right-Click Hold
+        if right_down and not left_down:
+            now = time.monotonic()
+            if self.rclick_down_since is None:
+                self.rclick_down_since = now
+                self.down_x = rx
+                self.down_y = ry
+                self.triggered_this_hold = False
+            elif not self.triggered_this_hold:
+                # Check if user moved mouse significantly while dragging (e.g. camera pan in 3D apps)
+                if math.hypot(rx - self.down_x, ry - self.down_y) > 22:
+                    self.triggered_this_hold = True
+                else:
+                    hold_ms = self.wheel.cfg.get("hold_ms", 260)
+                    if self.wheel.cfg.get("enabled", True) and (now - self.rclick_down_since) * 1000.0 >= hold_ms:
+                        self.triggered_this_hold = True
+                        self.wheel.popup_at_cursor(opened_by_hold=True)
+        else:
+            self.rclick_down_since = None
+            self.triggered_this_hold = False
+
+        return True
+
+def main():
+    if "--config" in sys.argv or "--edit" in sys.argv:
+        dlg = WheelConfigDialog()
+        dlg.show_all()
+        Gtk.main()
+        return
+
+    if "--daemon" in sys.argv:
+        # Ensure single daemon instance per user
+        if PID_FILE.exists():
+            try:
+                old_pid = int(PID_FILE.read_text().strip())
+                if old_pid != os.getpid():
+                    os.kill(old_pid, signal.SIGTERM)
+            except Exception:
+                pass
+        WheelDaemon()
+        Gtk.main()
+        return
+
+    # Standalone invocation: if daemon is running, signal it to pop up immediately
+    if PID_FILE.exists():
+        try:
+            pid = int(PID_FILE.read_text().strip())
+            os.kill(pid, signal.SIGUSR1)
+            return
+        except Exception:
+            pass
+
+    x11 = X11Pointer()
+    win = RadialWheelWindow(x11, standalone=True)
+    win.popup_at_cursor(opened_by_hold=False)
+    GLib.timeout_add(20, lambda: (win.update_hover_from_global(*x11.query()[:2]), True)[1])
+    Gtk.main()
+
+if __name__ == "__main__":
+    main()

@@ -150,8 +150,11 @@ alias meminfo='free -h'
 alias cpuinfo='lscpu'
 
 # TaaOS specific
+export COLORTERM=truecolor
 alias health='health-check'
 alias ai='taanos'
+alias wheel='taaos-wheel'
+alias fx='taaos-appearance'
 
 # Docker shortcuts
 alias dps='docker ps'
