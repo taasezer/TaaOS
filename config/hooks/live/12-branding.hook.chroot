@@ -189,7 +189,7 @@ cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << EOF
 </channel>
 EOF
 
-# XFCE Settings - Keyboard shortcuts (Fix Alt-Tab, CachyOS Rofi & Terminal hotkeys)
+# XFCE Settings - Keyboard shortcuts (Fix Alt-Tab, TaaOS Rofi & Terminal hotkeys)
 cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfce4-keyboard-shortcuts" version="1.0">
@@ -328,14 +328,14 @@ PANELDUMMY
 chmod +x /usr/local/bin/xfce4-panel
 
 
-# Set up TaaOS Native Polybar (Rosso Corsa Dark Theme)
+# Set up TaaOS Native Polybar (Customizable Accent Dark Theme)
 mkdir -p /etc/skel/.config/polybar
 cat > /etc/skel/.config/polybar/config.ini << 'EOF'
 [colors]
 background = #ee0d1117
 background-alt = #2821262d
 foreground = #e6edf3
-primary = #d40000
+primary = #D40000
 secondary = #8b949e
 alert = #ff4444
 disabled = #484f58
@@ -361,7 +361,7 @@ font-3 = "FontAwesome:size=11;3"
 
 modules-left = menu xworkspaces xwindow
 modules-center = date
-modules-right = pulseaudio memory cpu powermenu
+modules-right = pulseaudio brightness quicktray memory cpu powermenu
 
 cursor-click = pointer
 cursor-scroll = ns-resize
@@ -378,7 +378,7 @@ pseudo-transparency = true
 [module/menu]
 type = custom/text
 content = "  ◆  "
-content-foreground = #d40000
+content-foreground = ${colors.primary}
 content-background = ${colors.background}
 content-padding = 0
 click-left = rofi -show drun -show-icons
@@ -386,18 +386,18 @@ click-right = /usr/local/bin/taaos-wheel
 
 [module/xworkspaces]
 type = internal/xworkspaces
-label-active = %name%
+label-active = %index%
 label-active-background = ${colors.background-alt}
 label-active-foreground = #ffffff
-label-active-underline = #d40000
+label-active-underline = ${colors.primary}
 label-active-padding = 2
-label-occupied = %name%
+label-occupied = %index%
 label-occupied-foreground = #c9d1d9
 label-occupied-padding = 2
-label-urgent = %name%
+label-urgent = %index%
 label-urgent-background = ${colors.alert}
 label-urgent-padding = 2
-label-empty = %name%
+label-empty = %index%
 label-empty-foreground = ${colors.disabled}
 label-empty-padding = 2
 
@@ -413,12 +413,31 @@ interval = 5
 format-volume = <ramp-volume> <label-volume>
 label-volume = %percentage%%
 label-volume-foreground = ${colors.foreground}
-label-muted = MUTED
+label-muted = 🔇 %percentage%%
 label-muted-foreground = ${colors.disabled}
 ramp-volume-0 = 🔈
 ramp-volume-1 = 🔉
 ramp-volume-2 = 🔊
-click-right = pavucontrol &
+click-right = /usr/local/bin/taaos-control-center &
+
+[module/brightness]
+type = custom/script
+exec = /usr/local/bin/taaos-control-center --brightness-get
+interval = 5
+format-prefix = "☀ "
+format-prefix-foreground = ${colors.primary}
+label = %output%
+label-foreground = ${colors.foreground}
+click-left = /usr/local/bin/taaos-control-center &
+scroll-up = /usr/local/bin/taaos-control-center --brightness-up
+scroll-down = /usr/local/bin/taaos-control-center --brightness-down
+
+[module/quicktray]
+type = custom/text
+content = "📶 🦷 ⚙"
+content-foreground = ${colors.foreground}
+click-left = /usr/local/bin/taaos-control-center &
+click-right = /usr/local/bin/taaos-appearance &
 
 [module/memory]
 type = internal/memory
@@ -451,45 +470,31 @@ cat > /etc/skel/.config/polybar/launch.sh << 'EOF'
 #!/usr/bin/env bash
 
 # ==========================================================
-# TaaOS Polybar Launcher (Zero-Bloat Dark Rosso Corsa)
+# TaaOS Polybar Launcher (Fast Instant Launch)
 # ==========================================================
 
-# Kill conflicting panel processes
 killall -q polybar 2>/dev/null
-killall -q xfce4-panel 2>/dev/null
 
-# Wait for polybar to fully exit
-while pgrep -u $UID -x polybar >/dev/null 2>&1; do sleep 0.5; done
+# Wait briefly for old polybar instance to exit
+for _ in 1 2 3 4 5; do
+    pgrep -u $UID -x polybar >/dev/null 2>&1 || break
+    sleep 0.1
+done
 
-# Kill XFCE panel again (it may respawn)
-sleep 1
-killall -9 xfce4-panel 2>/dev/null
-
-# Launch TaaOS Polybar (with retry)
 if command -v polybar &> /dev/null; then
     nohup polybar taaos >> /tmp/polybar.log 2>&1 &
     echo "[TaaOS] Polybar started"
-else
-    echo "[TaaOS] WARNING: Polybar not found, falling back to xfce4-panel"
-    xfce4-panel & disown
 fi
 EOF
 chmod +x /etc/skel/.config/polybar/launch.sh
 
-# System-wide Polybar Launcher (Guaranteed Execution wrapper)
+# System-wide Polybar Launcher (Instant Execution wrapper)
 cat > /usr/local/bin/taaos-polybar << 'EOF'
 #!/bin/bash
-# Wait for the desktop environment to settle before launching Polybar
-sleep 2
-
-# Fallback to local launcher if the user has customized it
 if [ -f "$HOME/.config/polybar/launch.sh" ]; then
-    bash "$HOME/.config/polybar/launch.sh"
+    exec bash "$HOME/.config/polybar/launch.sh"
 else
-    # Failsafe direct execution if local launcher was deleted
     killall -q polybar 2>/dev/null
-    killall -9 xfce4-panel 2>/dev/null
-    sleep 1
     nohup polybar taaos > /tmp/polybar-failsafe.log 2>&1 &
 fi
 EOF
@@ -520,32 +525,33 @@ cat > /usr/local/bin/taaos-display-watcher << 'EOF'
 # TaaOS Display Watcher — VirtualBox Auto-Resize + Dynamic UI
 # ==========================================================
 
+# Prevent duplicate instances
+for pid in $(pgrep -f "/usr/local/bin/taaos-display-watcher" 2>/dev/null); do
+    if [ "$pid" != "$$" ] && [ "$pid" != "$PPID" ]; then
+        exit 0
+    fi
+done
+
 LOG="/tmp/taaos-display.log"
 echo "[TaaOS Display] Starting... $(date)" > "$LOG"
 
-# Wait for X11 and desktop to be fully ready
-for i in $(seq 1 30); do
+# Wait for X11 to be ready
+for i in $(seq 1 20); do
     if xrandr &>/dev/null; then break; fi
-    sleep 1
+    sleep 0.2
 done
-sleep 2
 
-# ── Detect VM type and start guest agents ──
+# ── Detect VM type and start guest agents immediately ──
 if lspci 2>/dev/null | grep -qi 'virtualbox\|vbox\|InnoTek'; then
     echo "[TaaOS Display] VirtualBox detected" >> "$LOG"
     
-    # Try VBoxClient if available (from guest additions)
     if command -v VBoxClient &>/dev/null; then
         echo "[TaaOS Display] Starting VBoxClient services" >> "$LOG"
         VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
         VBoxClient --clipboard 2>/dev/null || true
         VBoxClient --draganddrop 2>/dev/null || true
-    else
-        echo "[TaaOS Display] VBoxClient not found — using xrandr polling" >> "$LOG"
     fi
 
-    # Force initial best resolution
-    sleep 1
     xrandr --auto 2>/dev/null
     
 elif lspci 2>/dev/null | grep -qi 'vmware'; then
@@ -556,34 +562,26 @@ elif lspci 2>/dev/null | grep -qi 'qxl\|virtio.*gpu\|spice'; then
     echo "[TaaOS Display] QEMU/SPICE detected" >> "$LOG"
 fi
 
-# ── Helper: get current resolution ──
 get_res() {
     xrandr 2>/dev/null | grep '\*' | awk '{print $1}' | head -1
 }
 
-# ── Helper: get primary output name ──
 get_output() {
     xrandr 2>/dev/null | grep ' connected' | head -1 | awk '{print $1}'
 }
 
-# ── Helper: get preferred (best) resolution ──
 get_preferred() {
     local output=$(get_output)
-    # The preferred mode has a '+' marker in xrandr output
     xrandr 2>/dev/null | grep -A 100 "^${output} connected" | grep -v "^[A-Z]" | grep '+' | awk '{print $1}' | head -1
 }
 
-# ── Helper: restart UI components ──
 restart_ui() {
     echo "[TaaOS Display] Restarting UI for new resolution: $(get_res)" >> "$LOG"
-    
-    # Restart Polybar
     if [ -f "$HOME/.config/polybar/launch.sh" ]; then
         bash "$HOME/.config/polybar/launch.sh" &
     fi
 }
 
-# ── Set initial best resolution ──
 OUTPUT=$(get_output)
 if [ -n "$OUTPUT" ]; then
     xrandr --output "$OUTPUT" --auto 2>/dev/null
@@ -592,33 +590,25 @@ fi
 
 old_res=$(get_res)
 
-# ── Main monitoring loop ──
 while true; do
     sleep 2
-    
-    # Get current and preferred resolution  
     current_res=$(get_res)
     preferred_res=$(get_preferred)
     OUTPUT=$(get_output)
     
-    # Check if preferred resolution changed (VirtualBox window resized)
     if [ -n "$preferred_res" ] && [ "$preferred_res" != "$current_res" ]; then
         echo "[TaaOS Display] New preferred resolution: $preferred_res (current: $current_res)" >> "$LOG"
         xrandr --output "$OUTPUT" --mode "$preferred_res" 2>/dev/null || xrandr --auto 2>/dev/null
-        sleep 1
+        sleep 0.5
         
-        # SIKINTI ÇÖZÜCÜ: Çözünürlük GERÇEKTEN değiştiyse UI'yi başlat! (Sonsuz Döngü Koruması)
         verify_res=$(get_res)
         if [ "$verify_res" != "$current_res" ]; then
             restart_ui
             old_res="$verify_res"
         else
-            # Failed to apply preferred resolution, fake the old_res to prevent infinite looping
             old_res="$current_res"
             preferred_res="$current_res"
         fi
-        
-    # Check if resolution changed by other means
     elif [ -n "$current_res" ] && [ "$current_res" != "$old_res" ]; then
         echo "[TaaOS Display] Resolution changed externally: $old_res -> $current_res" >> "$LOG"
         restart_ui
@@ -628,14 +618,11 @@ done
 EOF
 chmod +x /usr/local/bin/taaos-display-watcher
 
-# Also create a manual resolution script for users
 cat > /usr/local/bin/taaos-display-fix << 'EOF'
 #!/bin/bash
-# Quick fix: apply best resolution now
 OUTPUT=$(xrandr | grep ' connected' | head -1 | awk '{print $1}')
 echo "[TaaOS] Fixing display on output: $OUTPUT"
 xrandr --output "$OUTPUT" --auto
-# Restart UI
 if [ -f "$HOME/.config/polybar/launch.sh" ]; then
     bash "$HOME/.config/polybar/launch.sh" &
 fi
@@ -643,24 +630,11 @@ echo "[TaaOS] Display fixed: $(xrandr | grep '*' | awk '{print $1}' | head -1)"
 EOF
 chmod +x /usr/local/bin/taaos-display-fix
 
-# System-wide XDG autostart for display watcher
-mkdir -p /etc/xdg/autostart
-cat > /etc/xdg/autostart/taaos-display-watcher.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Exec=bash -c "sleep 3 && taaos-display-watcher"
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-Name=TaaOS Display Watcher
-Comment=Dynamic resolution + VirtualBox display support
-EOF
-
 mkdir -p /etc/skel/.config/autostart
 cat > /etc/skel/.config/autostart/taaos-display-watcher.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
-Exec=bash -c "sleep 3 && taaos-display-watcher"
+Exec=/usr/local/bin/taaos-display-watcher
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
@@ -674,7 +648,7 @@ EOF
 echo "[BRANDING] Configuring Picom compositor..."
 mkdir -p /etc/skel/.config/picom
 cat > /etc/skel/.config/picom/picom.conf << 'EOF'
-# TaaOS Picom Compositor — Fluid CachyOS Style
+# TaaOS Picom Compositor — Fluid TaaOS Style
 backend = "glx";
 
 # Fading & Fluid Transitions
@@ -730,7 +704,7 @@ wintypes:
 };
 EOF
 
-# Modern CachyOS-Style Rofi Configuration
+# Modern TaaOS-Style Rofi Configuration
 mkdir -p /etc/skel/.config/rofi
 cat > /etc/skel/.config/rofi/config.rasi << 'EOF'
 configuration {
@@ -814,15 +788,16 @@ element-text {
 }
 EOF
 
+# In VirtualBox, disable software picom by default so X11 uses hardware 2D BitBlt (zero window lag!)
 cat > /etc/skel/.config/autostart/picom.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
-Exec=bash -c "if lspci 2>/dev/null | grep -qi 'virtualbox\|innotek\|vbox'; then picom --backend xrender --no-vsync -b; else picom --config $HOME/.config/picom/picom.conf -b; fi"
+Exec=bash -c "if lspci 2>/dev/null | grep -qi 'virtualbox\|innotek\|vbox'; then exit 0; else picom --config $HOME/.config/picom/picom.conf -b; fi"
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
 Name=Picom
-Comment=TaaOS Compositor (auto-detects VM)
+Comment=TaaOS Compositor (Zero-Lag VM Auto-Bypass)
 EOF
 
 # =============================================================================

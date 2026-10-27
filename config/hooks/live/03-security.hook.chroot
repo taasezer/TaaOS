@@ -302,54 +302,8 @@ HEALTH_CHECK_EOF
     log_success "Health check script created at /usr/local/bin/health-check"
 }
 
-# =============================================================================
-# SECTION 4: GOOGLE CHROME
-# =============================================================================
-install_chrome() {
-    log_info "Installing Google Chrome..."
-
-    # Download Chrome .deb package
-    wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O /tmp/google-chrome.deb
-
-    # Install Chrome (this will also install dependencies)
-    apt-get install -y /tmp/google-chrome.deb || {
-        # If dependencies are missing, fix them
-        apt-get install -f -y
-        apt-get install -y /tmp/google-chrome.deb
-    }
-
-    # Clean up
-    rm -f /tmp/google-chrome.deb
-
-    log_success "Google Chrome installed"
-}
-
-# NOTE: VS Code is installed by 01-frameworks.hook.chroot
-
-# =============================================================================
-# SECTION 6: DBEAVER COMMUNITY EDITION
-# =============================================================================
-install_dbeaver() {
-    log_info "Installing DBeaver Community Edition..."
-
-    # Download DBeaver .deb package
-    local DBEAVER_VERSION="23.3.1"
-    wget -q "https://dbeaver.io/files/${DBEAVER_VERSION}/dbeaver-ce_${DBEAVER_VERSION}_amd64.deb" -O /tmp/dbeaver.deb || {
-        # Try latest if specific version fails
-        wget -q "https://dbeaver.io/files/dbeaver-ce_latest_amd64.deb" -O /tmp/dbeaver.deb
-    }
-
-    # Install DBeaver
-    apt-get install -y /tmp/dbeaver.deb || {
-        apt-get install -f -y
-        apt-get install -y /tmp/dbeaver.deb
-    }
-
-    # Clean up
-    rm -f /tmp/dbeaver.deb
-
-    log_success "DBeaver Community Edition installed"
-}
+# NOTE: Default browser is Firefox ESR (installed via package list).
+# Google Chrome and DBeaver are omitted to keep the ISO lean and open-source friendly.
 
 # =============================================================================
 # CLEANUP
@@ -383,12 +337,6 @@ main() {
     create_health_check
     echo ""
 
-    install_chrome
-    echo ""
-
-    install_dbeaver
-    echo ""
-
     cleanup
     echo ""
 
@@ -398,7 +346,6 @@ main() {
     echo ""
     echo "  Firewall: UFW enabled (Deny In / Allow Out)"
     echo "  Health:   Run 'health-check' for system integrity"
-    echo "  Apps:     Chrome, VS Code, DBeaver installed"
     echo ""
 }
 

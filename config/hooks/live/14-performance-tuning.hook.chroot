@@ -44,12 +44,20 @@ systemctl enable earlyoom 2>/dev/null || true
 echo "[PERF] earlyoom configured (5% RAM / 10% swap threshold)"
 
 # =============================================================================
-# 3. Memory Optimization (Disable Unneeded Daemons for Sub-500MB Idle RAM)
+# 3. Memory & Boot Optimization (Disable Heavy Daemons & Wait-Online Stallers)
 # =============================================================================
-echo "[PERF] Disabling heavy background daemons for low idle RAM..."
-for s in cups cups-browsed ModemManager preload; do
+echo "[PERF] Disabling heavy background daemons for fast boot and low idle RAM..."
+for s in cups cups-browsed ModemManager preload docker.service docker.socket containerd.service portainer-init.service lvm2-monitor.service mdadm.service man-db.service man-db.timer apt-daily.timer apt-daily-upgrade.timer; do
     systemctl disable "$s" 2>/dev/null || true
 done
+systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service 2>/dev/null || true
+
+mkdir -p /etc/systemd/system.conf.d
+cat > /etc/systemd/system.conf.d/taaos-fastboot.conf << 'EOF'
+[Manager]
+DefaultTimeoutStartSec=10s
+DefaultTimeoutStopSec=10s
+EOF
 
 # =============================================================================
 # 4. tmpfiles.d — Automatic /tmp Cleanup

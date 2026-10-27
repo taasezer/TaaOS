@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=TaaOS Quick Settings
+Name[tr]=TaaOS Hızlı Ayarlar Merkezi
+Comment=Quick controls for Audio, Brightness, Wi-Fi, Bluetooth, and Theme
+Comment[tr]=Ses, Ekran Parlaklığı, Wi-Fi, Bluetooth ve Tema için hızlı kontrol merkezi
+Exec=/usr/local/bin/taaos-control-center
+Icon=preferences-system
+Terminal=false
+Categories=Settings;System;

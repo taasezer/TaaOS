@@ -122,25 +122,19 @@ allow-hotplug wlan0
 iface wlan0 inet dhcp
 EOF
 
-# Enable systemd-networkd as fallback
-systemctl enable systemd-networkd.service 2>/dev/null || true
+# Disable conflicting systemd-networkd and wait-online services for instant boot
+systemctl disable systemd-networkd.service 2>/dev/null || true
+systemctl mask NetworkManager-wait-online.service 2>/dev/null || true
+systemctl mask systemd-networkd-wait-online.service 2>/dev/null || true
 
 # =============================================================================
 # SECTION 4: STORAGE AND DISK MANAGEMENT
 # =============================================================================
 echo "[OS-CONFIG] Configuring storage management..."
 
-# Enable LVM if installed
-if [ -f /etc/lvm/lvm.conf ]; then
-    echo "[OS-CONFIG] LVM detected, enabling..."
-    systemctl enable lvm2-monitor.service 2>/dev/null || true
-fi
-
-# Enable RAID support if installed
-if [ -f /etc/mdadm/mdadm.conf ]; then
-    echo "[OS-CONFIG] RAID support detected..."
-    systemctl enable mdadm.service 2>/dev/null || true
-fi
+# Keep LVM and RAID monitors disabled by default for fast boot (can be enabled if needed)
+systemctl disable lvm2-monitor.service 2>/dev/null || true
+systemctl disable mdadm.service 2>/dev/null || true
 
 # Enable disk encryption (cryptsetup)
 if command -v cryptsetup >/dev/null 2>&1; then
@@ -183,8 +177,8 @@ if [ -f /etc/modules ]; then
     done
 fi
 
-# Enable printing (CUPS)
-systemctl enable cups.service 2>/dev/null || true
+# Keep printing (CUPS) disabled by default to save boot time and RAM
+systemctl disable cups.service 2>/dev/null || true
 
 # Enable sound (PulseAudio is a user-level service, starts automatically per-session)
 systemctl enable alsa-restore.service 2>/dev/null || true
@@ -200,8 +194,8 @@ systemctl enable cron.service 2>/dev/null || true
 # Enable log rotation (timer may not exist on all Debian versions — cron fallback)
 systemctl enable logrotate.timer 2>/dev/null || true
 
-# Enable man-db
-systemctl enable man-db.service 2>/dev/null || true
+# Keep man-db disabled on boot for fast startup
+systemctl disable man-db.service 2>/dev/null || true
 
 # Note: fstrim.timer already enabled in SECTION 2 above
 

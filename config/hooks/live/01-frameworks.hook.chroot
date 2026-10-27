@@ -290,14 +290,15 @@ install_docker() {
         docker.io \
         docker-compose
 
-    # Enable Docker service to start on boot
-    systemctl enable docker || log_warning "Could not enable Docker service (may not be running in chroot)"
+    # Keep Docker service disabled on boot for fast startup and low idle RAM (starts on demand)
+    systemctl disable docker.service docker.socket containerd.service 2>/dev/null || true
+    rm -f /etc/systemd/system/portainer-init.service 2>/dev/null || true
 
     # Verify installation
     if command -v docker &> /dev/null; then
         local docker_version
         docker_version=$(docker --version 2>/dev/null || echo "unknown")
-        log_success "Docker installed: ${docker_version}"
+        log_success "Docker installed (on-demand mode): ${docker_version}"
         
         # Install Lazydocker (Container CLI GUI)
         log_info "Downloading Lazydocker..."
@@ -311,28 +312,6 @@ install_docker() {
         log_info "Downloading ctop..."
         wget -qO /usr/local/bin/ctop https://github.com/bcicen/ctop/releases/download/v0.7.7/ctop-0.7.7-linux-amd64 || log_warning "ctop download failed"
         chmod +x /usr/local/bin/ctop || true
-
-        # We cannot run `docker run` natively inside a standard build chroot without the daemon running.
-        # Instead, we will add a systemd oneshot to spawn Portainer on the first boot.
-        log_info "Creating Portainer startup service..."
-        cat > /etc/systemd/system/portainer-init.service << 'PORTAINER_SVC'
-[Unit]
-Description=Initialize Portainer Container
-After=docker.service
-Requires=docker.service
-
-[Service]
-Type=oneshot
-ExecStartPre=-/usr/bin/docker volume create portainer_data
-ExecStart=-/usr/bin/docker run -d -p 8000:8000 -p 9000:9000 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:latest
-ExecStartPost=/usr/bin/systemctl disable portainer-init.service
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-PORTAINER_SVC
-        systemctl enable portainer-init.service || log_warning "Failed to enable Portainer startup service"
-
     else
         log_warning "Docker installation completed but 'docker' command not found"
     fi

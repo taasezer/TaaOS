@@ -390,10 +390,10 @@ componentName: taaos
 strings:
     productName:         TaaOS
     shortProductName:    TaaOS
-    version:             1.0.0
-    shortVersion:        1.0.0
-    versionedName:       TaaOS 1.0.0
-    shortVersionedName:  TaaOS 1.0.0
+    version:             2.0.0
+    shortVersion:        2.0
+    versionedName:       TaaOS 2.0.0
+    shortVersionedName:  TaaOS 2.0
     bootloaderEntryName: TaaOS
     productUrl:          https://github.com/taasezer/TaaOS
     supportUrl:          https://github.com/taasezer/TaaOS/issues
@@ -408,11 +408,69 @@ slideshow:               "show.qml"
 slideshowAPI:            2
 
 style:
-    sidebarBackground:   "#0D1117"
-    sidebarText:         "#FFFFFF"
-    sidebarTextSelect:   "#D40000"
-    sidebarTextHighlight: "#D40000"
+    sidebarBackground:        "#0D1117"
+    sidebarText:              "#FFFFFF"
+    sidebarTextSelect:        "#FFFFFF"
+    sidebarTextHighlight:     "#D40000"
+    SidebarBackground:        "#0D1117"
+    SidebarText:              "#FFFFFF"
+    SidebarTextCurrent:       "#FFFFFF"
+    SidebarBackgroundCurrent: "#D40000"
 BRANDING_DESC
+
+    cat > "${BRAND_DIR}/stylesheet.qss" << 'QSS_DESC'
+/* TaaOS Calamares 3.3+ Stylesheet — High-Contrast Readable Dark Theme */
+#mainApp {
+    background-color: #0D1117;
+    color: #E5E9F0;
+}
+#sidebarApp, #sidebarMenuApp {
+    background-color: #090C10;
+    color: #FFFFFF;
+}
+#sidebarMenuApp QLabel {
+    color: #FFFFFF;
+}
+QWidget {
+    color: #E5E9F0;
+    background-color: #0D1117;
+}
+QLabel {
+    color: #E5E9F0;
+    background-color: transparent;
+}
+QPushButton {
+    background-color: #161B22;
+    color: #FFFFFF;
+    border: 1px solid #30363D;
+    border-radius: 5px;
+    padding: 6px 14px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #D40000;
+    border-color: #FF2A2A;
+    color: #FFFFFF;
+}
+QPushButton:disabled {
+    background-color: #0D1117;
+    color: #6E7681;
+    border-color: #21262D;
+}
+QComboBox, QLineEdit, QTreeView, QListView {
+    background-color: #161B22;
+    color: #FFFFFF;
+    border: 1px solid #30363D;
+    border-radius: 4px;
+    padding: 4px;
+    selection-background-color: #D40000;
+    selection-color: #FFFFFF;
+}
+QRadioButton, QCheckBox {
+    color: #E5E9F0;
+    spacing: 8px;
+}
+QSS_DESC
 
     cat > "${BRAND_DIR}/show.qml" << 'QML_DESC'
 import QtQuick 2.0
@@ -432,7 +490,7 @@ Item {
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: "TaaOS"
+                text: "TaaOS 2.0"
                 font.pixelSize: 32
                 font.bold: true
                 color: "#D40000"
@@ -442,23 +500,22 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "Developer Distribution — Deterministic, Fast, Modular"
                 font.pixelSize: 14
-                color: "#8B949E"
+                color: "#E5E9F0"
             }
         }
     }
 }
 QML_DESC
 
-    # Create placeholder images
-    if command -v convert &> /dev/null; then
-        # Logo
-        convert -size 128x128 xc:'#1a1a2e' \
-            -font DejaVu-Sans-Bold -pointsize 48 \
-            -fill '#00d4ff' -gravity center \
+    # Use official TaaOS logo if available, otherwise generate Rosso Corsa T emblem
+    if [ -f /usr/share/pixmaps/taaos-logo.png ]; then
+        cp -f /usr/share/pixmaps/taaos-logo.png "${BRAND_DIR}/logo.png"
+    elif command -v convert &> /dev/null; then
+        convert -size 128x128 xc:'#0D1117' \
+            -font DejaVu-Sans-Bold -pointsize 56 \
+            -fill '#D40000' -gravity center \
             -annotate 0 "T" \
             "${BRAND_DIR}/logo.png" 2>/dev/null || true
-        
-        # (Welcome image removed per user request)
     else
         echo "[INSTALLER] ImageMagick not available, placeholder images not created"
     fi

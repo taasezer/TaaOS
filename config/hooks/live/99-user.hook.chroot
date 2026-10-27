@@ -63,10 +63,10 @@ enable_ecc_monitoring() {
 }
 
 # =============================================================================
-# SECTION 3: CLEAN DESKTOP ICONS (CachyOS Zero-Clutter Philosophy)
+# SECTION 3: CLEAN DESKTOP ICONS (TaaOS Zero-Clutter Philosophy)
 # =============================================================================
 clean_desktop() {
-    log_info "Enforcing clean zero-clutter desktop (CachyOS style)..."
+    log_info "Enforcing clean zero-clutter desktop (TaaOS style)..."
     rm -rf /etc/skel/Desktop/* 2>/dev/null || true
     rm -rf /home/engineer/Desktop/* 2>/dev/null || true
     mkdir -p /etc/skel/Desktop /home/engineer/Desktop
@@ -134,7 +134,7 @@ main() {
     echo "=================================================="
     echo "  User:      engineer (password: engineer)"
     echo "  Groups:    sudo, docker, video"
-    echo "  Desktop:   CachyOS Zero-Clutter"
+    echo "  Desktop:   TaaOS Zero-Clutter"
     echo "  ECC:       rasdaemon enabled"
     echo ""
 }

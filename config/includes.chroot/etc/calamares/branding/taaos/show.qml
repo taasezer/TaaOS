@@ -1,51 +1,31 @@
-import QtQuick 2.0;
-import calamares.slideshow 1.0;
+import QtQuick 2.0
+import QtQuick.Controls 2.0
 
-Presentation {
+Item {
     id: presentation
+    anchors.fill: parent
 
-    Timer {
-        interval: 5000
-        running: true
-        repeat: true
-        onTriggered: presentation.goToNextSlide()
-    }
-    
-    Slide {
-        Rectangle {
-            anchors.fill: parent
-            color: "#1a1a2e"
-            
-            Text {
-                anchors.centerIn: parent
-                text: "Welcome to TaaOS"
-                color: "#00d4ff"
-                font.pixelSize: 48
-                font.bold: true
-            }
-            
+    Rectangle {
+        anchors.fill: parent
+        color: "#0D1117"
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 16
+
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.verticalCenter
-                anchors.topMargin: 60
-                text: "Engineering Excellence in Every Byte"
-                color: "#ffffff"
-                font.pixelSize: 24
-            }
-        }
-    }
-
-    Slide {
-        Rectangle {
-            anchors.fill: parent
-            color: "#1a1a2e"
-
-            Text {
-                anchors.centerIn: parent
-                text: "Custom Kernel + AI-Powered"
-                color: "#00d4ff"
+                text: "TaaOS 2.0"
                 font.pixelSize: 32
                 font.bold: true
+                color: "#D40000"
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "Developer Distribution — Deterministic, Fast, Modular"
+                font.pixelSize: 14
+                color: "#E5E9F0"
             }
         }
     }

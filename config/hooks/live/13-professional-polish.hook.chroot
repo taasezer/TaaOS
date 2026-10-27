@@ -13,7 +13,24 @@ echo "=============================================="
 echo "[POLISH] Applying TaaOS Professional Touches"
 echo "=============================================="
 
-# 1. TaaOS ASCII Logo for neofetch (Rosso Corsa red, ${c1} is resolved by neofetch at runtime)
+# 0. Enforce TaaOS OS-Release Identity (critical for both Live ISO and WSL)
+echo "[POLISH] Enforcing TaaOS 2.0 OS-Release identity..."
+rm -f /etc/os-release /usr/lib/os-release
+cat > /usr/lib/os-release << 'OSREL_EOF'
+PRETTY_NAME="TaaOS 2.0 (Trixie)"
+NAME="TaaOS"
+VERSION_ID="2.0"
+VERSION="2.0 (Trixie)"
+VERSION_CODENAME=trixie
+ID=taaos
+ID_LIKE=debian
+HOME_URL="https://github.com/taasezer/TaaOS"
+SUPPORT_URL="https://github.com/taasezer/TaaOS/issues"
+BUG_REPORT_URL="https://github.com/taasezer/TaaOS/issues"
+OSREL_EOF
+cp -f /usr/lib/os-release /etc/os-release
+
+# 1. TaaOS ASCII Logo for fastfetch / neofetch
 echo "[POLISH] Creating TaaOS ASCII Logo..."
 cat > /etc/taaos-ascii.txt << 'EOF'
                #####################
@@ -34,8 +51,10 @@ cat > /etc/taaos-ascii.txt << 'EOF'
            ####                    ####
                ####################
 EOF
+mkdir -p /usr/share/taaos
+cp -f /etc/taaos-ascii.txt /usr/share/taaos/ascii-logo.txt
 
-# 1.1 Create Custom Fastfetch Configuration
+# 1.1 Create Custom Fastfetch Configuration (System-wide + XDG + Skel)
 echo "[POLISH] Creating Custom Fastfetch Config..."
 cat > /etc/fastfetch.jsonc << 'EOF'
 {
@@ -48,9 +67,11 @@ cat > /etc/fastfetch.jsonc << 'EOF'
   },
   "display": {
     "separator": "    ",
-    "color": { "keys": "default" }
+    "color": { "keys": "red", "title": "red" }
   },
   "modules": [
+    "title",
+    "separator",
     { "type": "os", "key": "OS:" },
     { "type": "kernel", "key": "Kernel:" },
     { "type": "uptime", "key": "Uptime:" },
@@ -69,12 +90,34 @@ cat > /etc/fastfetch.jsonc << 'EOF'
 }
 EOF
 
-# 1.5 Install Fastfetch manually (not in Bookworm repos)
-echo "[POLISH] Downloading and installing fastfetch..."
-wget -qO /tmp/fastfetch.deb https://github.com/fastfetch-cli/fastfetch/releases/download/2.35.0/fastfetch-linux-amd64.deb || echo "[WARN] Fastfetch download failed."
-if [ -s /tmp/fastfetch.deb ]; then
-    dpkg -i /tmp/fastfetch.deb || apt-get install -f -y
-    rm -f /tmp/fastfetch.deb
+mkdir -p /etc/xdg/fastfetch /etc/skel/.config/fastfetch /root/.config/fastfetch
+cp -f /etc/fastfetch.jsonc /etc/xdg/fastfetch/config.jsonc
+cp -f /etc/fastfetch.jsonc /etc/skel/.config/fastfetch/config.jsonc
+cp -f /etc/fastfetch.jsonc /root/.config/fastfetch/config.jsonc
+
+# 1.5 Install Fastfetch manually (if not already installed) and wrap it so bare 'fastfetch' always uses TaaOS config
+echo "[POLISH] Ensuring fastfetch is installed and branded..."
+if [ ! -x /usr/bin/fastfetch ]; then
+    wget -qO /tmp/fastfetch.deb https://github.com/fastfetch-cli/fastfetch/releases/download/2.35.0/fastfetch-linux-amd64.deb || echo "[WARN] Fastfetch download failed."
+    if [ -s /tmp/fastfetch.deb ]; then
+        dpkg -i /tmp/fastfetch.deb || apt-get install -f -y
+        rm -f /tmp/fastfetch.deb
+    fi
+fi
+
+if [ -x /usr/bin/fastfetch ]; then
+    cat > /usr/local/bin/fastfetch << 'FF_WRAPPER'
+#!/bin/bash
+for arg in "$@"; do
+    case "$arg" in
+        -c|--config|--logo|-l)
+            exec /usr/bin/fastfetch "$@"
+            ;;
+    esac
+done
+exec /usr/bin/fastfetch --config /etc/fastfetch.jsonc "$@"
+FF_WRAPPER
+    chmod +x /usr/local/bin/fastfetch
 fi
 
 # 2. Create TaaOS ASCII art file for neofetch (created ONCE here in the hook, not every terminal open)

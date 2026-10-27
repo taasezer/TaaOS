@@ -432,7 +432,7 @@ THEME_ALIAS
     mkdir -p /etc/skel/.config/taaos
     echo "dark" > /etc/skel/.config/taaos/theme
     
-    # CachyOS clean zero-clutter desktop
+    # TaaOS clean zero-clutter desktop
     rm -rf /etc/skel/Desktop/* 2>/dev/null || true
     
     echo "[USER-ENV] Theme system setup completed!"

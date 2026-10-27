@@ -1,0 +1,67 @@
+/* TaaOS Calamares 3.3+ Stylesheet — High-Contrast Readable Dark Theme */
+
+#mainApp {
+    background-color: #0D1117;
+    color: #E5E9F0;
+}
+
+#sidebarApp {
+    background-color: #090C10;
+    color: #FFFFFF;
+}
+
+#sidebarMenuApp {
+    background-color: #090C10;
+    color: #FFFFFF;
+    font-weight: bold;
+}
+
+#sidebarMenuApp QLabel {
+    color: #FFFFFF;
+}
+
+QWidget {
+    color: #E5E9F0;
+    background-color: #0D1117;
+}
+
+QLabel {
+    color: #E5E9F0;
+    background-color: transparent;
+}
+
+QPushButton {
+    background-color: #161B22;
+    color: #FFFFFF;
+    border: 1px solid #30363D;
+    border-radius: 5px;
+    padding: 6px 14px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: #D40000;
+    border-color: #FF2A2A;
+    color: #FFFFFF;
+}
+
+QPushButton:disabled {
+    background-color: #0D1117;
+    color: #6E7681;
+    border-color: #21262D;
+}
+
+QComboBox, QLineEdit, QTreeView, QListView {
+    background-color: #161B22;
+    color: #FFFFFF;
+    border: 1px solid #30363D;
+    border-radius: 4px;
+    padding: 4px;
+    selection-background-color: #D40000;
+    selection-color: #FFFFFF;
+}
+
+QRadioButton, QCheckBox {
+    color: #E5E9F0;
+    spacing: 8px;
+}

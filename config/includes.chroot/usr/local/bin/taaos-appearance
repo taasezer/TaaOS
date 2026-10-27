@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 # =============================================================================
-# TaaOS Appearance & Visual FX Control Center (taaos-appearance)
+# TaaOS Appearance & Color Palette Studio (taaos-appearance)
 # =============================================================================
-# Provides real-time visual enhancement presets:
-#   - Compositor FX Profiles (Performance / Balanced Smooth / Ultra GPU Glass)
-#   - Polybar Layout Style (Full-Width Bar vs Floating Island Bar)
-#   - Terminal Transparency Level (100% Opaque / 95% Translucent / 85% Glass)
-#   - Radial Wheel (Çark) Customization Shortcut
+# Provides real-time customization of TaaOS:
+#   1. Color Palette & Custom Accent Picker (updates Polybar, Rofi, Wheel,
+#      Terminal, and GTK3 CSS dynamically!)
+#   2. Compositor & Window Fluidity Modes (Zero-Lag Performance / Balanced TaaOS /
+#      Ultra GPU Glass)
+#   3. Polybar Layout Style (Full-Width Bar vs Floating Island Bar)
+#   4. Terminal Transparency Level (100% Opaque / 95% Translucent / 85% Glass)
+#   5. Radial Wheel (Çark) Customization Shortcut
 # =============================================================================
 
 import os
+import re
 import sys
+import json
 import subprocess
 from pathlib import Path
 
@@ -21,22 +26,39 @@ def tr(tr_text, en_text):
     return tr_text if IS_TR else en_text
 
 HOME = Path.home()
+THEME_JSON = HOME / ".config" / "taaos" / "theme.json"
 PICOM_CONF = HOME / ".config" / "picom" / "picom.conf"
 POLYBAR_CONF = HOME / ".config" / "polybar" / "config.ini"
+ROFI_CONF = HOME / ".config" / "rofi" / "config.rasi"
 TERMINAL_RC = HOME / ".config" / "xfce4" / "terminal" / "terminalrc"
+GTK_CSS = HOME / ".config" / "gtk-3.0" / "gtk.css"
 AUTOSTART_PICOM = HOME / ".config" / "autostart" / "picom.desktop"
 
+COLOR_PALETTES = {
+    "rosso": {
+        "name": tr("🔴 Rosso Corsa (Kırmızı)", "🔴 Rosso Corsa (Red)"),
+        "hex": "#D40000"
+    },
+    "cyan": {
+        "name": tr("🩵 Siber Camgöbeği (Cyan)", "🩵 Cyber Cyan"),
+        "hex": "#00B4D8"
+    },
+    "emerald": {
+        "name": tr("💚 Matrix Zümrüt (Yeşil)", "💚 Matrix Emerald"),
+        "hex": "#10B981"
+    },
+    "amber": {
+        "name": tr("🟠 Kehribar Altın (Turuncu)", "🟠 Amber Gold"),
+        "hex": "#F59E0B"
+    },
+    "purple": {
+        "name": tr("💜 Neon Mor (Dracula)", "💜 Neon Purple"),
+        "hex": "#A855F7"
+    }
+}
+
 PICOM_PROFILES = {
-    "performance": """# TaaOS Picom — Performance Mode (Zero Lag / VM Optimized)
-backend = "xrender";
-vsync = false;
-fading = false;
-shadow = false;
-corner-radius = 0;
-inactive-opacity = 1.0;
-active-opacity = 1.0;
-""",
-    "balanced": """# TaaOS Picom — Balanced CachyOS Mode (Smooth Fades & Soft Shadows)
+    "balanced": """# TaaOS Picom — Balanced TaaOS Mode (Smooth Fades & Soft Shadows)
 backend = "xrender";
 vsync = false;
 fading = true;
@@ -84,13 +106,96 @@ active-opacity = 1.0;
 """
 }
 
+def load_theme_state():
+    try:
+        if THEME_JSON.exists():
+            return json.loads(THEME_JSON.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {"accent": "#D40000", "picom": "performance", "polybar": "full"}
+
+def save_theme_state(data):
+    try:
+        THEME_JSON.parent.mkdir(parents=True, exist_ok=True)
+        THEME_JSON.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+def apply_accent_color(hex_color):
+    hex_color = hex_color.strip().upper()
+    if not re.match(r"^#[0-9A-F]{6}$", hex_color):
+        return
+
+    state = load_theme_state()
+    state["accent"] = hex_color
+    save_theme_state(state)
+
+    # 1. Update Polybar primary color
+    if POLYBAR_CONF.exists():
+        text = POLYBAR_CONF.read_text(encoding="utf-8")
+        text = re.sub(r"(^\s*primary\s*=\s*)#[0-9A-Fa-f]{6}", rf"\g<1>{hex_color}", text, flags=re.MULTILINE)
+        POLYBAR_CONF.write_text(text, encoding="utf-8")
+        subprocess.Popen("bash ~/.config/polybar/launch.sh >/dev/null 2>&1 &", shell=True)
+
+    # 2. Update Rofi accent color
+    if ROFI_CONF.exists():
+        text = ROFI_CONF.read_text(encoding="utf-8")
+        text = re.sub(r"(rosso:\s*)#[0-9A-Fa-f]{6};", rf"\g<1>{hex_color};", text)
+        text = re.sub(r"(accent:\s*)#[0-9A-Fa-f]{6};", rf"\g<1>{hex_color};", text)
+        ROFI_CONF.write_text(text, encoding="utf-8")
+
+    # 3. Update XFCE4 Terminal cursor and activity color
+    if TERMINAL_RC.exists():
+        text = TERMINAL_RC.read_text(encoding="utf-8")
+        text = re.sub(r"ColorCursor=.*", f"ColorCursor={hex_color}", text)
+        text = re.sub(r"TabActivityColor=.*", f"TabActivityColor={hex_color}", text)
+        TERMINAL_RC.write_text(text, encoding="utf-8")
+
+    # 4. Write GTK3 custom accent CSS override
+    try:
+        GTK_CSS.parent.mkdir(parents=True, exist_ok=True)
+        GTK_CSS.write_text(f"""/* TaaOS Custom Accent Override */
+@define-color theme_selected_bg_color {hex_color};
+@define-color accent_bg_color {hex_color};
+@define-color accent_color {hex_color};
+selection {{
+    background-color: {hex_color};
+    color: #FFFFFF;
+}}
+progressbar progress, scale highlight {{
+    background-color: {hex_color};
+    border-color: {hex_color};
+}}
+""", encoding="utf-8")
+    except Exception:
+        pass
+
 def apply_picom_profile(profile_key):
+    state = load_theme_state()
+    state["picom"] = profile_key
+    save_theme_state(state)
+
+    if profile_key == "performance":
+        # Stop picom completely so X11 uses hardware 2D BitBlt (0 lag in VirtualBox & low-spec hardware!)
+        subprocess.run("killall -q picom 2>/dev/null || true", shell=True)
+        AUTOSTART_PICOM.parent.mkdir(parents=True, exist_ok=True)
+        AUTOSTART_PICOM.write_text("""[Desktop Entry]
+Type=Application
+Exec=true
+Hidden=true
+NoDisplay=true
+X-GNOME-Autostart-enabled=false
+Name=Picom
+Comment=TaaOS Compositor Disabled (Performance Mode)
+""", encoding="utf-8")
+        return
+
     if profile_key not in PICOM_PROFILES:
         return
+
     PICOM_CONF.parent.mkdir(parents=True, exist_ok=True)
     PICOM_CONF.write_text(PICOM_PROFILES[profile_key], encoding="utf-8")
 
-    # Update autostart so choice persists across reboots
     AUTOSTART_PICOM.parent.mkdir(parents=True, exist_ok=True)
     AUTOSTART_PICOM.write_text(f"""[Desktop Entry]
 Type=Application
@@ -109,7 +214,6 @@ def apply_polybar_style(style_key):
     if not POLYBAR_CONF.exists():
         return
     text = POLYBAR_CONF.read_text(encoding="utf-8")
-    import re
     if style_key == "floating":
         text = re.sub(r"width\s*=\s*.*", "width = 98%", text)
         text = re.sub(r"offset-x\s*=\s*.*", "offset-x = 1%", text)
@@ -131,7 +235,6 @@ def apply_terminal_opacity(level):
     if not TERMINAL_RC.exists():
         return
     text = TERMINAL_RC.read_text(encoding="utf-8")
-    import re
     if level == "opaque":
         text = re.sub(r"BackgroundMode=.*", "BackgroundMode=TERMINAL_BACKGROUND_SOLID", text)
         text = re.sub(r"BackgroundDarkness=.*", "BackgroundDarkness=1.000000", text)
@@ -146,10 +249,14 @@ def apply_terminal_opacity(level):
 def run_gui():
     import gi
     gi.require_version('Gtk', '3.0')
-    from gi.repository import Gtk
+    gi.require_version('Gdk', '3.0')
+    from gi.repository import Gtk, Gdk
 
-    win = Gtk.Window(title=tr("TaaOS Görünüm & Efekt Merkezi", "TaaOS Appearance & FX Center"))
-    win.set_default_size(500, 430)
+    state = load_theme_state()
+    current_accent = state.get("accent", "#D40000")
+
+    win = Gtk.Window(title=tr("TaaOS Görünüm & Renk Stüdyosu", "TaaOS Appearance & Color Studio"))
+    win.set_default_size(580, 560)
     win.set_position(Gtk.WindowPosition.CENTER)
 
     vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
@@ -160,15 +267,73 @@ def run_gui():
     win.add(vbox)
 
     hdr = Gtk.Label()
-    hdr.set_markup(
-        f"<b><span size='large' foreground='#D40000'>{tr('TaaOS Görünüm İyileştirme Seçenekleri', 'TaaOS Visual Enhancement Options')}</span></b>\n"
-        f"<span size='small'>{tr('Donanımınıza göre pencere efektlerini, üst bar stilini ve şeffaflığı anında değiştirin.', 'Customize compositor effects, top bar layout, and transparency on the fly.')}</span>"
-    )
+    def update_header_color(hex_c):
+        hdr.set_markup(
+            f"<b><span size='large' foreground='{hex_c}'>{tr('TaaOS Görünüm & Renk Paleti Stüdyosu', 'TaaOS Appearance & Color Palette Studio')}</span></b>\n"
+            f"<span size='small'>{tr('Sistemi tek bir renge bağlı kalmadan kendi zevkinize ve donanımınıza göre özelleştirin.', 'Customize system accent colors, window fluidity, top bar layout, and transparency.')}</span>"
+        )
+    update_header_color(current_accent)
     hdr.set_xalign(0)
     vbox.pack_start(hdr, False, False, 0)
 
-    # 1. Compositor Section
-    frame1 = Gtk.Frame(label=tr(" 1. Pencere Efektleri & Akıcılık (Picom) ", " 1. Window Effects & Fluidity (Picom) "))
+    # 1. Color Palette Studio Section
+    frame_color = Gtk.Frame(label=tr(" 1. Sistem Renk Paleti & Özel Renk Seçici ", " 1. System Color Palette & Custom Picker "))
+    vbox_color = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+    vbox_color.set_margin_top(8)
+    vbox_color.set_margin_bottom(8)
+    vbox_color.set_margin_start(10)
+    vbox_color.set_margin_end(10)
+    frame_color.add(vbox_color)
+
+    grid_palettes = Gtk.FlowBox()
+    grid_palettes.set_max_children_per_line(3)
+    grid_palettes.set_selection_mode(Gtk.SelectionMode.NONE)
+    grid_palettes.set_row_spacing(6)
+    grid_palettes.set_column_spacing(6)
+
+    def on_pick_palette(hex_val):
+        apply_accent_color(hex_val)
+        update_header_color(hex_val)
+        rgba = Gdk.RGBA()
+        if rgba.parse(hex_val):
+            color_btn.set_rgba(rgba)
+
+    for key, pal in COLOR_PALETTES.items():
+        b = Gtk.Button(label=pal["name"])
+        b.connect("clicked", lambda _, h=pal["hex"]: on_pick_palette(h))
+        grid_palettes.add(b)
+
+    vbox_color.pack_start(grid_palettes, False, False, 0)
+
+    hbox_custom = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+    lbl_custom = Gtk.Label(label=tr("🎨 Kendi Özel Renginizi Seçin:", "🎨 Pick Your Own Custom Color:"))
+    color_btn = Gtk.ColorButton()
+    init_rgba = Gdk.RGBA()
+    if init_rgba.parse(current_accent):
+        color_btn.set_rgba(init_rgba)
+
+    def on_custom_color_set(btn):
+        rgba = btn.get_rgba()
+        hex_val = "#{:02X}{:02X}{:02X}".format(
+            int(rgba.red * 255),
+            int(rgba.green * 255),
+            int(rgba.blue * 255)
+        )
+        apply_accent_color(hex_val)
+        update_header_color(hex_val)
+
+    color_btn.connect("color-set", on_custom_color_set)
+    btn_apply_custom = Gtk.Button(label=tr("Seçili Rengi Uygula", "Apply Custom Color"))
+    btn_apply_custom.connect("clicked", lambda _: on_custom_color_set(color_btn))
+
+    hbox_custom.pack_start(lbl_custom, False, False, 0)
+    hbox_custom.pack_start(color_btn, False, False, 0)
+    hbox_custom.pack_start(btn_apply_custom, False, False, 0)
+    vbox_color.pack_start(hbox_custom, False, False, 0)
+    vbox.pack_start(frame_color, False, False, 0)
+
+    # 2. Compositor Section
+    frame1 = Gtk.Frame(label=tr(" 2. Pencere Efektleri & Akıcılık (Picom) ", " 2. Window Effects & Fluidity (Picom) "))
     box1 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
     box1.set_margin_top(8)
     box1.set_margin_bottom(8)
@@ -176,9 +341,9 @@ def run_gui():
     box1.set_margin_end(10)
     frame1.add(box1)
 
-    btn_perf = Gtk.Button(label=tr("⚡ Performans Modu (Sıfır Gecikme / Sanal Makine İçin İdeal)", "⚡ Performance Mode (Zero Lag / Ideal for VMs)"))
+    btn_perf = Gtk.Button(label=tr("⚡ Performans Modu (Sıfır Gecikme / VirtualBox & Sanal Makineler İçin)", "⚡ Performance Mode (Zero Lag / Best for VirtualBox & VMs)"))
     btn_perf.connect("clicked", lambda _: apply_picom_profile("performance"))
-    btn_bal = Gtk.Button(label=tr("✨ Dengeli CachyOS Modu (Yumuşak Gölgeler & Akıcı Geçişler)", "✨ Balanced CachyOS Mode (Soft Shadows & Smooth Fades)"))
+    btn_bal = Gtk.Button(label=tr("✨ Dengeli TaaOS Modu (Yumuşak Gölgeler & Akıcı Geçişler)", "✨ Balanced TaaOS Mode (Soft Shadows & Smooth Fades)"))
     btn_bal.connect("clicked", lambda _: apply_picom_profile("balanced"))
     btn_ult = Gtk.Button(label=tr("💎 Ultra GPU Modu (Yuvarlatılmış Köşeler, GLX & Derin Gölge)", "💎 Ultra GPU Mode (Rounded Corners, GLX & Deep Shadows)"))
     btn_ult.connect("clicked", lambda _: apply_picom_profile("ultra"))
@@ -188,8 +353,8 @@ def run_gui():
     box1.pack_start(btn_ult, False, False, 0)
     vbox.pack_start(frame1, False, False, 0)
 
-    # 2. Polybar Style Section
-    frame2 = Gtk.Frame(label=tr(" 2. Üst Panel (Polybar) Tasarımı ", " 2. Top Bar (Polybar) Layout "))
+    # 3. Polybar Style Section
+    frame2 = Gtk.Frame(label=tr(" 3. Üst Panel (Polybar) Tasarımı ", " 3. Top Bar (Polybar) Layout "))
     box2 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
     box2.set_margin_top(8)
     box2.set_margin_bottom(8)
@@ -206,8 +371,8 @@ def run_gui():
     box2.pack_start(btn_float, True, True, 0)
     vbox.pack_start(frame2, False, False, 0)
 
-    # 3. Terminal Transparency
-    frame3 = Gtk.Frame(label=tr(" 3. Terminal Şeffaflık Seviyesi ", " 3. Terminal Transparency "))
+    # 4. Terminal Transparency
+    frame3 = Gtk.Frame(label=tr(" 4. Terminal Şeffaflık Seviyesi ", " 4. Terminal Transparency "))
     box3 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
     box3.set_margin_top(8)
     box3.set_margin_bottom(8)
@@ -227,7 +392,7 @@ def run_gui():
     box3.pack_start(btn_t85, True, True, 0)
     vbox.pack_start(frame3, False, False, 0)
 
-    # 4. Radial Wheel Settings Shortcut
+    # 5. Radial Wheel Settings Shortcut
     hbox_bot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
     btn_wheel = Gtk.Button(label=tr("🎡 Sağ Tık Uygulama Çarkını (Wheel) Özelleştir", "🎡 Customize Right-Click Radial Wheel"))
     btn_wheel.connect("clicked", lambda _: subprocess.Popen(["/usr/local/bin/taaos-wheel", "--config"]))
@@ -254,7 +419,13 @@ if __name__ == "__main__":
         elif arg in ("full", "full-bar"):
             apply_polybar_style("full")
             print("[TaaOS] Applied full-width Polybar layout")
+        elif arg in COLOR_PALETTES:
+            apply_accent_color(COLOR_PALETTES[arg]["hex"])
+            print(f"[TaaOS] Applied color palette: {arg}")
+        elif arg.startswith("#") and len(arg) == 7:
+            apply_accent_color(arg)
+            print(f"[TaaOS] Applied custom color: {arg}")
         else:
-            print("Usage: taaos-appearance [performance|balanced|ultra|floating|full]")
+            print("Usage: taaos-appearance [performance|balanced|ultra|floating|full|rosso|cyan|emerald|amber|purple|#RRGGBB]")
     else:
         run_gui()

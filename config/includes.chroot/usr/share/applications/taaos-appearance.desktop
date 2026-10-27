@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=TaaOS Appearance & FX
-Name[tr]=TaaOS Görünüm & Efektler
-Comment=Customize window animations, shadows, rounded corners, and panel style
-Comment[tr]=Pencere efektlerini, gölgeleri, yuvarlatılmış köşeleri ve üst barı özelleştirin
+Name=TaaOS Appearance & Color Studio
+Name[tr]=TaaOS Görünüm & Renk Stüdyosu
+Comment=Customize color palettes, custom accent color, window animations, and panel style
+Comment[tr]=Renk paletlerini, özel vurgu rengini, pencere efektlerini ve üst barı özelleştirin
 Exec=/usr/local/bin/taaos-appearance
 Icon=preferences-desktop-theme
 Terminal=false

@@ -4,10 +4,10 @@ componentName: taaos
 strings:
     productName:         TaaOS
     shortProductName:    TaaOS
-    version:             1.0.0
-    shortVersion:        1.0.0
-    versionedName:       TaaOS 1.0.0
-    shortVersionedName:  TaaOS 1.0.0
+    version:             2.0.0
+    shortVersion:        2.0
+    versionedName:       TaaOS 2.0.0
+    shortVersionedName:  TaaOS 2.0
     bootloaderEntryName: TaaOS
     productUrl:          https://github.com/taasezer/TaaOS
     supportUrl:          https://github.com/taasezer/TaaOS/issues
@@ -17,12 +17,16 @@ strings:
 images:
     productLogo:         "logo.png"
     productIcon:         "logo.png"
-    productWelcome:      "welcome.png"
 
 slideshow:               "show.qml"
+slideshowAPI:            2
 
 style:
-    sidebarBackground:   "#1a1a2e"
-    sidebarText:         "#FFFFFF"
-    sidebarTextSelect:   "#00d4ff"
-    sidebarTextHighlight: "#00d4ff"
+    sidebarBackground:        "#0D1117"
+    sidebarText:              "#FFFFFF"
+    sidebarTextSelect:        "#FFFFFF"
+    sidebarTextHighlight:     "#D40000"
+    SidebarBackground:        "#0D1117"
+    SidebarText:              "#FFFFFF"
+    SidebarTextCurrent:       "#FFFFFF"
+    SidebarBackgroundCurrent: "#D40000"

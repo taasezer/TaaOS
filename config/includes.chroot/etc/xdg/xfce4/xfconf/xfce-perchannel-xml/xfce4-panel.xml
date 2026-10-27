@@ -3,7 +3,7 @@
 <channel name="xfce4-panel" version="1.0">
   <property name="configver" type="int" value="2"/>
   <property name="panels" type="array">
-    <!-- No XFCE panels used. Modern Polybar top bar is used (CachyOS style). -->
+    <!-- No XFCE panels used. Modern Polybar top bar is used (TaaOS style). -->
   </property>
   <property name="plugins" type="empty">
   </property>

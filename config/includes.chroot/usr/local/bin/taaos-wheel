@@ -2,8 +2,8 @@
 # =============================================================================
 # TaaOS Radial Wheel (Çark) — Right-Click Hold Application Launcher
 # =============================================================================
-# Opens a CachyOS Dark + Rosso Corsa Red circular pie menu right at the mouse
-# cursor when holding Down Right-Click (>= 260ms), or when invoked directly.
+# Opens a TaaOS Dark circular pie menu right at the mouse cursor when holding
+# down Right-Click (>= 260ms), or when invoked directly.
 # Supports both:
 #   1. Hold Right-Click -> Drag to slice -> Release Right-Click (Fast Gesture)
 #   2. Hold Right-Click -> Release in center -> Left-Click slice (Browse Mode)
@@ -23,7 +23,8 @@ from pathlib import Path
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gdk', '3.0')
-from gi.repository import Gtk, Gdk, GLib, Pango
+gi.require_version('PangoCairo', '1.0')
+from gi.repository import Gtk, Gdk, GLib, Pango, PangoCairo
 import cairo
 
 # -----------------------------------------------------------------------------
@@ -36,10 +37,11 @@ def tr(tr_text, en_text):
     return tr_text if IS_TR else en_text
 
 # -----------------------------------------------------------------------------
-# Configuration Management (~/.config/taaos/wheel.json)
+# Configuration Management (~/.config/taaos/wheel.json & theme.json)
 # -----------------------------------------------------------------------------
 CONFIG_DIR = Path.home() / ".config" / "taaos"
 CONFIG_FILE = CONFIG_DIR / "wheel.json"
+THEME_FILE = CONFIG_DIR / "theme.json"
 PID_FILE = Path(f"/tmp/taaos-wheel-{os.getuid()}.pid")
 
 DEFAULT_CONFIG = {
@@ -72,7 +74,7 @@ DEFAULT_CONFIG = {
         },
         {
             "name": tr("Tarayıcı", "Browser"),
-            "desc": tr("Web Tarayıcısı", "Web Browser"),
+            "desc": tr("Web Tarayıcısı (Firefox)", "Web Browser (Firefox)"),
             "cmd": "x-www-browser",
             "icon": "web-browser"
         },
@@ -84,7 +86,7 @@ DEFAULT_CONFIG = {
         },
         {
             "name": tr("Görünüm", "Appearance"),
-            "desc": tr("Efekt & Görünüm Ayarları", "Visual Effects & Theme"),
+            "desc": tr("Renk Paleti & Görünüm", "Color Palette & Appearance"),
             "cmd": "taaos-appearance",
             "icon": "preferences-desktop-theme"
         },
@@ -116,6 +118,24 @@ def save_config(cfg):
             json.dump(cfg, f, indent=2, ensure_ascii=False)
     except Exception:
         pass
+
+def load_accent_rgb():
+    hex_col = "#D40000"
+    try:
+        if THEME_FILE.exists():
+            data = json.loads(THEME_FILE.read_text(encoding="utf-8"))
+            c = data.get("accent", "#D40000").strip()
+            if len(c) == 7 and c.startswith("#"):
+                hex_col = c
+    except Exception:
+        pass
+    try:
+        r = int(hex_col[1:3], 16) / 255.0
+        g = int(hex_col[3:5], 16) / 255.0
+        b = int(hex_col[5:7], 16) / 255.0
+        return r, g, b, hex_col
+    except Exception:
+        return 212/255.0, 0.0, 0.0, "#D40000"
 
 # -----------------------------------------------------------------------------
 # X11 Direct Pointer Query (Bypasses X11 Implicit Button Grabs at 0% CPU)
@@ -177,22 +197,22 @@ class X11Pointer:
         return rx.value, ry.value, mask.value
 
 # -----------------------------------------------------------------------------
-# Radial Wheel GTK3 Window
+# Radial Wheel GTK3 Window (Large 580x580 Canvas with Crisp Pango Typography)
 # -----------------------------------------------------------------------------
 class RadialWheelWindow(Gtk.Window):
-    SIZE = 420
+    SIZE = 580
     CENTER = SIZE // 2
-    OUTER_R = 192
-    INNER_R = 64
-    HUB_R = 56
+    OUTER_R = 266
+    INNER_R = 94
+    HUB_R = 82
 
     def __init__(self, x11_ptr, standalone=False):
-        # POPUP window avoids WM focus/grab restrictions so it opens over anything
         super().__init__(type=Gtk.WindowType.POPUP)
         self.x11 = x11_ptr
         self.standalone = standalone
         self.cfg = load_config()
         self.items = self.cfg.get("items", DEFAULT_CONFIG["items"])
+        self.accent_rgb = load_accent_rgb()
         self.hovered_index = -1
         self.edit_hovered = False
         self.is_active = False
@@ -213,7 +233,6 @@ class RadialWheelWindow(Gtk.Window):
 
         screen = self.get_screen()
         visual = screen.get_rgba_visual()
-        self.has_rgba = visual is not None and screen.is_composited()
         if visual:
             self.set_visual(visual)
 
@@ -234,15 +253,16 @@ class RadialWheelWindow(Gtk.Window):
         self.connect("realize", self.on_realize)
 
     def on_realize(self, widget):
-        # Apply circular shape region so even without a compositor, there are NO square corners!
+        # Apply circular shape region so even without a compositor, there are NO square corners
         surface = cairo.ImageSurface(cairo.FORMAT_A8, self.SIZE, self.SIZE)
         cr = cairo.Context(surface)
-        cr.arc(self.CENTER, self.CENTER, self.OUTER_R + 4, 0, 2 * math.pi)
+        cr.new_path()
+        cr.arc(self.CENTER, self.CENTER, self.OUTER_R + 6, 0, 2 * math.pi)
         cr.fill()
         region = Gdk.cairo_region_create_from_surface(surface)
         self.shape_combine_region(region)
 
-    def get_icon_pixbuf(self, icon_name, size=32):
+    def get_icon_pixbuf(self, icon_name, size=42):
         key = (icon_name, size)
         if key in self.icon_cache:
             return self.icon_cache[key]
@@ -261,9 +281,9 @@ class RadialWheelWindow(Gtk.Window):
     def popup_at_cursor(self, opened_by_hold=False):
         self.cfg = load_config()
         self.items = self.cfg.get("items", DEFAULT_CONFIG["items"])
+        self.accent_rgb = load_accent_rgb()
         rx, ry, _ = self.x11.query()
 
-        # Clamp within screen bounds
         screen = Gdk.Screen.get_default()
         sw = screen.get_width() if screen else 1920
         sh = screen.get_height() if screen else 1080
@@ -298,12 +318,10 @@ class RadialWheelWindow(Gtk.Window):
         new_edit = False
 
         if dist < self.INNER_R - 4:
-            # Inside center hub: check if hovering bottom 'Edit' pill
-            if dy > 16 and abs(dx) < 38:
+            if dy > 22 and abs(dx) < 52:
                 new_edit = True
-        elif dist <= self.OUTER_R + 40 and len(self.items) > 0:
+        elif dist <= self.OUTER_R + 50 and len(self.items) > 0:
             n = len(self.items)
-            # Angle where 0 is top (12 o'clock)
             angle = math.atan2(dy, dx) + math.pi / 2 + (math.pi / n)
             while angle < 0:
                 angle += 2 * math.pi
@@ -353,6 +371,35 @@ class RadialWheelWindow(Gtk.Window):
             self.close_wheel()
         return True
 
+    def _draw_rounded_rect(self, cr, x, y, w, h, r):
+        cr.new_path()
+        cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
+        cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
+        cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
+        cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
+        cr.close_path()
+
+    def _draw_pango_text(self, cr, text, cx, cy, font_str="Sans Bold 11.5", color=(1, 1, 1, 1), pill_bg=None):
+        layout = PangoCairo.create_layout(cr)
+        desc = Pango.FontDescription(font_str)
+        layout.set_font_description(desc)
+        layout.set_text(text, -1)
+        tw, th = layout.get_pixel_size()
+        tx = cx - tw / 2.0
+        ty = cy - th / 2.0
+
+        if pill_bg is not None:
+            pad_x, pad_y = 8, 3
+            self._draw_rounded_rect(cr, tx - pad_x, ty - pad_y, tw + pad_x * 2, th + pad_y * 2, 6)
+            cr.set_source_rgba(*pill_bg)
+            cr.fill()
+
+        cr.new_path()
+        cr.move_to(tx, ty)
+        cr.set_source_rgba(*color)
+        PangoCairo.show_layout(cr, layout)
+        cr.new_path()
+
     def on_draw(self, widget, cr):
         cr.set_antialias(cairo.ANTIALIAS_BEST)
         cr.save()
@@ -366,16 +413,20 @@ class RadialWheelWindow(Gtk.Window):
         if n == 0:
             return False
 
+        ar, ag, ab, _ = self.accent_rgb
+
         # Outer subtle backdrop ring
-        cr.arc(cx, cy, self.OUTER_R + 2, 0, 2 * math.pi)
-        cr.set_source_rgba(9/255, 12/255, 16/255, 0.92)
+        cr.new_path()
+        cr.arc(cx, cy, self.OUTER_R + 3, 0, 2 * math.pi)
+        cr.set_source_rgba(9/255, 12/255, 16/255, 0.95)
         cr.fill_preserve()
-        cr.set_line_width(2.0)
-        cr.set_source_rgba(212/255, 0, 0, 0.65)
+        cr.set_line_width(2.5)
+        cr.set_source_rgba(ar, ag, ab, 0.80)
         cr.stroke()
+        cr.new_path()
 
         slice_angle = (2 * math.pi) / n
-        gap = 0.035
+        gap = 0.032
 
         for i, item in enumerate(self.items):
             a1 = i * slice_angle - math.pi / 2 - (slice_angle / 2) + gap / 2
@@ -383,7 +434,7 @@ class RadialWheelWindow(Gtk.Window):
             is_hov = (i == self.hovered_index)
 
             r_in = self.INNER_R
-            r_out = self.OUTER_R - (2 if not is_hov else 0)
+            r_out = self.OUTER_R - (3 if not is_hov else 0)
 
             # Wedge path
             cr.new_path()
@@ -392,17 +443,18 @@ class RadialWheelWindow(Gtk.Window):
             cr.close_path()
 
             if is_hov:
-                cr.set_source_rgba(212/255, 0/255, 0/255, 0.95)
+                cr.set_source_rgba(ar, ag, ab, 0.92)
                 cr.fill_preserve()
-                cr.set_line_width(2.0)
-                cr.set_source_rgba(1.0, 0.35, 0.35, 1.0)
+                cr.set_line_width(2.5)
+                cr.set_source_rgba(min(1.0, ar + 0.25), min(1.0, ag + 0.25), min(1.0, ab + 0.25), 1.0)
                 cr.stroke()
             else:
-                cr.set_source_rgba(22/255, 27/255, 34/255, 0.94)
+                cr.set_source_rgba(22/255, 27/255, 34/255, 0.96)
                 cr.fill_preserve()
-                cr.set_line_width(1.2)
-                cr.set_source_rgba(48/255, 54/255, 61/255, 0.9)
+                cr.set_line_width(1.5)
+                cr.set_source_rgba(48/255, 54/255, 61/255, 0.95)
                 cr.stroke()
+            cr.new_path()
 
             # Icon and Label placement
             mid_a = (a1 + a2) / 2
@@ -410,63 +462,51 @@ class RadialWheelWindow(Gtk.Window):
             ix = cx + math.cos(mid_a) * mid_r
             iy = cy + math.sin(mid_a) * mid_r
 
-            pb = self.get_icon_pixbuf(item.get("icon", "system-run"), 30)
+            pb = self.get_icon_pixbuf(item.get("icon", "system-run"), 42)
             if pb:
-                Gdk.cairo_set_source_pixbuf(cr, pb, ix - 15, iy - 22)
+                Gdk.cairo_set_source_pixbuf(cr, pb, ix - 21, iy - 30)
                 cr.paint()
+                cr.new_path()
 
-            # Label text
-            cr.select_font_face("Fira Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-            cr.set_font_size(11.5)
+            # Label text with high-contrast dark capsule so it is always 100% readable
             label = item.get("name", "App")
-            ext = cr.text_extents(label)
-            cr.move_to(ix - ext.width / 2, iy + 20)
-            cr.set_source_rgba(1.0, 1.0, 1.0, 1.0 if is_hov else 0.90)
-            cr.show_text(label)
+            pill_color = (9/255, 12/255, 16/255, 0.88) if is_hov else (13/255, 17/255, 23/255, 0.85)
+            self._draw_pango_text(
+                cr, label, ix, iy + 26,
+                font_str="Sans Bold 11",
+                color=(1.0, 1.0, 1.0, 1.0),
+                pill_bg=pill_color
+            )
 
-        # Center Hub
+        # Center Hub (CRITICAL: cr.new_path() before cr.arc prevents any connecting line from previous text!)
+        cr.new_path()
         cr.arc(cx, cy, self.HUB_R, 0, 2 * math.pi)
-        cr.set_source_rgba(13/255, 17/255, 23/255, 0.98)
+        cr.set_source_rgba(13/255, 17/255, 23/255, 0.99)
         cr.fill_preserve()
-        cr.set_line_width(2.5)
-        cr.set_source_rgba(212/255, 0, 0, 0.95)
+        cr.set_line_width(3.0)
+        cr.set_source_rgba(ar, ag, ab, 0.98)
         cr.stroke()
+        cr.new_path()
 
         # Center Hub Text
         if 0 <= self.hovered_index < n:
             title = self.items[self.hovered_index].get("name", "")
-            sub = tr("Başlat", "Launch")
+            sub = self.items[self.hovered_index].get("desc", tr("Başlat", "Launch"))
         elif self.edit_hovered:
             title = tr("Düzenle", "Customize")
             sub = tr("Çark Ayarları", "Wheel Settings")
         else:
             title = "TaaOS"
-            sub = tr("Hızlı Çark", "Quick Wheel")
+            sub = tr("Hızlı Uygulama Çarkı", "Quick App Wheel")
 
-        cr.select_font_face("Fira Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-        cr.set_font_size(13.0)
-        ext = cr.text_extents(title)
-        cr.move_to(cx - ext.width / 2, cy - 6)
-        cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
-        cr.show_text(title)
-
-        cr.select_font_face("Fira Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-        cr.set_font_size(10.0)
-        ext2 = cr.text_extents(sub)
-        cr.move_to(cx - ext2.width / 2, cy + 11)
-        cr.set_source_rgba(139/255, 148/255, 158/255, 1.0)
-        cr.show_text(sub)
+        self._draw_pango_text(cr, title, cx, cy - 14, font_str="Sans Bold 14", color=(1.0, 1.0, 1.0, 1.0))
+        self._draw_pango_text(cr, sub, cx, cy + 10, font_str="Sans 9.5", color=(200/255, 208/255, 218/255, 1.0))
 
         # Bottom '⚙' Edit pill inside Hub
         pill_label = tr("⚙ Düzenle", "⚙ Edit")
-        cr.set_font_size(9.5)
-        ext3 = cr.text_extents(pill_label)
-        cr.move_to(cx - ext3.width / 2, cy + 32)
-        if self.edit_hovered:
-            cr.set_source_rgba(255/255, 80/255, 80/255, 1.0)
-        else:
-            cr.set_source_rgba(212/255, 0, 0, 0.85)
-        cr.show_text(pill_label)
+        edit_col = (1.0, 1.0, 1.0, 1.0) if self.edit_hovered else (min(1.0, ar + 0.2), min(1.0, ag + 0.2), min(1.0, ab + 0.2), 0.95)
+        edit_bg = (ar, ag, ab, 0.85) if self.edit_hovered else (22/255, 27/255, 34/255, 0.9)
+        self._draw_pango_text(cr, pill_label, cx, cy + 42, font_str="Sans Bold 9.5", color=edit_col, pill_bg=edit_bg)
 
         return False
 
@@ -476,9 +516,10 @@ class RadialWheelWindow(Gtk.Window):
 class WheelConfigDialog(Gtk.Window):
     def __init__(self):
         super().__init__(title=tr("TaaOS Çark (Radial Wheel) Ayarları", "TaaOS Radial Wheel Settings"))
-        self.set_default_size(560, 460)
+        self.set_default_size(580, 480)
         self.set_position(Gtk.WindowPosition.CENTER)
         self.cfg = load_config()
+        _, _, _, accent_hex = load_accent_rgb()
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         vbox.set_margin_top(14)
@@ -489,13 +530,12 @@ class WheelConfigDialog(Gtk.Window):
 
         header = Gtk.Label()
         header.set_markup(
-            f"<b><span size='large' foreground='#D40000'>{tr('TaaOS Hızlı Uygulama Çarkı', 'TaaOS Quick Application Wheel')}</span></b>\n"
+            f"<b><span size='large' foreground='{accent_hex}'>{tr('TaaOS Hızlı Uygulama Çarkı', 'TaaOS Quick Application Wheel')}</span></b>\n"
             f"<span size='small'>{tr('Sağ tıka basılı tutarak açılan çarktaki uygulamaları buradan özelleştirebilirsiniz.', 'Customize the applications shown when holding down right-click.')}</span>"
         )
         header.set_xalign(0)
         vbox.pack_start(header, False, False, 0)
 
-        # Hold delay control
         hbox_top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         self.chk_enabled = Gtk.CheckButton(label=tr("Sağ Tık Basılı Tutma ile Çarkı Etkinleştir", "Enable Right-Click Hold Trigger"))
         self.chk_enabled.set_active(self.cfg.get("enabled", True))
@@ -508,7 +548,6 @@ class WheelConfigDialog(Gtk.Window):
         hbox_top.pack_start(self.spin_ms, False, False, 0)
         vbox.pack_start(hbox_top, False, False, 4)
 
-        # ListStore: Name, Command, Icon
         self.store = Gtk.ListStore(str, str, str)
         for item in self.cfg.get("items", []):
             self.store.append([item.get("name", ""), item.get("cmd", ""), item.get("icon", "system-run")])
@@ -529,7 +568,6 @@ class WheelConfigDialog(Gtk.Window):
         vbox.pack_start(scroll, True, True, 0)
         self.tree = tree
 
-        # Action Buttons
         btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         btn_add = Gtk.Button(label=tr("+ Yeni Ekle", "+ Add App"))
         btn_add.connect("clicked", self.on_add)
@@ -594,7 +632,6 @@ class WheelDaemon:
         self.down_y = 0
         self.triggered_this_hold = False
 
-        # Write PID for instant CLI signalling
         try:
             PID_FILE.write_text(str(os.getpid()))
         except Exception:
@@ -615,14 +652,11 @@ class WheelDaemon:
         if self.wheel.is_active:
             self.wheel.update_hover_from_global(rx, ry)
             if self.wheel.opened_by_hold and not right_down:
-                # User released Right-Click after holding!
                 if self.wheel.hovered_index >= 0 or self.wheel.edit_hovered:
                     self.wheel.trigger_selection()
                 else:
-                    # Released inside the center hub -> stay open in browse mode
                     self.wheel.opened_by_hold = False
             elif not self.wheel.opened_by_hold and left_down:
-                # User clicked while in browse mode
                 dist = math.hypot(rx - self.wheel.origin_x, ry - self.wheel.origin_y)
                 if dist > self.wheel.OUTER_R + 20:
                     self.wheel.close_wheel()
@@ -630,7 +664,6 @@ class WheelDaemon:
                     self.wheel.trigger_selection()
             return True
 
-        # Wheel is currently hidden: check for Right-Click Hold
         if right_down and not left_down:
             now = time.monotonic()
             if self.rclick_down_since is None:
@@ -639,7 +672,6 @@ class WheelDaemon:
                 self.down_y = ry
                 self.triggered_this_hold = False
             elif not self.triggered_this_hold:
-                # Check if user moved mouse significantly while dragging (e.g. camera pan in 3D apps)
                 if math.hypot(rx - self.down_x, ry - self.down_y) > 22:
                     self.triggered_this_hold = True
                 else:
@@ -661,7 +693,6 @@ def main():
         return
 
     if "--daemon" in sys.argv:
-        # Ensure single daemon instance per user
         if PID_FILE.exists():
             try:
                 old_pid = int(PID_FILE.read_text().strip())
@@ -673,7 +704,6 @@ def main():
         Gtk.main()
         return
 
-    # Standalone invocation: if daemon is running, signal it to pop up immediately
     if PID_FILE.exists():
         try:
             pid = int(PID_FILE.read_text().strip())
