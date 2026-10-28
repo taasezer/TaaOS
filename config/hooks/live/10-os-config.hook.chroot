@@ -69,8 +69,17 @@ ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 EOF
 
-# Set timezone (default to UTC, can be changed during install)
-ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+# Set default timezone to Europe/Istanbul and configure Chrony fast NTP sync
+ln -sf /usr/share/zoneinfo/Europe/Istanbul /etc/localtime
+echo "Europe/Istanbul" > /etc/timezone
+
+if [ -d /etc/chrony ]; then
+    mkdir -p /etc/chrony/conf.d
+    cat > /etc/chrony/conf.d/taaos-fastsync.conf << 'CHRONY_EOF'
+# Immediately step the system clock on any offset during boot/resume
+makestep 1.0 -1
+CHRONY_EOF
+fi
 
 # Configure locales (generate both English and Turkish for zero-warning UTF-8 support)
 cat > /etc/locale.gen << 'LOCALE_EOF'
@@ -502,6 +511,7 @@ echo "[TaaOS] Removing live-specific packages..."
 apt-get remove --purge -y \
     live-boot \
     live-config \
+    live-config-sysvinit \
     live-config-systemd \
     live-boot-doc \
     2>/dev/null || true
@@ -670,11 +680,10 @@ fi
 # Update initramfs
 update-initramfs -u -k all 2>/dev/null || true
 
-# Enable all services for installed system
-systemctl enable NetworkManager 2>/dev/null || true
-systemctl enable lightdm 2>/dev/null || true
-systemctl enable bluetooth 2>/dev/null || true
-systemctl enable cups 2>/dev/null || true
+# Enable core desktop & NTP services for installed system (OpenRC + systemctl wrapper)
+for svc in dbus elogind network-manager lightdm chrony zramswap earlyoom; do
+    rc-update add "$svc" default 2>/dev/null || systemctl enable "$svc" 2>/dev/null || true
+done
 
 # Clean apt cache
 apt-get clean 2>/dev/null || true

@@ -85,12 +85,17 @@ smartmontools
 lm-sensors
 
 # VM Guest Support (dynamic display scaling, clipboard, drag & drop)
-# X11 driver for VirtualBox VMSVGA controller (enables xrandr resolution switching)
+# X11 driver & guest agent for VirtualBox VMSVGA controller (enables dynamic window auto-resize)
 xserver-xorg-video-vmware
+open-vm-tools
+open-vm-tools-desktop
 
 # SPICE/QEMU Guest Support (for KVM/QEMU VMs)
 spice-vdagent
 qemu-guest-agent
+
+# Automatic Network Time Sync (Systemd-Free NTP daemon)
+chrony
 
 # PulseAudio Volume Control (GUI)
 pavucontrol

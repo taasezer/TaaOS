@@ -423,18 +423,18 @@ interval = 5
 format-volume = <ramp-volume> <label-volume>
 label-volume = %percentage%%
 label-volume-foreground = ${colors.foreground}
-label-muted = 🔇 %percentage%%
+label-muted =  %percentage%%
 label-muted-foreground = ${colors.disabled}
-ramp-volume-0 = 🔈
-ramp-volume-1 = 🔉
-ramp-volume-2 = 🔊
+ramp-volume-0 = 
+ramp-volume-1 = 
+ramp-volume-2 = 
 click-right = /usr/local/bin/taaos-control-center &
 
 [module/brightness]
 type = custom/script
 exec = /usr/local/bin/taaos-control-center --brightness-get
 interval = 5
-format-prefix = "☀ "
+format-prefix = " "
 format-prefix-foreground = ${colors.primary}
 label = %output%
 label-foreground = ${colors.foreground}
@@ -444,7 +444,7 @@ scroll-down = /usr/local/bin/taaos-control-center --brightness-down
 
 [module/quicktray]
 type = custom/text
-content = "📶 🦷 ⚙"
+content = "    "
 content-foreground = ${colors.foreground}
 click-left = /usr/local/bin/taaos-control-center &
 click-right = /usr/local/bin/taaos-appearance &
@@ -471,7 +471,7 @@ label-foreground = ${colors.foreground}
 
 [module/powermenu]
 type = custom/text
-content = " ⏻ "
+content = "  "
 content-foreground = ${colors.primary}
 click-left = xfce4-session-logout &
 EOF
@@ -526,14 +526,21 @@ EOF
 
 
 # =============================================================================
-# TAAOS DISPLAY WATCHER (Dynamic Resolution + VirtualBox Support)
+# TAAOS DISPLAY WATCHER (Dynamic Resolution + VirtualBox/VMSVGA/QEMU Support)
 # =============================================================================
-echo "[BRANDING] Configuring Display Watcher script..."
+echo "[BRANDING] Configuring Display Watcher script & udev DRM hotplug rule..."
+
+mkdir -p /etc/udev/rules.d
+cat > /etc/udev/rules.d/95-taaos-display-hotplug.rules << 'EOF'
+ACTION=="change", SUBSYSTEM=="drm", RUN+="/usr/bin/pkill -USR1 -f taaos-display-watcher"
+EOF
+
 cat > /usr/local/bin/taaos-display-watcher << 'EOF'
 #!/bin/bash
 # ==========================================================
 # TaaOS Display Watcher — VirtualBox Auto-Resize + Dynamic UI
 # ==========================================================
+export LC_ALL=C
 
 # Prevent duplicate instances
 for pid in $(pgrep -f "/usr/local/bin/taaos-display-watcher" 2>/dev/null); do
@@ -546,47 +553,59 @@ LOG="/tmp/taaos-display.log"
 echo "[TaaOS Display] Starting... $(date)" > "$LOG"
 
 # Wait for X11 to be ready
-for i in $(seq 1 20); do
+for i in $(seq 1 30); do
     if xrandr &>/dev/null; then break; fi
     sleep 0.2
 done
 
-# ── Detect VM type and start guest agents immediately ──
-if lspci 2>/dev/null | grep -qi 'virtualbox\|vbox\|InnoTek'; then
-    echo "[TaaOS Display] VirtualBox detected" >> "$LOG"
-    
-    if command -v VBoxClient &>/dev/null; then
-        echo "[TaaOS Display] Starting VBoxClient services" >> "$LOG"
-        VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
-        VBoxClient --clipboard 2>/dev/null || true
-        VBoxClient --draganddrop 2>/dev/null || true
-    fi
-
-    xrandr --auto 2>/dev/null
-    
-elif lspci 2>/dev/null | grep -qi 'vmware'; then
-    echo "[TaaOS Display] VMware detected" >> "$LOG"
+# ── Start VM guest display agents (VirtualBox VMSVGA uses vmwgfx / vmware-user!) ──
+if command -v VBoxClient &>/dev/null; then
+    VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
+    VBoxClient --clipboard 2>/dev/null || true
+    VBoxClient --draganddrop 2>/dev/null || true
+fi
+if command -v vmware-user-suid-wrapper &>/dev/null; then
     vmware-user-suid-wrapper 2>/dev/null || true
-    
-elif lspci 2>/dev/null | grep -qi 'qxl\|virtio.*gpu\|spice'; then
-    echo "[TaaOS Display] QEMU/SPICE detected" >> "$LOG"
+elif command -v vmtoolsd &>/dev/null; then
+    vmtoolsd -n vmusr 2>/dev/null &
 fi
 
 get_res() {
-    xrandr 2>/dev/null | grep '\*' | awk '{print $1}' | head -1
+    LC_ALL=C xrandr --current 2>/dev/null | awk '/\*/ {print $1; exit}'
 }
 
 get_output() {
-    xrandr 2>/dev/null | grep ' connected' | head -1 | awk '{print $1}'
+    LC_ALL=C xrandr --current 2>/dev/null | awk '/ connected/ {print $1; exit}'
 }
 
 get_preferred() {
-    local output=$(get_output)
-    xrandr 2>/dev/null | grep -A 100 "^${output} connected" | grep -v "^[A-Z]" | grep '+' | awk '{print $1}' | head -1
+    # Full xrandr probe queries kernel DRM connector for updated host window size
+    LC_ALL=C xrandr 2>/dev/null | awk '
+        / connected/ { in_block=1; next }
+        /^[A-Za-z0-9]/ { in_block=0 }
+        in_block && /^[[:space:]]+[0-9]+x[0-9]+/ && /\+/ { print $1; exit }
+    '
+}
+
+sync_wallpaper() {
+    local wp="/usr/share/backgrounds/taaos/wallpaper.png"
+    if [ -f "$HOME/.config/taaos/theme.json" ] && grep -q '"light"' "$HOME/.config/taaos/theme.json" 2>/dev/null; then
+        [ -f "/usr/share/backgrounds/taaos/taaos-light.png" ] && wp="/usr/share/backgrounds/taaos/taaos-light.png"
+    fi
+    if command -v xfconf-query &>/dev/null; then
+        for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -E 'last-image$|image-path$'); do
+            xfconf-query -c xfce4-desktop -p "$prop" -s "$wp" 2>/dev/null || true
+        done
+        for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -E 'image-style$'); do
+            xfconf-query -c xfce4-desktop -p "$prop" -s 5 2>/dev/null || true
+        done
+    fi
+    xfdesktop --reload 2>/dev/null &
 }
 
 restart_ui() {
-    echo "[TaaOS Display] Restarting UI for new resolution: $(get_res)" >> "$LOG"
+    echo "[TaaOS Display] Refreshing UI for resolution: $(get_res)" >> "$LOG"
+    sync_wallpaper
     if [ -f "$HOME/.config/polybar/launch.sh" ]; then
         bash "$HOME/.config/polybar/launch.sh" &
     fi
@@ -594,49 +613,68 @@ restart_ui() {
 
 OUTPUT=$(get_output)
 if [ -n "$OUTPUT" ]; then
-    xrandr --output "$OUTPUT" --auto 2>/dev/null
+    PREF=$(get_preferred)
+    if [ -n "$PREF" ]; then
+        xrandr --output "$OUTPUT" --mode "$PREF" 2>/dev/null || xrandr --output "$OUTPUT" --auto 2>/dev/null
+    else
+        xrandr --output "$OUTPUT" --auto 2>/dev/null
+    fi
+    sync_wallpaper
     echo "[TaaOS Display] Initial resolution set: $(get_res)" >> "$LOG"
 fi
 
 old_res=$(get_res)
 
-while true; do
-    sleep 2
-    current_res=$(get_res)
-    preferred_res=$(get_preferred)
+check_display() {
     OUTPUT=$(get_output)
-    
+    [ -z "$OUTPUT" ] && return
+    preferred_res=$(get_preferred)
+    current_res=$(get_res)
+
     if [ -n "$preferred_res" ] && [ "$preferred_res" != "$current_res" ]; then
-        echo "[TaaOS Display] New preferred resolution: $preferred_res (current: $current_res)" >> "$LOG"
-        xrandr --output "$OUTPUT" --mode "$preferred_res" 2>/dev/null || xrandr --auto 2>/dev/null
-        sleep 0.5
-        
+        echo "[TaaOS Display] Switching to preferred resolution: $preferred_res (was: $current_res)" >> "$LOG"
+        xrandr --output "$OUTPUT" --mode "$preferred_res" 2>/dev/null || xrandr --output "$OUTPUT" --auto 2>/dev/null
+        sleep 0.3
         verify_res=$(get_res)
-        if [ "$verify_res" != "$current_res" ]; then
+        if [ "$verify_res" != "$old_res" ]; then
             restart_ui
             old_res="$verify_res"
-        else
-            old_res="$current_res"
-            preferred_res="$current_res"
         fi
     elif [ -n "$current_res" ] && [ "$current_res" != "$old_res" ]; then
-        echo "[TaaOS Display] Resolution changed externally: $old_res -> $current_res" >> "$LOG"
+        echo "[TaaOS Display] External resolution change: $old_res -> $current_res" >> "$LOG"
         restart_ui
         old_res="$current_res"
     fi
+}
+
+trap 'check_display' USR1
+
+while true; do
+    sleep 1.5
+    check_display
 done
 EOF
 chmod +x /usr/local/bin/taaos-display-watcher
 
 cat > /usr/local/bin/taaos-display-fix << 'EOF'
 #!/bin/bash
-OUTPUT=$(xrandr | grep ' connected' | head -1 | awk '{print $1}')
-echo "[TaaOS] Fixing display on output: $OUTPUT"
-xrandr --output "$OUTPUT" --auto
+export LC_ALL=C
+OUTPUT=$(xrandr | awk '/ connected/ {print $1; exit}')
+PREF=$(xrandr | awk '/ connected/{b=1;next} /^[A-Za-z0-9]/{b=0} b && /^[[:space:]]+[0-9]+x[0-9]+/ && /\+/{print $1; exit}')
+echo "[TaaOS] Auto-fitting display on output: $OUTPUT (preferred: ${PREF:-auto})"
+if [ -n "$PREF" ]; then
+    xrandr --output "$OUTPUT" --mode "$PREF" 2>/dev/null || xrandr --output "$OUTPUT" --auto
+else
+    xrandr --output "$OUTPUT" --auto
+fi
+for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -E 'image-style$'); do
+    xfconf-query -c xfce4-desktop -p "$prop" -s 5 2>/dev/null || true
+done
+xfdesktop --reload 2>/dev/null &
 if [ -f "$HOME/.config/polybar/launch.sh" ]; then
     bash "$HOME/.config/polybar/launch.sh" &
 fi
-echo "[TaaOS] Display fixed: $(xrandr | grep '*' | awk '{print $1}' | head -1)"
+echo "[TaaOS] Display active resolution: $(xrandr --current | awk '/\*/ {print $1; exit}')"
 EOF
 chmod +x /usr/local/bin/taaos-display-fix
 

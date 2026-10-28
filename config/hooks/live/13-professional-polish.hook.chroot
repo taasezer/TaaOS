@@ -30,26 +30,25 @@ BUG_REPORT_URL="https://github.com/taasezer/TaaOS/issues"
 OSREL_EOF
 cp -f /usr/lib/os-release /etc/os-release
 
-# 1. TaaOS ASCII Logo for fastfetch / neofetch
+# 1. TaaOS ASCII Logo for fastfetch / neofetch (Symmetrical 38-col emblem, zero wrap)
 echo "[POLISH] Creating TaaOS ASCII Logo..."
 cat > /etc/taaos-ascii.txt << 'EOF'
-               #####################
-           ####                     ####
-        ###                             ###
-      ##       _____________________       ##
-     #        /____________________/         #
-    #                  / /                    #
-   #                  / /  /|                 #
-   #                 / /  / /                 #
-   #                / /  / /                  #
-   #               / /  /_/                   #
-   #              / /  / /                    #
-    #            / /  / /                    #
-     #          / /__/ /                    #
-      ##       / _____/                   ##
-        ###                            ###
-           ####                    ####
-               ####################
+            ##################
+        ####                  ####
+      ###                        ###
+    ##      __________________      ##
+   #       /_________________/        #
+  #               /   /                #
+  #              /   / /|              #
+  #             /   / / /              #
+  #            /   / / /               #
+  #           /   / /_/                #
+  #          /   / / /                 #
+   #        /   /_/ /                 #
+    ##     /_______/                ##
+      ###                        ###
+        ####                  ####
+            ##################
 EOF
 mkdir -p /usr/share/taaos
 cp -f /etc/taaos-ascii.txt /usr/share/taaos/ascii-logo.txt
@@ -66,7 +65,8 @@ cat > /etc/fastfetch.jsonc << 'EOF'
     "padding": { "top": 1, "left": 1, "right": 2 }
   },
   "display": {
-    "separator": "    ",
+    "disableLineWrap": true,
+    "separator": "  ",
     "color": { "keys": "red", "title": "red" }
   },
   "modules": [

@@ -3,9 +3,10 @@
 # TaaOS Modern Control Center Flyout (taaos-control-center)
 # =============================================================================
 # Sleek, headerless Bento-Grid Control Center docked at the top-right:
-#   - 2x2 Pill Toggles: Wi-Fi, Bluetooth, Dark/Light Mode, Color Studio
-#   - Card-Wrapped Sliders: Audio Volume + Mixer & Screen Brightness
+#   - 2x2 Pill Toggles: Wi-Fi, Bluetooth, Dark/Light Mode, Appearance Studio
+#   - Full-Width Card Sliders: Audio Volume + Mixer & Screen Brightness + Auto-Fit
 #   - Bottom Pill Bar: TaaNOS AI, Radial Wheel, System Monitor, Power
+#   - Uses FontAwesome vector glyphs (zero missing emoji boxes!)
 #   - CLI helpers for Polybar: --brightness-get, --brightness-up, --brightness-down
 # =============================================================================
 
@@ -87,7 +88,7 @@ def set_brightness(percent):
         pass
 
     try:
-        out = subprocess.check_output("xrandr --current 2>/dev/null", shell=True, text=True)
+        out = subprocess.check_output("LC_ALL=C xrandr --current 2>/dev/null", shell=True, text=True)
         outputs = re.findall(r"^([A-Za-z0-9_-]+)\s+connected", out, flags=re.MULTILINE)
         val = f"{percent / 100.0:.2f}"
         for disp in outputs:
@@ -97,7 +98,7 @@ def set_brightness(percent):
 
 def get_volume():
     try:
-        out = subprocess.check_output("pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null", shell=True, text=True)
+        out = subprocess.check_output("LC_ALL=C pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null", shell=True, text=True)
         m = re.search(r"(\d+)%", out)
         if m:
             return min(100, int(m.group(1)))
@@ -114,14 +115,14 @@ def toggle_mute():
 
 def is_wifi_enabled():
     try:
-        out = subprocess.check_output("nmcli radio wifi 2>/dev/null", shell=True, text=True).strip().lower()
+        out = subprocess.check_output("LC_ALL=C nmcli radio wifi 2>/dev/null", shell=True, text=True).strip().lower()
         return out == "enabled"
     except Exception:
         return True
 
 def get_network_summary():
     try:
-        out = subprocess.check_output("nmcli -t -f NAME,TYPE,STATE connection show --active 2>/dev/null", shell=True, text=True).strip()
+        out = subprocess.check_output("LC_ALL=C nmcli -t -f NAME,TYPE,STATE connection show --active 2>/dev/null", shell=True, text=True).strip()
         for line in out.splitlines():
             parts = line.split(":")
             if len(parts) >= 2 and parts[0] != "lo":
@@ -132,7 +133,7 @@ def get_network_summary():
 
 def is_bluetooth_enabled():
     try:
-        out = subprocess.check_output("rfkill list bluetooth 2>/dev/null", shell=True, text=True).lower()
+        out = subprocess.check_output("LC_ALL=C rfkill list bluetooth 2>/dev/null", shell=True, text=True).lower()
         if "soft blocked: yes" in out:
             return False
         if "soft blocked: no" in out:
@@ -177,16 +178,25 @@ def run_flyout():
 
     css_provider = Gtk.CssProvider()
     css = f"""
-    window {{
+    window, .background {{
         background-color: {bg_main};
         color: {fg_main};
-        border: 1px solid {border_col};
-        border-radius: 14px;
+        border: 1px solid {accent};
+        border-radius: 0px;
+        box-shadow: none;
+        margin: 0px;
+        font-family: "Fira Sans", "FontAwesome", sans-serif;
+    }}
+    decoration {{
+        border-radius: 0px;
+        box-shadow: none;
+        border: none;
+        margin: 0px;
     }}
     .slider-card {{
         background-color: {bg_card};
         border: 1px solid {border_col};
-        border-radius: 12px;
+        border-radius: 10px;
         padding: 8px 12px;
     }}
     button.bento-tile {{
@@ -194,7 +204,7 @@ def run_flyout():
         background-color: {bg_card};
         color: {fg_main};
         border: 1px solid {border_col};
-        border-radius: 12px;
+        border-radius: 10px;
         padding: 12px 14px;
         font-weight: bold;
     }}
@@ -207,7 +217,7 @@ def run_flyout():
         background-color: {accent};
         color: #FFFFFF;
         border: 1px solid {accent};
-        border-radius: 12px;
+        border-radius: 10px;
         padding: 12px 14px;
         font-weight: bold;
     }}
@@ -219,7 +229,7 @@ def run_flyout():
         background-color: {bg_card};
         color: {fg_main};
         border: 1px solid {border_col};
-        border-radius: 10px;
+        border-radius: 8px;
         padding: 7px 10px;
         font-weight: 600;
     }}
@@ -233,22 +243,29 @@ def run_flyout():
         background-color: transparent;
         color: {fg_main};
         border: none;
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 4px 8px;
     }}
     button.icon-btn:hover {{
         background-color: {bg_hover};
     }}
+    scale {{
+        min-width: 215px;
+    }}
+    scale contents {{
+        min-width: 215px;
+    }}
     scale trough {{
         background-color: {border_col};
         border-radius: 6px;
-        min-height: 6px;
+        min-width: 215px;
+        min-height: 8px;
     }}
     scale highlight {{
         background-color: {accent};
         border-color: {accent};
         border-radius: 6px;
-        min-height: 6px;
+        min-height: 8px;
     }}
     scale slider {{
         background-color: #FFFFFF;
@@ -261,7 +278,7 @@ def run_flyout():
     css_provider.load_from_data(css.encode("utf-8"))
     screen = Gdk.Screen.get_default()
     if screen:
-        Gtk.StyleContext.add_provider_for_screen(screen, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        Gtk.StyleContext.add_provider_for_screen(screen, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
     win = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
     win.set_title("TaaOS Control Center")
@@ -270,10 +287,10 @@ def run_flyout():
     win.set_keep_above(True)
     win.set_skip_taskbar_hint(True)
     win.set_skip_pager_hint(True)
-    win.set_default_size(356, 310)
+    win.set_default_size(364, 308)
 
     sw = screen.get_width() if screen else 1920
-    win.move(max(10, sw - 368), 42)
+    win.move(max(10, sw - 374), 38)
 
     vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
     vbox.set_margin_top(14)
@@ -286,16 +303,16 @@ def run_flyout():
         PID_FILE.unlink(missing_ok=True)
         Gtk.main_quit()
 
-    # 1. Bento 2x2 Quick Toggles (No "Quick Settings" text header!)
+    # 1. Bento 2x2 Quick Toggles (Headerless, FontAwesome Vector Glyphs)
     grid = Gtk.Grid()
     grid.set_row_spacing(8)
     grid.set_column_spacing(8)
     grid.set_column_homogeneous(True)
 
-    # Tile 1: Wi-Fi / Network
+    # Tile 1: Wi-Fi / Network (\uf1eb = fa-wifi)
     wifi_on = is_wifi_enabled()
     net_name = get_network_summary()
-    btn_wifi = Gtk.Button(label=f"📶  Wi-Fi\n{net_name}")
+    btn_wifi = Gtk.Button(label=f"\uf1eb   Wi-Fi / {tr('Ağ', 'Net')}\n{net_name}")
     btn_wifi.get_style_context().add_class("active-tile" if wifi_on else "bento-tile")
 
     def on_wifi_click(_):
@@ -309,9 +326,9 @@ def run_flyout():
     btn_wifi.connect("clicked", on_wifi_click)
     grid.attach(btn_wifi, 0, 0, 1, 1)
 
-    # Tile 2: Bluetooth
+    # Tile 2: Bluetooth (\uf294 = fa-bluetooth-b)
     bt_on = is_bluetooth_enabled()
-    btn_bt = Gtk.Button(label=f"🦷  Bluetooth\n{tr('Açık' if bt_on else 'Kapalı', 'On' if bt_on else 'Off')}")
+    btn_bt = Gtk.Button(label=f"\uf294   Bluetooth\n{tr('Açık' if bt_on else 'Ayarlar', 'On' if bt_on else 'Settings')}")
     btn_bt.get_style_context().add_class("active-tile" if bt_on else "bento-tile")
 
     def on_bt_click(_):
@@ -324,8 +341,12 @@ def run_flyout():
     btn_bt.connect("clicked", on_bt_click)
     grid.attach(btn_bt, 1, 0, 1, 1)
 
-    # Tile 3: Dark / Light Mode Toggle
-    mode_label = tr("☀️  Aydınlık Mod\nAçık", "☀️  Light Mode\nActive") if is_light else tr("🌙  Karanlık Mod\nAçık", "🌙  Dark Mode\nActive")
+    # Tile 3: Dark / Light Mode Toggle (\uf185 = fa-sun-o, \uf186 = fa-moon-o)
+    mode_label = (
+        tr("\uf185   Aydınlık Mod\nKaranlığa Geç", "\uf185   Light Mode\nSwitch to Dark")
+        if is_light
+        else tr("\uf186   Karanlık Mod\nAydınlığa Geç", "\uf186   Dark Mode\nSwitch to Light")
+    )
     btn_mode = Gtk.Button(label=mode_label)
     btn_mode.get_style_context().add_class("active-tile" if not is_light else "bento-tile")
 
@@ -337,19 +358,19 @@ def run_flyout():
     btn_mode.connect("clicked", on_mode_click)
     grid.attach(btn_mode, 0, 1, 1, 1)
 
-    # Tile 4: Color Studio & Appearance
-    btn_theme = Gtk.Button(label=f"🎨  {tr('Görünüm', 'Studio')}\n{tr('Renk & Efekt', 'Color & FX')}")
+    # Tile 4: Color Studio & Appearance (\uf1fc = fa-paint-brush)
+    btn_theme = Gtk.Button(label=f"\uf1fc   {tr('Görünüm Stüdyosu', 'Appearance')}\n{tr('Renk & Efektler', 'Color & Effects')}")
     btn_theme.get_style_context().add_class("bento-tile")
     btn_theme.connect("clicked", lambda _: (subprocess.Popen(["/usr/local/bin/taaos-appearance"], start_new_session=True), cleanup_and_quit()))
     grid.attach(btn_theme, 1, 1, 1, 1)
 
     vbox.pack_start(grid, False, False, 0)
 
-    # 2. Card-Wrapped Audio Slider
+    # 2. Card-Wrapped Audio Slider (\uf028 = fa-volume-up, \uf1de = fa-sliders)
     card_vol = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
     card_vol.get_style_context().add_class("slider-card")
 
-    btn_mute = Gtk.Button(label="🔊")
+    btn_mute = Gtk.Button(label="\uf028")
     btn_mute.get_style_context().add_class("icon-btn")
     btn_mute.connect("clicked", lambda _: toggle_mute())
 
@@ -358,9 +379,11 @@ def run_flyout():
     scale_vol.set_digits(0)
     scale_vol.set_value_pos(Gtk.PositionType.RIGHT)
     scale_vol.set_hexpand(True)
+    scale_vol.set_halign(Gtk.Align.FILL)
+    scale_vol.set_size_request(215, 28)
     scale_vol.connect("value-changed", lambda s: set_volume(s.get_value()))
 
-    btn_mixer = Gtk.Button(label="🎚")
+    btn_mixer = Gtk.Button(label="\uf1de")
     btn_mixer.get_style_context().add_class("icon-btn")
     btn_mixer.set_tooltip_text(tr("Ses Karıştırıcısı", "Audio Mixer"))
     btn_mixer.connect("clicked", lambda _: (subprocess.Popen(["pavucontrol"], start_new_session=True), cleanup_and_quit()) if shutil_which("pavucontrol") else None)
@@ -370,11 +393,11 @@ def run_flyout():
     card_vol.pack_start(btn_mixer, False, False, 0)
     vbox.pack_start(card_vol, False, False, 0)
 
-    # 3. Card-Wrapped Brightness Slider
+    # 3. Card-Wrapped Brightness Slider + Display Auto-Fit (\uf185 = fa-sun-o, \uf108 = fa-desktop)
     card_bri = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
     card_bri.get_style_context().add_class("slider-card")
 
-    btn_bri = Gtk.Button(label="☀️")
+    btn_bri = Gtk.Button(label="\uf185")
     btn_bri.get_style_context().add_class("icon-btn")
     btn_bri.connect("clicked", lambda _: adj_bri.set_value(100))
 
@@ -383,28 +406,36 @@ def run_flyout():
     scale_bri.set_digits(0)
     scale_bri.set_value_pos(Gtk.PositionType.RIGHT)
     scale_bri.set_hexpand(True)
+    scale_bri.set_halign(Gtk.Align.FILL)
+    scale_bri.set_size_request(215, 28)
     scale_bri.connect("value-changed", lambda s: set_brightness(s.get_value()))
+
+    btn_disp = Gtk.Button(label="\uf108")
+    btn_disp.get_style_context().add_class("icon-btn")
+    btn_disp.set_tooltip_text(tr("Ekran Boyutunu Otomatik Sığdır", "Auto-Fit Screen Resolution"))
+    btn_disp.connect("clicked", lambda _: (subprocess.Popen(["/usr/local/bin/taaos-display-fix"], start_new_session=True), cleanup_and_quit()))
 
     card_bri.pack_start(btn_bri, False, False, 0)
     card_bri.pack_start(scale_bri, True, True, 0)
+    card_bri.pack_start(btn_disp, False, False, 0)
     vbox.pack_start(card_bri, False, False, 0)
 
-    # 4. Bottom Action Pill Bar
+    # 4. Bottom Action Pill Bar (\uf120 = fa-terminal, \uf013 = fa-cog, \uf080 = fa-bar-chart, \uf011 = fa-power-off)
     hbox_bot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
 
-    btn_ai = Gtk.Button(label="🤖 TaaNOS")
+    btn_ai = Gtk.Button(label="\uf120  TaaNOS")
     btn_ai.get_style_context().add_class("pill-btn")
     btn_ai.connect("clicked", lambda _: (subprocess.Popen(["xfce4-terminal", "--title=TaaNOS AI", "-e", "taanos"], start_new_session=True), cleanup_and_quit()))
 
-    btn_wheel = Gtk.Button(label=tr("🎡 Çark", "🎡 Wheel"))
+    btn_wheel = Gtk.Button(label=tr("\uf013  Çark", "\uf013  Wheel"))
     btn_wheel.get_style_context().add_class("pill-btn")
     btn_wheel.connect("clicked", lambda _: (subprocess.Popen(["/usr/local/bin/taaos-wheel", "--config"], start_new_session=True), cleanup_and_quit()))
 
-    btn_mon = Gtk.Button(label="📊 btop")
+    btn_mon = Gtk.Button(label="\uf080  btop")
     btn_mon.get_style_context().add_class("pill-btn")
     btn_mon.connect("clicked", lambda _: (subprocess.Popen(["xfce4-terminal", "--title=System Monitor", "-e", "btop"], start_new_session=True), cleanup_and_quit()))
 
-    btn_pwr = Gtk.Button(label="⏻")
+    btn_pwr = Gtk.Button(label="\uf011")
     btn_pwr.get_style_context().add_class("pill-btn")
     btn_pwr.connect("clicked", lambda _: (subprocess.Popen(["xfce4-session-logout"], start_new_session=True), cleanup_and_quit()))
 

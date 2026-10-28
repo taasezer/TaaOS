@@ -57,9 +57,13 @@ else
         dbus-user-session-
 fi
 
-# 2. Pin systemd-sysv so future apt operations never overwrite /sbin/init
+# 2. Pin systemd and systemd-sysv so future apt operations never overwrite /sbin/init
 mkdir -p /etc/apt/preferences.d
 cat > /etc/apt/preferences.d/99-systemd-free << 'EOF'
+Package: systemd
+Pin: release *
+Pin-Priority: -1
+
 Package: systemd-sysv
 Pin: release *
 Pin-Priority: -1
@@ -85,7 +89,7 @@ fi
 echo "[INIT] Configuring OpenRC runlevels for sub-5-second desktop boot..."
 mkdir -p /etc/runlevels/sysinit /etc/runlevels/boot /etc/runlevels/default
 
-for essential_svc in dbus elogind network-manager lightdm plymouth zramswap earlyoom ufw; do
+for essential_svc in dbus elogind network-manager lightdm plymouth zramswap earlyoom ufw chrony; do
     if [ -x "/etc/init.d/${essential_svc}" ]; then
         rc-update add "${essential_svc}" default 2>/dev/null || true
         echo "  + Enabled core service: ${essential_svc}"
@@ -125,6 +129,11 @@ QUIET_FLAG=0
 
 for arg in "$@"; do
     case "$arg" in
+        --version|-v|-V)
+            echo "OpenRC (TaaOS Systemd-Free Architecture — SysVinit PID 1)"
+            echo "-SYSTEMD +SYSVINIT +OPENRC +ELOGIND +DBUS_X11"
+            exit 0
+            ;;
         --now)
             NOW_FLAG=1
             ;;
@@ -283,6 +292,7 @@ esac
 SYSTEMCTL_WRAPPER
 
 chmod +x /usr/local/bin/systemctl
+rm -f /usr/bin/systemctl /bin/systemctl 2>/dev/null || true
 ln -sf /usr/local/bin/systemctl /usr/bin/systemctl
 ln -sf /usr/local/bin/systemctl /bin/systemctl
 

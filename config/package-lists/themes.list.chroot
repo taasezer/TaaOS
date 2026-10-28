@@ -18,8 +18,9 @@ fonts-firacode
 # Sans-serif fonts for Polybar/UI (Fira Sans alternative)
 fonts-open-sans
 
-# Noto fonts for symbol/icon support in Polybar
+# Noto & FontAwesome fonts for symbol/icon support in Polybar & Quick Settings
 fonts-noto-core
+fonts-noto-color-emoji
 fonts-font-awesome
 
 # Wallpaper Manager
