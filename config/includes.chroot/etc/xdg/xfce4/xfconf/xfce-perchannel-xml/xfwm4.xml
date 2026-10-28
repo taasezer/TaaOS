@@ -13,6 +13,9 @@
     <property name="cycle_minimum" type="bool" value="true"/>
     <property name="box_resize" type="bool" value="false"/>
     <property name="box_move" type="bool" value="false"/>
-    <property name="use_compositing" type="bool" value="false"/>
+    <property name="use_compositing" type="bool" value="true"/>
+    <property name="vblank_mode" type="string" value="off"/>
+    <property name="show_frame_shadow" type="bool" value="true"/>
+    <property name="show_popup_shadow" type="bool" value="true"/>
   </property>
 </channel>

@@ -24,11 +24,8 @@ firmware-realtek
 # Atheros/Qualcomm WiFi Adapters
 firmware-atheros
 
-# Miscellaneous Non-Free Firmware (various hardware)
+# Miscellaneous Non-Free Firmware (various hardware, includes Bluetooth firmware)
 firmware-misc-nonfree
-
-# Bluetooth Firmware
-bluez-firmware
 
 # =============================================================================
 # SECTION 2: XFCE4 DESKTOP ENVIRONMENT

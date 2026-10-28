@@ -85,7 +85,6 @@ sequence:
     - displaymanager
     - networkcfg
     - hwclock
-    - services-systemd
     - packages
     - initramfscfg
     - initramfs
@@ -264,7 +263,7 @@ BOOTLOADER_CONF
 # TaaOS Finished Module
 restartNowEnabled: true
 restartNowChecked: true
-restartNowCommand: "systemctl reboot"
+restartNowCommand: "/sbin/reboot"
 notifyOnFinished: true
 FINISHED_CONF
 
@@ -366,7 +365,7 @@ script:
     - "-rm -f /usr/share/applications/taaos-installer.desktop"
     - "-rm -f /usr/share/applications/install-taaos.desktop"
     - "-rm -rf /usr/share/calamares/"
-    - "-apt-get remove --purge -y calamares calamares-settings-debian live-boot live-config live-config-systemd"
+    - "-apt-get remove --purge -y calamares calamares-settings-debian live-boot live-config live-config-sysvinit"
     - "-apt-get autoremove -y"
 SHELLPROCESS_CONF
 

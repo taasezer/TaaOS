@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # =============================================================================
-# TaaOS Quick Settings Control Center (taaos-control-center)
+# TaaOS Modern Control Center Flyout (taaos-control-center)
 # =============================================================================
-# Windows 11-style Quick Settings flyout docked at the top-right under Polybar:
-#   - Quick Toggle Tiles: Wi-Fi, Bluetooth, Window Fluidity (Picom), Color Studio
-#   - Live Audio Volume Slider + Mute Toggle + Mixer (pavucontrol)
-#   - Live Screen Brightness Slider (works on both Laptop Backlight & X11/VM via xrandr!)
+# Sleek, headerless Bento-Grid Control Center docked at the top-right:
+#   - 2x2 Pill Toggles: Wi-Fi, Bluetooth, Dark/Light Mode, Color Studio
+#   - Card-Wrapped Sliders: Audio Volume + Mixer & Screen Brightness
+#   - Bottom Pill Bar: TaaNOS AI, Radial Wheel, System Monitor, Power
 #   - CLI helpers for Polybar: --brightness-get, --brightness-up, --brightness-down
 # =============================================================================
 
@@ -43,31 +43,42 @@ def save_state(st):
     except Exception:
         pass
 
-def get_accent_hex():
+def get_theme_info():
+    accent = "#D40000"
+    mode = "dark"
     try:
         if THEME_FILE.exists():
             data = json.loads(THEME_FILE.read_text(encoding="utf-8"))
             c = data.get("accent", "#D40000").strip()
             if len(c) == 7 and c.startswith("#"):
-                return c
+                accent = c
+            m = data.get("mode", "dark").strip().lower()
+            if m in ("light", "dark"):
+                mode = m
     except Exception:
         pass
-    return "#D40000"
+    return accent, mode
 
 # -----------------------------------------------------------------------------
 # Hardware & X11 Helpers (Brightness, Volume, Wi-Fi, Bluetooth)
 # -----------------------------------------------------------------------------
+def shutil_which(cmd):
+    for p in os.environ.get("PATH", "").split(os.pathsep):
+        full = Path(p) / cmd
+        if full.exists() and os.access(full, os.X_OK):
+            return str(full)
+    return None
+
 def get_brightness():
     st = load_state()
-    return max(20, min(100, int(st.get("brightness", 100))))
+    return max(25, min(100, int(st.get("brightness", 100))))
 
 def set_brightness(percent):
-    percent = max(20, min(100, int(percent)))
+    percent = max(25, min(100, int(percent)))
     st = load_state()
     st["brightness"] = percent
     save_state(st)
 
-    # 1. Try hardware backlight if available
     try:
         bl_dirs = list(Path("/sys/class/backlight").glob("*"))
         if bl_dirs and shutil_which("brightnessctl"):
@@ -75,7 +86,6 @@ def set_brightness(percent):
     except Exception:
         pass
 
-    # 2. Apply X11 xrandr software brightness (works everywhere including VirtualBox & desktop monitors!)
     try:
         out = subprocess.check_output("xrandr --current 2>/dev/null", shell=True, text=True)
         outputs = re.findall(r"^([A-Za-z0-9_-]+)\s+connected", out, flags=re.MULTILINE)
@@ -84,13 +94,6 @@ def set_brightness(percent):
             subprocess.run(["xrandr", "--output", disp, "--brightness", val], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
-
-def shutil_which(cmd):
-    for p in os.environ.get("PATH", "").split(os.pathsep):
-        full = Path(p) / cmd
-        if full.exists() and os.access(full, os.X_OK):
-            return str(full)
-    return None
 
 def get_volume():
     try:
@@ -122,7 +125,7 @@ def get_network_summary():
         for line in out.splitlines():
             parts = line.split(":")
             if len(parts) >= 2 and parts[0] != "lo":
-                return parts[0]
+                return parts[0][:14]
     except Exception:
         pass
     return tr("Bağlı", "Connected") if is_wifi_enabled() else tr("Kapalı", "Off")
@@ -139,7 +142,7 @@ def is_bluetooth_enabled():
     return False
 
 # -----------------------------------------------------------------------------
-# GTK3 Windows 11-Style Flyout Window
+# Modern Headerless Bento Control Center Flyout
 # -----------------------------------------------------------------------------
 def run_flyout():
     import gi
@@ -147,7 +150,7 @@ def run_flyout():
     gi.require_version('Gdk', '3.0')
     from gi.repository import Gtk, Gdk
 
-    # Toggle behavior: if already running, close existing instance and exit
+    # Toggle behavior: if already open, close it
     if PID_FILE.exists():
         try:
             old_pid = int(PID_FILE.read_text().strip())
@@ -163,39 +166,89 @@ def run_flyout():
     except Exception:
         pass
 
-    accent = get_accent_hex()
+    accent, mode = get_theme_info()
+    is_light = (mode == "light")
 
-    # Apply dark modern styling for the flyout
+    bg_main = "#F6F8FA" if is_light else "#0D1117"
+    bg_card = "#FFFFFF" if is_light else "#161B22"
+    bg_hover = "#EAEEF2" if is_light else "#21262D"
+    fg_main = "#1F2328" if is_light else "#E6EDF3"
+    border_col = "#D0D7DE" if is_light else "#30363D"
+
     css_provider = Gtk.CssProvider()
     css = f"""
     window {{
-        background-color: #0D1117;
-        color: #E5E9F0;
-        border: 2px solid {accent};
-        border-radius: 10px;
+        background-color: {bg_main};
+        color: {fg_main};
+        border: 1px solid {border_col};
+        border-radius: 14px;
     }}
-    button {{
+    .slider-card {{
+        background-color: {bg_card};
+        border: 1px solid {border_col};
+        border-radius: 12px;
+        padding: 8px 12px;
+    }}
+    button.bento-tile {{
         background-image: none;
-        background-color: #161B22;
-        color: #E5E9F0;
-        border: 1px solid #30363D;
-        border-radius: 8px;
-        padding: 8px 10px;
+        background-color: {bg_card};
+        color: {fg_main};
+        border: 1px solid {border_col};
+        border-radius: 12px;
+        padding: 12px 14px;
         font-weight: bold;
     }}
-    button:hover {{
-        background-color: {accent};
-        color: #FFFFFF;
+    button.bento-tile:hover {{
+        background-color: {bg_hover};
         border-color: {accent};
     }}
     button.active-tile {{
+        background-image: none;
+        background-color: {accent};
+        color: #FFFFFF;
+        border: 1px solid {accent};
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-weight: bold;
+    }}
+    button.active-tile:hover {{
+        opacity: 0.92;
+    }}
+    button.pill-btn {{
+        background-image: none;
+        background-color: {bg_card};
+        color: {fg_main};
+        border: 1px solid {border_col};
+        border-radius: 10px;
+        padding: 7px 10px;
+        font-weight: 600;
+    }}
+    button.pill-btn:hover {{
         background-color: {accent};
         color: #FFFFFF;
         border-color: {accent};
+    }}
+    button.icon-btn {{
+        background-image: none;
+        background-color: transparent;
+        color: {fg_main};
+        border: none;
+        border-radius: 8px;
+        padding: 4px 8px;
+    }}
+    button.icon-btn:hover {{
+        background-color: {bg_hover};
+    }}
+    scale trough {{
+        background-color: {border_col};
+        border-radius: 6px;
+        min-height: 6px;
     }}
     scale highlight {{
         background-color: {accent};
         border-color: {accent};
+        border-radius: 6px;
+        min-height: 6px;
     }}
     scale slider {{
         background-color: #FFFFFF;
@@ -217,31 +270,23 @@ def run_flyout():
     win.set_keep_above(True)
     win.set_skip_taskbar_hint(True)
     win.set_skip_pager_hint(True)
-    win.set_default_size(360, 340)
+    win.set_default_size(356, 310)
 
-    # Position at top-right right below the 34px Polybar
     sw = screen.get_width() if screen else 1920
-    win.move(max(10, sw - 372), 40)
+    win.move(max(10, sw - 368), 42)
 
-    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
     vbox.set_margin_top(14)
     vbox.set_margin_bottom(14)
     vbox.set_margin_start(14)
     vbox.set_margin_end(14)
     win.add(vbox)
 
-    # Header Row
-    hbox_hdr = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-    lbl_title = Gtk.Label()
-    lbl_title.set_markup(f"<b><span size='medium' foreground='{accent}'>{tr('⚡ TaaOS Hızlı Ayarlar', '⚡ TaaOS Quick Settings')}</span></b>")
-    lbl_title.set_xalign(0)
-    btn_close = Gtk.Button(label="✕")
-    btn_close.connect("clicked", lambda _: cleanup_and_quit())
-    hbox_hdr.pack_start(lbl_title, True, True, 0)
-    hbox_hdr.pack_end(btn_close, False, False, 0)
-    vbox.pack_start(hbox_hdr, False, False, 0)
+    def cleanup_and_quit(*_):
+        PID_FILE.unlink(missing_ok=True)
+        Gtk.main_quit()
 
-    # 1. Windows 11-Style 2x2 Quick Toggle Grid
+    # 1. Bento 2x2 Quick Toggles (No "Quick Settings" text header!)
     grid = Gtk.Grid()
     grid.set_row_spacing(8)
     grid.set_column_spacing(8)
@@ -250,16 +295,15 @@ def run_flyout():
     # Tile 1: Wi-Fi / Network
     wifi_on = is_wifi_enabled()
     net_name = get_network_summary()
-    btn_wifi = Gtk.Button(label=f"📶 Wi-Fi / Ağ\n{net_name}")
-    if wifi_on:
-        btn_wifi.get_style_context().add_class("active-tile")
+    btn_wifi = Gtk.Button(label=f"📶  Wi-Fi\n{net_name}")
+    btn_wifi.get_style_context().add_class("active-tile" if wifi_on else "bento-tile")
 
     def on_wifi_click(_):
         if shutil_which("nm-connection-editor"):
             subprocess.Popen(["nm-connection-editor"], start_new_session=True)
             cleanup_and_quit()
         elif shutil_which("nmtui"):
-            subprocess.Popen(["xfce4-terminal", "--title=Network Manager", "-e", "nmtui"], start_new_session=True)
+            subprocess.Popen(["xfce4-terminal", "--title=Network", "-e", "nmtui"], start_new_session=True)
             cleanup_and_quit()
 
     btn_wifi.connect("clicked", on_wifi_click)
@@ -267,9 +311,8 @@ def run_flyout():
 
     # Tile 2: Bluetooth
     bt_on = is_bluetooth_enabled()
-    btn_bt = Gtk.Button(label=f"🦷 Bluetooth\n{tr('Açık' if bt_on else 'Ayarlar', 'On' if bt_on else 'Settings')}")
-    if bt_on:
-        btn_bt.get_style_context().add_class("active-tile")
+    btn_bt = Gtk.Button(label=f"🦷  Bluetooth\n{tr('Açık' if bt_on else 'Kapalı', 'On' if bt_on else 'Off')}")
+    btn_bt.get_style_context().add_class("active-tile" if bt_on else "bento-tile")
 
     def on_bt_click(_):
         if shutil_which("blueman-manager"):
@@ -281,39 +324,33 @@ def run_flyout():
     btn_bt.connect("clicked", on_bt_click)
     grid.attach(btn_bt, 1, 0, 1, 1)
 
-    # Tile 3: Window Fluidity / Performance Toggle
-    picom_running = subprocess.run("pgrep -x picom >/dev/null 2>&1", shell=True).returncode == 0
-    btn_fx = Gtk.Button(label=f"✨ {tr('Efekt Modu', 'FX Mode')}\n{tr('Cam/Gölge Açık', 'Glass/FX On') if picom_running else tr('Performans (0 Lag)', 'Performance (0 Lag)')}")
-    if picom_running:
-        btn_fx.get_style_context().add_class("active-tile")
+    # Tile 3: Dark / Light Mode Toggle
+    mode_label = tr("☀️  Aydınlık Mod\nAçık", "☀️  Light Mode\nActive") if is_light else tr("🌙  Karanlık Mod\nAçık", "🌙  Dark Mode\nActive")
+    btn_mode = Gtk.Button(label=mode_label)
+    btn_mode.get_style_context().add_class("active-tile" if not is_light else "bento-tile")
 
-    def on_fx_click(btn):
-        running = subprocess.run("pgrep -x picom >/dev/null 2>&1", shell=True).returncode == 0
-        if running:
-            subprocess.run(["/usr/local/bin/taaos-appearance", "performance"])
-            btn.set_label(f"✨ {tr('Efekt Modu', 'FX Mode')}\n{tr('Performans (0 Lag)', 'Performance (0 Lag)')}")
-            btn.get_style_context().remove_class("active-tile")
-        else:
-            subprocess.run(["/usr/local/bin/taaos-appearance", "balanced"])
-            btn.set_label(f"✨ {tr('Efekt Modu', 'FX Mode')}\n{tr('Cam/Gölge Açık', 'Glass/FX On')}")
-            btn.get_style_context().add_class("active-tile")
-
-    btn_fx.connect("clicked", on_fx_click)
-    grid.attach(btn_fx, 0, 1, 1, 1)
-
-    # Tile 4: Color Palette & Appearance Studio
-    btn_theme = Gtk.Button(label=f"🎨 {tr('Renk Paleti', 'Color Studio')}\n{tr('Özelleştir', 'Customize')}")
-    def on_theme_click(_):
-        subprocess.Popen(["/usr/local/bin/taaos-appearance"], start_new_session=True)
+    def on_mode_click(_):
+        new_mode = "dark" if is_light else "light"
+        subprocess.Popen(["/usr/local/bin/taaos-appearance", new_mode], start_new_session=True)
         cleanup_and_quit()
-    btn_theme.connect("clicked", on_theme_click)
+
+    btn_mode.connect("clicked", on_mode_click)
+    grid.attach(btn_mode, 0, 1, 1, 1)
+
+    # Tile 4: Color Studio & Appearance
+    btn_theme = Gtk.Button(label=f"🎨  {tr('Görünüm', 'Studio')}\n{tr('Renk & Efekt', 'Color & FX')}")
+    btn_theme.get_style_context().add_class("bento-tile")
+    btn_theme.connect("clicked", lambda _: (subprocess.Popen(["/usr/local/bin/taaos-appearance"], start_new_session=True), cleanup_and_quit()))
     grid.attach(btn_theme, 1, 1, 1, 1)
 
     vbox.pack_start(grid, False, False, 0)
 
-    # 2. Audio Volume Slider Row
-    hbox_vol = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    # 2. Card-Wrapped Audio Slider
+    card_vol = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    card_vol.get_style_context().add_class("slider-card")
+
     btn_mute = Gtk.Button(label="🔊")
+    btn_mute.get_style_context().add_class("icon-btn")
     btn_mute.connect("clicked", lambda _: toggle_mute())
 
     adj_vol = Gtk.Adjustment(value=get_volume(), lower=0, upper=100, step_increment=5, page_increment=10)
@@ -324,22 +361,22 @@ def run_flyout():
     scale_vol.connect("value-changed", lambda s: set_volume(s.get_value()))
 
     btn_mixer = Gtk.Button(label="🎚")
-    btn_mixer.set_tooltip_text(tr("Ses Karıştırıcısı (pavucontrol)", "Audio Mixer (pavucontrol)"))
-    def on_mixer(_):
-        if shutil_which("pavucontrol"):
-            subprocess.Popen(["pavucontrol"], start_new_session=True)
-            cleanup_and_quit()
-    btn_mixer.connect("clicked", on_mixer)
+    btn_mixer.get_style_context().add_class("icon-btn")
+    btn_mixer.set_tooltip_text(tr("Ses Karıştırıcısı", "Audio Mixer"))
+    btn_mixer.connect("clicked", lambda _: (subprocess.Popen(["pavucontrol"], start_new_session=True), cleanup_and_quit()) if shutil_which("pavucontrol") else None)
 
-    hbox_vol.pack_start(btn_mute, False, False, 0)
-    hbox_vol.pack_start(scale_vol, True, True, 0)
-    hbox_vol.pack_start(btn_mixer, False, False, 0)
-    vbox.pack_start(hbox_vol, False, False, 0)
+    card_vol.pack_start(btn_mute, False, False, 0)
+    card_vol.pack_start(scale_vol, True, True, 0)
+    card_vol.pack_start(btn_mixer, False, False, 0)
+    vbox.pack_start(card_vol, False, False, 0)
 
-    # 3. Screen Brightness Slider Row
-    hbox_bri = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-    lbl_bri = Gtk.Button(label="☀️")
-    lbl_bri.connect("clicked", lambda _: adj_bri.set_value(100))
+    # 3. Card-Wrapped Brightness Slider
+    card_bri = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    card_bri.get_style_context().add_class("slider-card")
+
+    btn_bri = Gtk.Button(label="☀️")
+    btn_bri.get_style_context().add_class("icon-btn")
+    btn_bri.connect("clicked", lambda _: adj_bri.set_value(100))
 
     adj_bri = Gtk.Adjustment(value=get_brightness(), lower=25, upper=100, step_increment=5, page_increment=10)
     scale_bri = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=adj_bri)
@@ -348,27 +385,34 @@ def run_flyout():
     scale_bri.set_hexpand(True)
     scale_bri.connect("value-changed", lambda s: set_brightness(s.get_value()))
 
-    hbox_bri.pack_start(lbl_bri, False, False, 0)
-    hbox_bri.pack_start(scale_bri, True, True, 0)
-    vbox.pack_start(hbox_bri, False, False, 0)
+    card_bri.pack_start(btn_bri, False, False, 0)
+    card_bri.pack_start(scale_bri, True, True, 0)
+    vbox.pack_start(card_bri, False, False, 0)
 
-    # 4. Bottom Action Shortcuts (TaaNOS AI, Radial Wheel Config, System Monitor)
-    hbox_bot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-    btn_ai = Gtk.Button(label="🤖 TaaNOS AI")
+    # 4. Bottom Action Pill Bar
+    hbox_bot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+
+    btn_ai = Gtk.Button(label="🤖 TaaNOS")
+    btn_ai.get_style_context().add_class("pill-btn")
     btn_ai.connect("clicked", lambda _: (subprocess.Popen(["xfce4-terminal", "--title=TaaNOS AI", "-e", "taanos"], start_new_session=True), cleanup_and_quit()))
+
     btn_wheel = Gtk.Button(label=tr("🎡 Çark", "🎡 Wheel"))
+    btn_wheel.get_style_context().add_class("pill-btn")
     btn_wheel.connect("clicked", lambda _: (subprocess.Popen(["/usr/local/bin/taaos-wheel", "--config"], start_new_session=True), cleanup_and_quit()))
+
     btn_mon = Gtk.Button(label="📊 btop")
+    btn_mon.get_style_context().add_class("pill-btn")
     btn_mon.connect("clicked", lambda _: (subprocess.Popen(["xfce4-terminal", "--title=System Monitor", "-e", "btop"], start_new_session=True), cleanup_and_quit()))
+
+    btn_pwr = Gtk.Button(label="⏻")
+    btn_pwr.get_style_context().add_class("pill-btn")
+    btn_pwr.connect("clicked", lambda _: (subprocess.Popen(["xfce4-session-logout"], start_new_session=True), cleanup_and_quit()))
 
     hbox_bot.pack_start(btn_ai, True, True, 0)
     hbox_bot.pack_start(btn_wheel, True, True, 0)
     hbox_bot.pack_start(btn_mon, True, True, 0)
+    hbox_bot.pack_end(btn_pwr, False, False, 0)
     vbox.pack_end(hbox_bot, False, False, 0)
-
-    def cleanup_and_quit(*_):
-        PID_FILE.unlink(missing_ok=True)
-        Gtk.main_quit()
 
     win.connect("destroy", cleanup_and_quit)
     win.connect("key-press-event", lambda w, e: cleanup_and_quit() if e.keyval == Gdk.KEY_Escape else False)

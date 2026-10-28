@@ -34,39 +34,46 @@ ImageDir=/usr/share/plymouth/themes/taaos
 ScriptFile=/usr/share/plymouth/themes/taaos/taaos.script
 EOF
 
-# Create Plymouth script — Clean minimal logo + Rosso Corsa progress bar (zero text clutter)
+# Create Plymouth script — Dynamic Auto-Centering Logo + Rosso Corsa progress bar
 cat > /usr/share/plymouth/themes/taaos/taaos.script << 'EOF'
 # =============================================================================
-# TaaOS Plymouth Theme Script — Minimalist Boot Splash
+# TaaOS Plymouth Theme Script — Dynamic Auto-Centering Boot Splash
 # =============================================================================
 
-# Pure dark obsidian background
 Window.SetBackgroundTopColor(0.04, 0.05, 0.07);
 Window.SetBackgroundBottomColor(0.03, 0.04, 0.05);
 
-# ─── Logo (Centered & Scaled to 200x200) ─────────────────────────────────
 raw_logo = Image("logo.png");
 logo_image = raw_logo.Scale(200, 200);
 logo_sprite = Sprite(logo_image);
-logo_sprite.SetX(Window.GetWidth() / 2 - logo_image.GetWidth() / 2);
-logo_sprite.SetY(Window.GetHeight() / 2 - logo_image.GetHeight() / 2 - 20);
 
-# ─── Progress Bar ────────────────────────────────────────────────────────
 progress_box.image = Image("progress_box.png");
 progress_box.sprite = Sprite(progress_box.image);
-progress_box.x = Window.GetWidth() / 2 - progress_box.image.GetWidth() / 2;
-progress_box.y = Window.GetHeight() / 2 + 110;
-progress_box.sprite.SetPosition(progress_box.x, progress_box.y, 0);
 
 progress_bar.original_image = Image("progress_bar.png");
 progress_bar.sprite = Sprite();
-progress_bar.x = progress_box.x + 2;
-progress_bar.y = progress_box.y + 2;
-progress_bar.sprite.SetPosition(progress_bar.x, progress_bar.y, 1);
+
+fun center_ui() {
+    sw = Window.GetWidth();
+    sh = Window.GetHeight();
+    logo_sprite.SetPosition(sw / 2 - logo_image.GetWidth() / 2, sh / 2 - logo_image.GetHeight() / 2 - 20, 1);
+    progress_box.x = sw / 2 - progress_box.image.GetWidth() / 2;
+    progress_box.y = sh / 2 + 110;
+    progress_box.sprite.SetPosition(progress_box.x, progress_box.y, 0);
+    progress_bar.x = progress_box.x + 2;
+    progress_bar.y = progress_box.y + 2;
+    progress_bar.sprite.SetPosition(progress_bar.x, progress_bar.y, 2);
+}
+
+center_ui();
+Plymouth.SetRefreshFunction(center_ui);
 
 fun progress_callback(duration, progress) {
-    if (progress_bar.image.GetWidth() != Math.Int(progress_bar.original_image.GetWidth() * progress)) {
-        progress_bar.image = progress_bar.original_image.Scale(progress_bar.original_image.GetWidth() * progress, progress_bar.original_image.GetHeight());
+    center_ui();
+    w = Math.Int(progress_bar.original_image.GetWidth() * progress);
+    if (w < 1) w = 1;
+    if (progress_bar.image.GetWidth() != w) {
+        progress_bar.image = progress_bar.original_image.Scale(w, progress_bar.original_image.GetHeight());
         progress_bar.sprite.SetImage(progress_bar.image);
     }
 }
@@ -112,12 +119,12 @@ echo "[BRANDING] Installing modern dark theme (Orchis-Red-Dark / Orchis-Dark)...
 
 cd /tmp
 
-# 1. Orchis Dark GTK & Window Theme (Rosso Corsa Red accent)
+# 1. Orchis Dark & Light GTK & Window Theme (Rosso Corsa Red accent)
 if [ ! -d "/usr/share/themes/Orchis-Red-Dark" ] && [ ! -d "/usr/share/themes/Orchis-Dark" ]; then
     git clone https://github.com/vinceliuice/Orchis-theme.git --depth=1 || true
     if [ -d "Orchis-theme" ]; then
         cd Orchis-theme
-        ./install.sh -c dark -t red -d /usr/share/themes || ./install.sh -c dark -d /usr/share/themes || echo "Orchis GTK install failed"
+        ./install.sh -c dark -c light -t red -d /usr/share/themes || ./install.sh -c dark -c light -d /usr/share/themes || echo "Orchis GTK install failed"
         cd ..
         rm -rf Orchis-theme
     fi
@@ -151,7 +158,7 @@ fi
 
 cd /
 
-# XFCE Settings - Window Manager (xfwm4) - Fluid Alt-Tab Preview and Dark Theme
+# XFCE Settings - Window Manager (xfwm4) - Native double-buffered compositing (zero window trails, 60 FPS)
 cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfwm4" version="1.0">
@@ -168,7 +175,10 @@ cat > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << EOF
     <property name="cycle_minimum" type="bool" value="true"/>
     <property name="box_resize" type="bool" value="false"/>
     <property name="box_move" type="bool" value="false"/>
-    <property name="use_compositing" type="bool" value="false"/>
+    <property name="use_compositing" type="bool" value="true"/>
+    <property name="vblank_mode" type="string" value="off"/>
+    <property name="show_frame_shadow" type="bool" value="true"/>
+    <property name="show_popup_shadow" type="bool" value="true"/>
   </property>
 </channel>
 EOF
@@ -457,7 +467,7 @@ interval = 1
 date = %H:%M
 date-alt = %Y-%m-%d %H:%M:%S
 label = %date%
-label-foreground = #ffffff
+label-foreground = ${colors.foreground}
 
 [module/powermenu]
 type = custom/text
@@ -788,16 +798,17 @@ element-text {
 }
 EOF
 
-# In VirtualBox, disable software picom by default so X11 uses hardware 2D BitBlt (zero window lag!)
+# XFWM4's built-in double-buffered compositor is active by default (zero trails, 60 FPS).
+# Picom can be enabled anytime via TaaOS Appearance Studio (taaos-appearance).
 cat > /etc/skel/.config/autostart/picom.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
-Exec=bash -c "if lspci 2>/dev/null | grep -qi 'virtualbox\|innotek\|vbox'; then exit 0; else picom --config $HOME/.config/picom/picom.conf -b; fi"
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
+Exec=true
+Hidden=true
+NoDisplay=true
+X-GNOME-Autostart-enabled=false
 Name=Picom
-Comment=TaaOS Compositor (Zero-Lag VM Auto-Bypass)
+Comment=TaaOS Compositor (Managed via taaos-appearance)
 EOF
 
 # =============================================================================

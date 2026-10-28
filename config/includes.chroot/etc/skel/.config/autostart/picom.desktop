@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Exec=bash -c "if lspci 2>/dev/null | grep -qi 'virtualbox\|innotek\|vbox'; then exit 0; else picom --config $HOME/.config/picom/picom.conf -b; fi"
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
+Exec=true
+Hidden=true
+NoDisplay=true
+X-GNOME-Autostart-enabled=false
 Name=Picom
-Comment=TaaOS Compositor (Zero-Lag VM Auto-Bypass)
+Comment=TaaOS Compositor (Managed via taaos-appearance)

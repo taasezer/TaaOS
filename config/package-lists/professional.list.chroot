@@ -21,7 +21,6 @@ python3-tk
 smartmontools
 
 # Missing DevOps and System Utilities (from README)
-cockpit
 default-jre
 wget
 curl

@@ -1,0 +1,300 @@
+#!/bin/bash
+# =============================================================================
+# TaaOS Systemd-Free Architecture Hook (SysVinit + OpenRC + elogind)
+# =============================================================================
+# Replaces systemd PID 1 and service management with:
+#   - sysvinit-core (ultra-lightweight deterministic PID 1)
+#   - openrc (parallel dependency-based service manager)
+#   - elogind + libpam-elogind (standalone desktop seat/session/polkit manager)
+#   - dbus-x11 (X11 session bus for GTK3/XFCE4/dconf without systemd user bus)
+#   - live-config-sysvinit (live boot hardware/user autoconfiguration)
+#   - Smart systemctl -> OpenRC compatibility wrapper (/usr/local/bin/systemctl)
+# Location: config/hooks/live/98-systemd-free.hook.chroot
+# =============================================================================
+
+set -e
+
+echo "=================================================="
+echo "  [INIT] Transitioning TaaOS to Systemd-Free"
+echo "         (SysVinit PID 1 + OpenRC + elogind)"
+echo "=================================================="
+
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update || true
+
+# 1. Atomic replacement of systemd with SysVinit + OpenRC + elogind
+if dpkg -l | grep -qE "^ii\s+(lightdm|task-xfce-desktop|live-boot)"; then
+    echo "[INIT] Installing Desktop Systemd-Free stack (sysvinit-core + openrc + elogind + dbus-x11)..."
+    apt-get install -y --allow-remove-essential \
+        sysvinit-core \
+        openrc \
+        orphan-sysvinit-scripts \
+        elogind \
+        libpam-elogind \
+        dbus-x11 \
+        systemd-standalone-sysusers \
+        systemd-standalone-tmpfiles \
+        live-config-sysvinit \
+        systemd- \
+        systemd-sysv- \
+        libpam-systemd- \
+        dbus-user-session- \
+        live-config-systemd- \
+        cockpit- \
+        cockpit-ws-
+else
+    echo "[INIT] Installing Minimal CLI Systemd-Free stack (sysvinit-core + openrc)..."
+    apt-get install -y --allow-remove-essential \
+        sysvinit-core \
+        openrc \
+        orphan-sysvinit-scripts \
+        systemd-standalone-sysusers \
+        systemd-standalone-tmpfiles \
+        systemd- \
+        systemd-sysv- \
+        libpam-systemd- \
+        dbus-user-session-
+fi
+
+# 2. Pin systemd-sysv so future apt operations never overwrite /sbin/init
+mkdir -p /etc/apt/preferences.d
+cat > /etc/apt/preferences.d/99-systemd-free << 'EOF'
+Package: systemd-sysv
+Pin: release *
+Pin-Priority: -1
+
+Package: libpam-systemd
+Pin: release *
+Pin-Priority: -1
+EOF
+
+# 3. Configure OpenRC for fast parallel service execution
+if [ -f /etc/rc.conf ]; then
+    sed -i 's/^#*\s*rc_parallel=.*/rc_parallel="YES"/' /etc/rc.conf
+    if ! grep -q '^rc_parallel=' /etc/rc.conf; then
+        echo 'rc_parallel="YES"' >> /etc/rc.conf
+    fi
+    sed -i 's/^#*\s*rc_logger=.*/rc_logger="YES"/' /etc/rc.conf
+    if ! grep -q '^rc_logger=' /etc/rc.conf; then
+        echo 'rc_logger="YES"' >> /etc/rc.conf
+    fi
+fi
+
+# 4. Configure OpenRC Runlevels (enable essential desktop services, disable heavy daemons at boot)
+echo "[INIT] Configuring OpenRC runlevels for sub-5-second desktop boot..."
+mkdir -p /etc/runlevels/sysinit /etc/runlevels/boot /etc/runlevels/default
+
+for essential_svc in dbus elogind network-manager lightdm plymouth zramswap earlyoom ufw; do
+    if [ -x "/etc/init.d/${essential_svc}" ]; then
+        rc-update add "${essential_svc}" default 2>/dev/null || true
+        echo "  + Enabled core service: ${essential_svc}"
+    fi
+done
+
+for heavy_svc in \
+    docker containerd libvirtd libvirt-guests virtlogd \
+    cups cups-browsed modemmanager ModemManager preload \
+    lvm2 lvm2-lvmpolld mdadm mdadm-waitidle smartmontools smartd \
+    rasdaemon fail2ban clamav-daemon clamav-freshclam rsync exim4 avahi-daemon bluetooth; do
+    rc-update del "${heavy_svc}" default 2>/dev/null || true
+    rc-update del "${heavy_svc}" boot 2>/dev/null || true
+    rc-update del "${heavy_svc}" sysinit 2>/dev/null || true
+    update-rc.d -f "${heavy_svc}" remove 2>/dev/null || true
+done
+echo "[INIT] Heavy background daemons (docker, libvirtd, cups, etc.) set to on-demand only."
+
+# 5. Install Smart OpenRC / SysVinit Compatibility Wrapper for `systemctl` and `loginctl`
+echo "[INIT] Installing OpenRC/SysVinit compatibility wrapper (/usr/local/bin/systemctl)..."
+mkdir -p /usr/local/bin
+
+cat > /usr/local/bin/systemctl << 'SYSTEMCTL_WRAPPER'
+#!/bin/bash
+# =============================================================================
+# TaaOS Systemd-Free Compatibility Bridge (systemctl -> OpenRC / SysVinit)
+# =============================================================================
+# Translates standard systemctl commands into OpenRC (rc-service / rc-update)
+# and SysVinit operations so existing scripts, installers, and user workflows
+# operate transparently on TaaOS's systemd-free architecture.
+# =============================================================================
+
+ACTION=""
+TARGETS=()
+NOW_FLAG=0
+QUIET_FLAG=0
+
+for arg in "$@"; do
+    case "$arg" in
+        --now)
+            NOW_FLAG=1
+            ;;
+        -q|--quiet)
+            QUIET_FLAG=1
+            ;;
+        --system|--user|--no-block|--no-pager|--full|-l|-a|--all|--force|-f)
+            # Ignore systemd-specific flags gracefully
+            ;;
+        -*)
+            ;;
+        start|stop|restart|reload|try-restart| reload-or-restart|status|enable|disable|mask|unmask|is-active|is-enabled|daemon-reload| daemon-reexec|list-units|list-unit-files|reboot|poweroff|halt|suspend)
+            if [ -z "$ACTION" ]; then
+                ACTION="$arg"
+            else
+                TARGETS+=("$arg")
+            fi
+            ;;
+        *)
+            if [ -z "$ACTION" ]; then
+                ACTION="$arg"
+            else
+                TARGETS+=("$arg")
+            fi
+            ;;
+    esac
+done
+
+normalize_svc() {
+    local s="$1"
+    s="${s%.service}"
+    s="${s%.socket}"
+    s="${s%.timer}"
+    s="${s%.target}"
+    case "$s" in
+        NetworkManager) echo "network-manager" ;;
+        sshd) echo "ssh" ;;
+        ModemManager) echo "modemmanager" ;;
+        *) echo "$s" ;;
+    esac
+}
+
+run_quietable() {
+    if [ "$QUIET_FLAG" -eq 1 ]; then
+        "$@" >/dev/null 2>&1
+    else
+        "$@"
+    fi
+}
+
+case "$ACTION" in
+    daemon-reload|daemon-reexec)
+        exit 0
+        ;;
+    reboot)
+        exec /sbin/reboot
+        ;;
+    poweroff|halt)
+        exec /sbin/poweroff
+        ;;
+    suspend)
+        if command -v loginctl >/dev/null 2>&1; then
+            exec loginctl suspend
+        elif [ -w /sys/power/state ]; then
+            echo mem > /sys/power/state
+            exit 0
+        fi
+        exit 1
+        ;;
+    list-units|list-unit-files|"")
+        exec rc-status -a
+        ;;
+    start|stop|restart|reload|try-restart|reload-or-restart)
+        rc_act="$ACTION"
+        if [ "$rc_act" = "try-restart" ] || [ "$rc_act" = "reload-or-restart" ]; then
+            rc_act="restart"
+        fi
+        ret=0
+        for raw in "${TARGETS[@]}"; do
+            svc=$(normalize_svc "$raw")
+            if [ -x "/etc/init.d/$svc" ]; then
+                run_quietable rc-service "$svc" "$rc_act" || run_quietable "/etc/init.d/$svc" "$rc_act" || ret=$?
+            fi
+        done
+        exit $ret
+        ;;
+    status)
+        if [ "${#TARGETS[@]}" -eq 0 ]; then
+            exec rc-status
+        fi
+        ret=0
+        for raw in "${TARGETS[@]}"; do
+            svc=$(normalize_svc "$raw")
+            if [ -x "/etc/init.d/$svc" ]; then
+                rc-service "$svc" status || "/etc/init.d/$svc" status || ret=$?
+            else
+                echo "Unit $svc could not be found."
+                ret=4
+            fi
+        done
+        exit $ret
+        ;;
+    enable|unmask)
+        for raw in "${TARGETS[@]}"; do
+            svc=$(normalize_svc "$raw")
+            if [ -x "/etc/init.d/$svc" ]; then
+                run_quietable rc-update add "$svc" default 2>/dev/null || true
+                if [ "$NOW_FLAG" -eq 1 ]; then
+                    run_quietable rc-service "$svc" start 2>/dev/null || true
+                fi
+            fi
+        done
+        exit 0
+        ;;
+    disable|mask)
+        for raw in "${TARGETS[@]}"; do
+            svc=$(normalize_svc "$raw")
+            run_quietable rc-update del "$svc" default 2>/dev/null || true
+            run_quietable rc-update del "$svc" boot 2>/dev/null || true
+            if [ "$NOW_FLAG" -eq 1 ] && [ -x "/etc/init.d/$svc" ]; then
+                run_quietable rc-service "$svc" stop 2>/dev/null || true
+            fi
+        done
+        exit 0
+        ;;
+    is-active)
+        for raw in "${TARGETS[@]}"; do
+            svc=$(normalize_svc "$raw")
+            if [ -x "/etc/init.d/$svc" ] && rc-service "$svc" status >/dev/null 2>&1; then
+                [ "$QUIET_FLAG" -eq 0 ] && echo "active"
+                exit 0
+            else
+                [ "$QUIET_FLAG" -eq 0 ] && echo "inactive"
+                exit 3
+            fi
+        done
+        exit 3
+        ;;
+    is-enabled)
+        for raw in "${TARGETS[@]}"; do
+            svc=$(normalize_svc "$raw")
+            if [ -e "/etc/runlevels/default/$svc" ] || [ -e "/etc/runlevels/boot/$svc" ] || [ -e "/etc/runlevels/sysinit/$svc" ]; then
+                [ "$QUIET_FLAG" -eq 0 ] && echo "enabled"
+                exit 0
+            else
+                [ "$QUIET_FLAG" -eq 0 ] && echo "disabled"
+                exit 1
+            fi
+        done
+        exit 1
+        ;;
+    *)
+        exit 0
+        ;;
+esac
+SYSTEMCTL_WRAPPER
+
+chmod +x /usr/local/bin/systemctl
+ln -sf /usr/local/bin/systemctl /usr/bin/systemctl
+ln -sf /usr/local/bin/systemctl /bin/systemctl
+
+# 6. Refresh initramfs so Plymouth centering and SysVinit live-config take effect at boot
+if command -v update-initramfs >/dev/null 2>&1; then
+    echo "[INIT] Updating initramfs for SysVinit + OpenRC + Plymouth..."
+    update-initramfs -u -k all 2>/dev/null || true
+fi
+
+echo "=================================================="
+echo "  [INIT] Systemd-Free Transition Complete!"
+echo "         PID 1:      SysVinit (/sbin/init)"
+echo "         Services:   OpenRC (rc_parallel=YES)"
+echo "         Seat/Login: elogind + dbus-x11"
+echo "=================================================="

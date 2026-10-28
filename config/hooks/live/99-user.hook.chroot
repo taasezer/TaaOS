@@ -51,15 +51,13 @@ create_user() {
 }
 
 # =============================================================================
-# SECTION 2: ENABLE ECC MONITORING (RASDAEMON)
+# SECTION 2: ECC MONITORING (ON-DEMAND)
 # =============================================================================
 enable_ecc_monitoring() {
-    log_info "Enabling ECC memory monitoring (rasdaemon)..."
-
-    # Enable rasdaemon service
-    systemctl enable rasdaemon || log_warning "Could not enable rasdaemon (may not be running in chroot)"
-
-    log_success "rasdaemon service enabled"
+    log_info "Configuring ECC memory monitoring (rasdaemon) as on-demand service..."
+    # Keep rasdaemon disabled at boot for fast desktop startup; enable manually on ECC servers
+    rc-update del rasdaemon default 2>/dev/null || systemctl disable rasdaemon 2>/dev/null || true
+    log_success "rasdaemon configured (on-demand)"
 }
 
 # =============================================================================

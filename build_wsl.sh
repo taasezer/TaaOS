@@ -131,7 +131,7 @@ echo "      ✓ wsl.list.chroot"
 
 # Copy hooks (WSL Minimal: Only CLI, OS config, polish and user environment)
 echo "    Copying hooks (WSL essential hooks only)..."
-WSL_HOOKS=("04-cli.hook.chroot" "10-os-config.hook.chroot" "13-professional-polish.hook.chroot" "99-user.hook.chroot")
+WSL_HOOKS=("04-cli.hook.chroot" "10-os-config.hook.chroot" "13-professional-polish.hook.chroot" "98-systemd-free.hook.chroot" "99-user.hook.chroot")
 for h in "${WSL_HOOKS[@]}"; do
     if [ -f "./config/hooks/live/$h" ]; then
         docker cp "./config/hooks/live/$h" "$CONTAINER_NAME":/build/config/hooks/live/
@@ -262,11 +262,11 @@ docker exec -w /build "$CONTAINER_NAME" bash -c '
     
     echo "=== PHASE D: Injecting WSL Config & First-Boot Setup ==="
     if [ -d chroot ]; then
-        # 1. Base wsl.conf (Systemd enabled, default is root for the first boot)
+        # 1. Base wsl.conf (Systemd-Free enabled, default is root for the first boot)
         mkdir -p chroot/etc
         cat > chroot/etc/wsl.conf << \WSLCONF
 [boot]
-systemd=true
+systemd=false
 
 [automount]
 enabled=true
@@ -315,7 +315,7 @@ cat > /etc/wsl.conf << EOF
 default=$NEW_USER
 
 [boot]
-systemd=true
+systemd=false
 
 [automount]
 enabled=true

@@ -1,0 +1,42 @@
+# =============================================================================
+# TaaOS Plymouth Theme Script — Dynamic Auto-Centering Boot Splash
+# =============================================================================
+
+Window.SetBackgroundTopColor(0.04, 0.05, 0.07);
+Window.SetBackgroundBottomColor(0.03, 0.04, 0.05);
+
+raw_logo = Image("logo.png");
+logo_image = raw_logo.Scale(200, 200);
+logo_sprite = Sprite(logo_image);
+
+progress_box.image = Image("progress_box.png");
+progress_box.sprite = Sprite(progress_box.image);
+
+progress_bar.original_image = Image("progress_bar.png");
+progress_bar.sprite = Sprite();
+
+fun center_ui() {
+    sw = Window.GetWidth();
+    sh = Window.GetHeight();
+    logo_sprite.SetPosition(sw / 2 - logo_image.GetWidth() / 2, sh / 2 - logo_image.GetHeight() / 2 - 20, 1);
+    progress_box.x = sw / 2 - progress_box.image.GetWidth() / 2;
+    progress_box.y = sh / 2 + 110;
+    progress_box.sprite.SetPosition(progress_box.x, progress_box.y, 0);
+    progress_bar.x = progress_box.x + 2;
+    progress_bar.y = progress_box.y + 2;
+    progress_bar.sprite.SetPosition(progress_bar.x, progress_bar.y, 2);
+}
+
+center_ui();
+Plymouth.SetRefreshFunction(center_ui);
+
+fun progress_callback(duration, progress) {
+    center_ui();
+    w = Math.Int(progress_bar.original_image.GetWidth() * progress);
+    if (w < 1) w = 1;
+    if (progress_bar.image.GetWidth() != w) {
+        progress_bar.image = progress_bar.original_image.Scale(w, progress_bar.original_image.GetHeight());
+        progress_bar.sprite.SetImage(progress_bar.image);
+    }
+}
+Plymouth.SetBootProgressFunction(progress_callback);

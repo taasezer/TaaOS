@@ -2,14 +2,12 @@
 # =============================================================================
 # TaaOS Appearance & Color Palette Studio (taaos-appearance)
 # =============================================================================
-# Provides real-time customization of TaaOS:
-#   1. Color Palette & Custom Accent Picker (updates Polybar, Rofi, Wheel,
-#      Terminal, and GTK3 CSS dynamically!)
-#   2. Compositor & Window Fluidity Modes (Zero-Lag Performance / Balanced TaaOS /
-#      Ultra GPU Glass)
-#   3. Polybar Layout Style (Full-Width Bar vs Floating Island Bar)
-#   4. Terminal Transparency Level (100% Opaque / 95% Translucent / 85% Glass)
-#   5. Radial Wheel (Çark) Customization Shortcut
+# Real-time customization of TaaOS:
+#   1. Dark Mode (🌙 Karanlık) & Light Mode (☀️ Aydınlık) Toggle
+#   2. Color Palette & Custom Accent Picker (Polybar, Rofi, Wheel, Terminal, GTK)
+#   3. Compositor & Window Fluidity Modes (XFWM4 Native Zero-Trail / Picom Glass)
+#   4. Polybar Layout Style (Full-Width Bar vs Floating Island Bar)
+#   5. Terminal Transparency Level (100% Opaque / 95% Translucent / 85% Glass)
 # =============================================================================
 
 import os
@@ -32,6 +30,7 @@ POLYBAR_CONF = HOME / ".config" / "polybar" / "config.ini"
 ROFI_CONF = HOME / ".config" / "rofi" / "config.rasi"
 TERMINAL_RC = HOME / ".config" / "xfce4" / "terminal" / "terminalrc"
 GTK_CSS = HOME / ".config" / "gtk-3.0" / "gtk.css"
+GTK_SETTINGS = HOME / ".config" / "gtk-3.0" / "settings.ini"
 AUTOSTART_PICOM = HOME / ".config" / "autostart" / "picom.desktop"
 
 COLOR_PALETTES = {
@@ -112,7 +111,7 @@ def load_theme_state():
             return json.loads(THEME_JSON.read_text(encoding="utf-8"))
     except Exception:
         pass
-    return {"accent": "#D40000", "picom": "performance", "polybar": "full"}
+    return {"accent": "#D40000", "mode": "dark", "picom": "performance", "polybar": "full"}
 
 def save_theme_state(data):
     try:
@@ -120,6 +119,92 @@ def save_theme_state(data):
         THEME_JSON.write_text(json.dumps(data, indent=2), encoding="utf-8")
     except Exception:
         pass
+
+def pick_installed_gtk_theme(mode):
+    if mode == "light":
+        candidates = ["Orchis-Red-Light", "Orchis-Light", "Arc", "Greybird", "Adwaita"]
+    else:
+        candidates = ["Orchis-Red-Dark", "Orchis-Dark", "Arc-Dark", "Adwaita-dark"]
+    for c in candidates:
+        if Path(f"/usr/share/themes/{c}").exists():
+            return c
+    return "Adwaita" if mode == "light" else "Adwaita-dark"
+
+def apply_theme_mode(mode):
+    mode = "light" if mode == "light" else "dark"
+    state = load_theme_state()
+    state["mode"] = mode
+    save_theme_state(state)
+
+    gtk_theme = pick_installed_gtk_theme(mode)
+    icon_theme = "Papirus-Light" if (mode == "light" and Path("/usr/share/icons/Papirus-Light").exists()) else "Papirus-Dark"
+    prefer_dark = "0" if mode == "light" else "1"
+
+    # 1. Update XFCE xsettings & xfwm4 live
+    subprocess.run(f"xfconf-query -c xsettings -p /Net/ThemeName -s '{gtk_theme}' 2>/dev/null || true", shell=True)
+    subprocess.run(f"xfconf-query -c xfwm4 -p /general/theme -s '{gtk_theme}' 2>/dev/null || true", shell=True)
+    subprocess.run(f"xfconf-query -c xsettings -p /Net/IconThemeName -s '{icon_theme}' 2>/dev/null || true", shell=True)
+
+    # 2. Update GTK3 settings.ini
+    try:
+        GTK_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+        GTK_SETTINGS.write_text(f"""[Settings]
+gtk-theme-name={gtk_theme}
+gtk-icon-theme-name={icon_theme}
+gtk-font-name=Fira Sans 10
+gtk-cursor-theme-name=Adwaita
+gtk-application-prefer-dark-theme={prefer_dark}
+""", encoding="utf-8")
+    except Exception:
+        pass
+
+    # 3. Update Polybar colors for Light vs Dark mode
+    if POLYBAR_CONF.exists():
+        text = POLYBAR_CONF.read_text(encoding="utf-8")
+        if mode == "light":
+            text = re.sub(r"(^\s*background\s*=\s*).*", r"\g<1>#f2f6f8fa", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*background-alt\s*=\s*).*", r"\g<1>#dce1e4e8", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*foreground\s*=\s*).*", r"\g<1>#1f2328", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*secondary\s*=\s*).*", r"\g<1>#57606a", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*disabled\s*=\s*).*", r"\g<1>#8c959f", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*label-active-foreground\s*=\s*).*", r"\g<1>#1f2328", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*label-occupied-foreground\s*=\s*).*", r"\g<1>#24292f", text, flags=re.MULTILINE)
+        else:
+            text = re.sub(r"(^\s*background\s*=\s*).*", r"\g<1>#ee0d1117", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*background-alt\s*=\s*).*", r"\g<1>#2821262d", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*foreground\s*=\s*).*", r"\g<1>#e6edf3", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*secondary\s*=\s*).*", r"\g<1>#8b949e", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*disabled\s*=\s*).*", r"\g<1>#484f58", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*label-active-foreground\s*=\s*).*", r"\g<1>#ffffff", text, flags=re.MULTILINE)
+            text = re.sub(r"(^\s*label-occupied-foreground\s*=\s*).*", r"\g<1>#c9d1d9", text, flags=re.MULTILINE)
+        POLYBAR_CONF.write_text(text, encoding="utf-8")
+        subprocess.Popen("bash ~/.config/polybar/launch.sh >/dev/null 2>&1 &", shell=True)
+
+    # 4. Update Rofi Light vs Dark colors
+    if ROFI_CONF.exists():
+        text = ROFI_CONF.read_text(encoding="utf-8")
+        if mode == "light":
+            text = re.sub(r"(bg:\s*)#[0-9A-Fa-f]{6,8};", r"\g<1>#F6F8FAf2;", text)
+            text = re.sub(r"(bg-alt:\s*)#[0-9A-Fa-f]{6,8};", r"\g<1>#EAEEF2;", text)
+            text = re.sub(r"(fg:\s*)#[0-9A-Fa-f]{6,8};", r"\g<1>#1F2328;", text)
+            text = re.sub(r"(muted:\s*)#[0-9A-Fa-f]{6,8};", r"\g<1>#57606A;", text)
+        else:
+            text = re.sub(r"(bg:\s*)#[0-9A-Fa-f]{6,8};", r"\g<1>#0D1117ee;", text)
+            text = re.sub(r"(bg-alt:\s*)#[0-9A-Fa-f]{6,8};", r"\g<1>#161B22;", text)
+            text = re.sub(r"(fg:\s*)#[0-9A-Fa-f]{6,8};", r"\g<1>#E6EDF3;", text)
+            text = re.sub(r"(muted:\s*)#[0-9A-Fa-f]{6,8};", r"\g<1>#8B949E;", text)
+        ROFI_CONF.write_text(text, encoding="utf-8")
+
+    # 5. Update XFCE4 Terminal Light vs Dark colors
+    if TERMINAL_RC.exists():
+        text = TERMINAL_RC.read_text(encoding="utf-8")
+        if mode == "light":
+            text = re.sub(r"ColorForeground=.*", "ColorForeground=#1F2328", text)
+            text = re.sub(r"ColorBackground=.*", "ColorBackground=#F6F8FA", text)
+        else:
+            text = re.sub(r"ColorForeground=.*", "ColorForeground=#E5E9F0", text)
+            text = re.sub(r"ColorBackground=.*", "ColorBackground=#0D1117", text)
+        TERMINAL_RC.write_text(text, encoding="utf-8")
 
 def apply_accent_color(hex_color):
     hex_color = hex_color.strip().upper()
@@ -130,28 +215,24 @@ def apply_accent_color(hex_color):
     state["accent"] = hex_color
     save_theme_state(state)
 
-    # 1. Update Polybar primary color
     if POLYBAR_CONF.exists():
         text = POLYBAR_CONF.read_text(encoding="utf-8")
         text = re.sub(r"(^\s*primary\s*=\s*)#[0-9A-Fa-f]{6}", rf"\g<1>{hex_color}", text, flags=re.MULTILINE)
         POLYBAR_CONF.write_text(text, encoding="utf-8")
         subprocess.Popen("bash ~/.config/polybar/launch.sh >/dev/null 2>&1 &", shell=True)
 
-    # 2. Update Rofi accent color
     if ROFI_CONF.exists():
         text = ROFI_CONF.read_text(encoding="utf-8")
         text = re.sub(r"(rosso:\s*)#[0-9A-Fa-f]{6};", rf"\g<1>{hex_color};", text)
         text = re.sub(r"(accent:\s*)#[0-9A-Fa-f]{6};", rf"\g<1>{hex_color};", text)
         ROFI_CONF.write_text(text, encoding="utf-8")
 
-    # 3. Update XFCE4 Terminal cursor and activity color
     if TERMINAL_RC.exists():
         text = TERMINAL_RC.read_text(encoding="utf-8")
         text = re.sub(r"ColorCursor=.*", f"ColorCursor={hex_color}", text)
         text = re.sub(r"TabActivityColor=.*", f"TabActivityColor={hex_color}", text)
         TERMINAL_RC.write_text(text, encoding="utf-8")
 
-    # 4. Write GTK3 custom accent CSS override
     try:
         GTK_CSS.parent.mkdir(parents=True, exist_ok=True)
         GTK_CSS.write_text(f"""/* TaaOS Custom Accent Override */
@@ -176,8 +257,9 @@ def apply_picom_profile(profile_key):
     save_theme_state(state)
 
     if profile_key == "performance":
-        # Stop picom completely so X11 uses hardware 2D BitBlt (0 lag in VirtualBox & low-spec hardware!)
+        # Stop picom AND enable XFWM4 native double-buffered compositor (zero trails & zero lag!)
         subprocess.run("killall -q picom 2>/dev/null || true", shell=True)
+        subprocess.run("xfconf-query -c xfwm4 -p /general/use_compositing -s true 2>/dev/null || true", shell=True)
         AUTOSTART_PICOM.parent.mkdir(parents=True, exist_ok=True)
         AUTOSTART_PICOM.write_text("""[Desktop Entry]
 Type=Application
@@ -186,12 +268,15 @@ Hidden=true
 NoDisplay=true
 X-GNOME-Autostart-enabled=false
 Name=Picom
-Comment=TaaOS Compositor Disabled (Performance Mode)
+Comment=TaaOS Compositor Disabled (XFWM4 Native Double-Buffer Active)
 """, encoding="utf-8")
         return
 
     if profile_key not in PICOM_PROFILES:
         return
+
+    # Disable XFWM4 internal compositor so Picom can take over cleanly
+    subprocess.run("xfconf-query -c xfwm4 -p /general/use_compositing -s false 2>/dev/null || true", shell=True)
 
     PICOM_CONF.parent.mkdir(parents=True, exist_ok=True)
     PICOM_CONF.write_text(PICOM_PROFILES[profile_key], encoding="utf-8")
@@ -256,12 +341,12 @@ def run_gui():
     current_accent = state.get("accent", "#D40000")
 
     win = Gtk.Window(title=tr("TaaOS Görünüm & Renk Stüdyosu", "TaaOS Appearance & Color Studio"))
-    win.set_default_size(580, 560)
+    win.set_default_size(600, 620)
     win.set_position(Gtk.WindowPosition.CENTER)
 
-    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-    vbox.set_margin_top(16)
-    vbox.set_margin_bottom(16)
+    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+    vbox.set_margin_top(14)
+    vbox.set_margin_bottom(14)
     vbox.set_margin_start(16)
     vbox.set_margin_end(16)
     win.add(vbox)
@@ -270,14 +355,32 @@ def run_gui():
     def update_header_color(hex_c):
         hdr.set_markup(
             f"<b><span size='large' foreground='{hex_c}'>{tr('TaaOS Görünüm & Renk Paleti Stüdyosu', 'TaaOS Appearance & Color Palette Studio')}</span></b>\n"
-            f"<span size='small'>{tr('Sistemi tek bir renge bağlı kalmadan kendi zevkinize ve donanımınıza göre özelleştirin.', 'Customize system accent colors, window fluidity, top bar layout, and transparency.')}</span>"
+            f"<span size='small'>{tr('Aydınlık/Karanlık modu, renk paletini, pencere akıcılığını ve üst barı özelleştirin.', 'Customize Light/Dark mode, color palettes, window fluidity, and top bar layout.')}</span>"
         )
     update_header_color(current_accent)
     hdr.set_xalign(0)
     vbox.pack_start(hdr, False, False, 0)
 
-    # 1. Color Palette Studio Section
-    frame_color = Gtk.Frame(label=tr(" 1. Sistem Renk Paleti & Özel Renk Seçici ", " 1. System Color Palette & Custom Picker "))
+    # 1. Dark / Light Mode Section
+    frame_mode = Gtk.Frame(label=tr(" 1. Tema Modu (Karanlık / Aydınlık) ", " 1. Theme Mode (Dark / Light) "))
+    box_mode = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    box_mode.set_margin_top(8)
+    box_mode.set_margin_bottom(8)
+    box_mode.set_margin_start(10)
+    box_mode.set_margin_end(10)
+    frame_mode.add(box_mode)
+
+    btn_dark = Gtk.Button(label=tr("🌙 Karanlık Mod (Dark Mode)", "🌙 Dark Mode"))
+    btn_dark.connect("clicked", lambda _: apply_theme_mode("dark"))
+    btn_light = Gtk.Button(label=tr("☀️ Aydınlık Mod (Light Mode)", "☀️ Light Mode"))
+    btn_light.connect("clicked", lambda _: apply_theme_mode("light"))
+
+    box_mode.pack_start(btn_dark, True, True, 0)
+    box_mode.pack_start(btn_light, True, True, 0)
+    vbox.pack_start(frame_mode, False, False, 0)
+
+    # 2. Color Palette Studio Section
+    frame_color = Gtk.Frame(label=tr(" 2. Sistem Renk Paleti & Özel Renk Seçici ", " 2. System Color Palette & Custom Picker "))
     vbox_color = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
     vbox_color.set_margin_top(8)
     vbox_color.set_margin_bottom(8)
@@ -332,8 +435,8 @@ def run_gui():
     vbox_color.pack_start(hbox_custom, False, False, 0)
     vbox.pack_start(frame_color, False, False, 0)
 
-    # 2. Compositor Section
-    frame1 = Gtk.Frame(label=tr(" 2. Pencere Efektleri & Akıcılık (Picom) ", " 2. Window Effects & Fluidity (Picom) "))
+    # 3. Compositor Section
+    frame1 = Gtk.Frame(label=tr(" 3. Pencere Efektleri & Akıcılık ", " 3. Window Effects & Fluidity "))
     box1 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
     box1.set_margin_top(8)
     box1.set_margin_bottom(8)
@@ -341,7 +444,7 @@ def run_gui():
     box1.set_margin_end(10)
     frame1.add(box1)
 
-    btn_perf = Gtk.Button(label=tr("⚡ Performans Modu (Sıfır Gecikme / VirtualBox & Sanal Makineler İçin)", "⚡ Performance Mode (Zero Lag / Best for VirtualBox & VMs)"))
+    btn_perf = Gtk.Button(label=tr("⚡ Performans Modu (XFWM4 Yerel Çift-Tampon — Sıfır İz & 60 FPS)", "⚡ Performance Mode (XFWM4 Native Double-Buffer — Zero Trail & 60 FPS)"))
     btn_perf.connect("clicked", lambda _: apply_picom_profile("performance"))
     btn_bal = Gtk.Button(label=tr("✨ Dengeli TaaOS Modu (Yumuşak Gölgeler & Akıcı Geçişler)", "✨ Balanced TaaOS Mode (Soft Shadows & Smooth Fades)"))
     btn_bal.connect("clicked", lambda _: apply_picom_profile("balanced"))
@@ -353,8 +456,8 @@ def run_gui():
     box1.pack_start(btn_ult, False, False, 0)
     vbox.pack_start(frame1, False, False, 0)
 
-    # 3. Polybar Style Section
-    frame2 = Gtk.Frame(label=tr(" 3. Üst Panel (Polybar) Tasarımı ", " 3. Top Bar (Polybar) Layout "))
+    # 4. Polybar Style Section
+    frame2 = Gtk.Frame(label=tr(" 4. Üst Panel (Polybar) Tasarımı ", " 4. Top Bar (Polybar) Layout "))
     box2 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
     box2.set_margin_top(8)
     box2.set_margin_bottom(8)
@@ -371,8 +474,8 @@ def run_gui():
     box2.pack_start(btn_float, True, True, 0)
     vbox.pack_start(frame2, False, False, 0)
 
-    # 4. Terminal Transparency
-    frame3 = Gtk.Frame(label=tr(" 4. Terminal Şeffaflık Seviyesi ", " 4. Terminal Transparency "))
+    # 5. Terminal Transparency
+    frame3 = Gtk.Frame(label=tr(" 5. Terminal Şeffaflık Seviyesi ", " 5. Terminal Transparency "))
     box3 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
     box3.set_margin_top(8)
     box3.set_margin_bottom(8)
@@ -392,7 +495,7 @@ def run_gui():
     box3.pack_start(btn_t85, True, True, 0)
     vbox.pack_start(frame3, False, False, 0)
 
-    # 5. Radial Wheel Settings Shortcut
+    # 6. Radial Wheel Settings Shortcut
     hbox_bot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
     btn_wheel = Gtk.Button(label=tr("🎡 Sağ Tık Uygulama Çarkını (Wheel) Özelleştir", "🎡 Customize Right-Click Radial Wheel"))
     btn_wheel.connect("clicked", lambda _: subprocess.Popen(["/usr/local/bin/taaos-wheel", "--config"]))
@@ -410,7 +513,18 @@ def run_gui():
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         arg = sys.argv[1].lower()
-        if arg in ("performance", "balanced", "ultra"):
+        if arg in ("light", "aydınlık"):
+            apply_theme_mode("light")
+            print("[TaaOS] Applied Light Mode")
+        elif arg in ("dark", "karanlık"):
+            apply_theme_mode("dark")
+            print("[TaaOS] Applied Dark Mode")
+        elif arg in ("toggle-mode", "--toggle-mode"):
+            cur = load_theme_state().get("mode", "dark")
+            new_m = "light" if cur == "dark" else "dark"
+            apply_theme_mode(new_m)
+            print(f"[TaaOS] Switched to {new_m} mode")
+        elif arg in ("performance", "balanced", "ultra"):
             apply_picom_profile(arg)
             print(f"[TaaOS] Applied compositor profile: {arg}")
         elif arg in ("floating", "floating-bar"):
@@ -426,6 +540,6 @@ if __name__ == "__main__":
             apply_accent_color(arg)
             print(f"[TaaOS] Applied custom color: {arg}")
         else:
-            print("Usage: taaos-appearance [performance|balanced|ultra|floating|full|rosso|cyan|emerald|amber|purple|#RRGGBB]")
+            print("Usage: taaos-appearance [light|dark|toggle-mode|performance|balanced|ultra|floating|full|rosso|cyan|emerald|amber|purple|#RRGGBB]")
     else:
         run_gui()
