@@ -1,14 +1,7 @@
 live-boot
 live-config
-live-config-sysvinit
-sysvinit-core
-openrc
-orphan-sysvinit-scripts
-elogind
-libpam-elogind
-dbus-x11
-systemd-standalone-sysusers
-systemd-standalone-tmpfiles
+live-config-systemd
+systemd-sysv
 initramfs-tools
 kmod
 
