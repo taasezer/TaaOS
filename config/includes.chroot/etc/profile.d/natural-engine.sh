@@ -1,5 +1,7 @@
 # TaaOS Natural Engine (TaaNOS) Aliases
-# Source this file in .bashrc or .zshrc
+# Only load in interactive shells
+[ -n "${BASH_VERSION:-}" -o -n "${ZSH_VERSION:-}" ] || return 0
+case "$-" in *i*) ;; *) return 0 ;; esac
 
 # Natural Engine shortcuts — all point to TaaNOS binary
 alias natural='taanos'

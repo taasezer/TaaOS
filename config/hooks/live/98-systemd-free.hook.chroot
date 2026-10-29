@@ -98,7 +98,7 @@ fi
 echo "[INIT] Configuring OpenRC runlevels with strict fast-boot whitelist..."
 mkdir -p /etc/runlevels/sysinit /etc/runlevels/boot /etc/runlevels/default
 
-ALLOWED_DEFAULT_SVCS="dbus elogind network-manager lightdm plymouth chrony zramswap earlyoom ufw virtualbox-guest-utils open-vm-tools spice-vdagent qemu-guest-agent acpid"
+ALLOWED_DEFAULT_SVCS="dbus elogind network-manager lightdm plymouth chrony zramswap earlyoom virtualbox-guest-utils open-vm-tools spice-vdagent qemu-guest-agent acpid"
 
 # Remove any non-whitelisted service from /etc/runlevels/default so orphan-sysvinit-scripts cannot slow down boot
 for link in /etc/runlevels/default/*; do
@@ -125,9 +125,9 @@ for essential_svc in $ALLOWED_DEFAULT_SVCS; do
     fi
 done
 
-# Remove blocking legacy scripts from boot/sysinit runlevels (NetworkManager handles networking asynchronously)
+# Remove blocking legacy scripts from boot/sysinit runlevels
 for boot_prune in \
-    networking ifupdown ifupdown-clean \
+    networking ifupdown ifupdown-clean nftables ufw lm-sensors \
     docker containerd libvirtd libvirt-guests virtlogd \
     cups cups-browsed modemmanager ModemManager preload \
     lvm2 lvm2-lvmpolld mdadm mdadm-waitidle smartmontools smartd \
@@ -137,6 +137,22 @@ for boot_prune in \
     rc-update del "${boot_prune}" sysinit 2>/dev/null || true
     rm -f "/etc/runlevels/default/${boot_prune}" "/etc/runlevels/boot/${boot_prune}" "/etc/runlevels/sysinit/${boot_prune}" 2>/dev/null || true
 done
+
+# Harden /lib/init/bootclean.sh so `clean /run` never crosses filesystem boundaries (-xdev) or scans /run/live
+for bc in /lib/init/bootclean.sh /usr/lib/init/bootclean.sh; do
+    if [ -f "$bc" ]; then
+        cat > "$bc" << 'BOOTCLEAN_EOF'
+clean_all() { return 0; }
+clean_tmp() { return 0; }
+clean() { return 0; }
+BOOTCLEAN_EOF
+    fi
+done
+
+# Ensure /etc/init.d/plymouth never fails if plymouthd already exited when LightDM started
+if [ -f /etc/init.d/plymouth ]; then
+    sed -i 's|/usr/bin/plymouth quit --retain-splash|/usr/bin/plymouth quit 2>/dev/null || true|g' /etc/init.d/plymouth 2>/dev/null || true
+fi
 
 # Ensure loopback interface (lo) is always up immediately without waiting for ifupdown
 cat > /etc/rc.local << 'RCLOCAL'

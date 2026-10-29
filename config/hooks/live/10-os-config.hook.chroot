@@ -240,9 +240,13 @@ cat > /etc/profile.d/taaos-safety.sh << 'SAFETY_EOF'
 # =============================================================================
 # TaaOS Safety Barriers — System-Wide Destructive Command Protection
 # =============================================================================
-# Loaded automatically via /etc/profile.d/ for all interactive shells.
+# Loaded automatically via /etc/profile.d/ for all interactive bash shells.
 # Protects against accidental destruction of critical system directories.
 # =============================================================================
+
+# Guard: never execute in non-interactive shells or POSIX /bin/sh (e.g. OpenRC init scripts)
+[ -n "${BASH_VERSION:-}" ] || return 0
+case "$-" in *i*) ;; *) return 0 ;; esac
 
 # Protected system directories — NEVER allow recursive force-delete on these
 _TAAOS_PROTECTED_PATHS=("/" "/*" "/home" "/etc" "/usr" "/boot" "/bin" "/sbin" "/lib" "/lib64" "/var" "/root" "/opt" "/srv" "/proc" "/sys" "/dev" "/run" "/tmp")
@@ -392,6 +396,14 @@ done
 # Ensure initramfs is updated
 update-initramfs -u -k all 2>/dev/null || true
 
+# Configure live-config so it always uses the 'engineer' live user instead of 'user'
+mkdir -p /etc/live/config.conf.d
+cat > /etc/live/config.conf.d/10-taaos.conf << 'EOF'
+LIVE_USERNAME="engineer"
+LIVE_USER_FULLNAME="TaaOS Engineer"
+LIVE_HOSTNAME="taaos"
+EOF
+
 # Configure kernel modules
 cat > /etc/modules << 'EOF'
 # Kernel modules to load at boot
@@ -403,25 +415,10 @@ f2fs
 
 # Virtualization
 kvm
-kvm_intel
-kvm_amd
 virtio
 virtio_pci
 virtio_blk
 virtio_net
-
-# Hardware monitoring
-coretemp
-nct6775
-it87
-
-# ECC memory
-edac_core
-edac_mc
-
-# Graphics (safe defaults)
-# drm
-# bochs_drm
 EOF
 
 # =============================================================================

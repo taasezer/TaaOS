@@ -72,14 +72,18 @@ create_aliases() {
 # TaaOS Modern CLI Aliases
 # =============================================================================
 # These aliases replace traditional Unix tools with modern alternatives.
-# Loaded system-wide via /etc/profile.d/
+# Loaded system-wide via /etc/profile.d/ for interactive bash/zsh shells only.
 # =============================================================================
+
+# Guard: never execute in non-interactive shells or POSIX /bin/sh (e.g. OpenRC init scripts)
+[ -n "${BASH_VERSION:-}" -o -n "${ZSH_VERSION:-}" ] || return 0
+case "$-" in *i*) ;; *) return 0 ;; esac
 
 # -----------------------------------------------------------------------------
 # bat - A cat clone with syntax highlighting and Git integration
 # -----------------------------------------------------------------------------
 # On Debian, bat is installed as 'batcat' to avoid conflict with another package
-if command -v batcat &> /dev/null; then
+if command -v batcat >/dev/null 2>&1; then
     alias cat='batcat --paging=never'
     alias bat='batcat'
 fi
@@ -87,7 +91,7 @@ fi
 # -----------------------------------------------------------------------------
 # lsd - The next-gen ls command with icons and colors
 # -----------------------------------------------------------------------------
-if command -v lsd &> /dev/null; then
+if command -v lsd >/dev/null 2>&1; then
     alias ls='lsd'
     alias ll='lsd -la'
     alias la='lsd -a'
@@ -98,14 +102,14 @@ fi
 # -----------------------------------------------------------------------------
 # ripgrep - Ultra-fast grep alternative
 # -----------------------------------------------------------------------------
-if command -v rg &> /dev/null; then
+if command -v rg >/dev/null 2>&1; then
     alias grep='rg'
 fi
 
 # -----------------------------------------------------------------------------
 # zoxide - Smarter cd command that learns your habits
 # -----------------------------------------------------------------------------
-if command -v zoxide &> /dev/null; then
+if [ -n "${BASH_VERSION:-}" ] && command -v zoxide >/dev/null 2>&1; then
     eval "$(zoxide init bash)"
     alias cd='z'
 fi
@@ -113,10 +117,10 @@ fi
 # -----------------------------------------------------------------------------
 # fzf - Fuzzy finder integration
 # -----------------------------------------------------------------------------
-if command -v fzf &> /dev/null; then
+if [ -n "${BASH_VERSION:-}" ] && command -v fzf >/dev/null 2>&1; then
     # Enable fzf keybindings if available
-    if [[ -f /usr/share/doc/fzf/examples/key-bindings.bash ]]; then
-        source /usr/share/doc/fzf/examples/key-bindings.bash
+    if [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]; then
+        . /usr/share/doc/fzf/examples/key-bindings.bash
     fi
     
     # fzf-powered history search
