@@ -295,6 +295,60 @@ LOCALECFG_CONF
 kernelUtc: true
 HWCLOCK_CONF
 
+    # Machine ID module — Systemd-Free safe
+    cat > /etc/calamares/modules/machineid.conf << 'MACHINEID_CONF'
+---
+systemd: "systemd-style"
+dbus: true
+symlink: true
+dbus-symlink: true
+entropy-copy: false
+MACHINEID_CONF
+
+    # Systemd-machine-id-setup compatibility wrapper
+    cat > /usr/bin/systemd-machine-id-setup << 'MACHINEID_SETUP'
+#!/bin/sh
+set -e
+ROOT=""
+PRINT_ONLY=0
+for arg in "$@"; do
+    case "$arg" in
+        --root=*) ROOT="${arg#--root=}" ;;
+        --print) PRINT_ONLY=1 ;;
+    esac
+done
+TARGET_DIR="${ROOT}/etc"
+TARGET_FILE="${TARGET_DIR}/machine-id"
+if [ "$PRINT_ONLY" -eq 1 ] && [ -s "$TARGET_FILE" ] && [ "$(cat "$TARGET_FILE" 2>/dev/null)" != "uninitialized" ]; then
+    cat "$TARGET_FILE"
+    exit 0
+fi
+mkdir -p "$TARGET_DIR"
+if [ ! -s "$TARGET_FILE" ] || [ "$(cat "$TARGET_FILE" 2>/dev/null)" = "uninitialized" ]; then
+    ID=""
+    if command -v dbus-uuidgen >/dev/null 2>&1; then
+        ID=$(dbus-uuidgen 2>/dev/null)
+    fi
+    if [ -z "$ID" ] && [ -r /dev/urandom ]; then
+        ID=$(od -vN 16 -An -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')
+    fi
+    if [ -z "$ID" ]; then
+        ID=$(date +%s%N$$ 2>/dev/null | md5sum | cut -d' ' -f1)
+    fi
+    printf "%s\n" "$ID" > "$TARGET_FILE"
+    chmod 444 "$TARGET_FILE" 2>/dev/null || true
+fi
+mkdir -p "${ROOT}/var/lib/dbus"
+if [ ! -e "${ROOT}/var/lib/dbus/machine-id" ]; then
+    ln -sf /etc/machine-id "${ROOT}/var/lib/dbus/machine-id" 2>/dev/null || true
+fi
+if [ "$PRINT_ONLY" -eq 1 ]; then
+    cat "$TARGET_FILE"
+fi
+exit 0
+MACHINEID_SETUP
+    chmod +x /usr/bin/systemd-machine-id-setup
+
     # Unpackfs module — CRITICAL: tells Calamares where to find the live filesystem
     # Use dynamic detection script to find correct squashfs path
     cat > /usr/lib/taaos/fix-unpackfs.sh << 'UNPACKFS_SCRIPT'
@@ -565,18 +619,54 @@ swapoff -a 2>/dev/null || true
 umount -R /tmp/calamares-* 2>/dev/null || true
 
 # Absolute failsafe for UnpackFS
-SQ_PATH=$(find /run /lib /media -type f -name "*.squashfs" 2>/dev/null | head -n 1)
+SQ_PATH=$(find /run /lib /media -type f -name "filesystem.squashfs" 2>/dev/null | head -n 1)
+if [ -z "$SQ_PATH" ]; then
+    SQ_PATH=$(find /run /lib /media -type f -name "*.squashfs" 2>/dev/null | grep -v hotfix | head -n 1)
+fi
+
+HOTFIX_PATH=""
+if [ -n "$SQ_PATH" ]; then
+    SQ_DIR=$(dirname "$SQ_PATH")
+    if [ -f "$SQ_DIR/z-taaos-hotfix.squashfs" ]; then
+        HOTFIX_PATH="$SQ_DIR/z-taaos-hotfix.squashfs"
+    fi
+fi
+
+mkdir -p /etc/calamares/modules
 if [ -n "$SQ_PATH" ]; then
     echo "[TaaOS] Found live filesystem at: $SQ_PATH"
-    mkdir -p /etc/calamares/modules
-    cat > /etc/calamares/modules/unpackfs.conf << UNPACKEOF
+    if [ -n "$HOTFIX_PATH" ]; then
+        cat > /etc/calamares/modules/unpackfs.conf << UNPACKEOF
+---
+unpack:
+    -   source: "$SQ_PATH"
+        sourcefs: "squashfs"
+        destination: ""
+    -   source: "$HOTFIX_PATH"
+        sourcefs: "squashfs"
+        destination: ""
+        optional: true
+UNPACKEOF
+    else
+        cat > /etc/calamares/modules/unpackfs.conf << UNPACKEOF
 ---
 unpack:
     -   source: "$SQ_PATH"
         sourcefs: "squashfs"
         destination: ""
 UNPACKEOF
+    fi
 fi
+
+# Ensure systemd-free machine-id configuration
+cat > /etc/calamares/modules/machineid.conf << 'MACHINECONF'
+---
+systemd: "systemd-style"
+dbus: true
+symlink: true
+dbus-symlink: true
+entropy-copy: false
+MACHINECONF
 
 exec /usr/bin/calamares "$@"
 WRAPPER_SCRIPT

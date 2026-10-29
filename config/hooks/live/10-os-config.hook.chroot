@@ -686,6 +686,20 @@ done
 # Clean apt cache
 apt-get clean 2>/dev/null || true
 
+# Ensure valid machine-id exists on target system
+if [ ! -s /etc/machine-id ] || [ "$(cat /etc/machine-id 2>/dev/null)" = "uninitialized" ]; then
+    if command -v systemd-machine-id-setup >/dev/null 2>&1; then
+        systemd-machine-id-setup 2>/dev/null || true
+    elif command -v dbus-uuidgen >/dev/null 2>&1; then
+        dbus-uuidgen > /etc/machine-id 2>/dev/null || true
+    else
+        od -vN 16 -An -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' > /etc/machine-id || true
+        echo "" >> /etc/machine-id 2>/dev/null || true
+    fi
+fi
+mkdir -p /var/lib/dbus
+ln -sf /etc/machine-id /var/lib/dbus/machine-id 2>/dev/null || true
+
 echo "[TaaOS] Post-installation complete! System is ready."
 EOF
 
