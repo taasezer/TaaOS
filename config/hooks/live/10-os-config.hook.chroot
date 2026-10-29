@@ -381,9 +381,9 @@ GRUB_GFXMODE=1920x1080,1600x900,1366x768,1280x800,auto
 GRUB_GFXPAYLOAD_LINUX=keep
 EOF
 
-# Include DRM/KMS drivers in initramfs for instant full-screen Plymouth splash
+# Include DRM/KMS drivers (bare-metal Intel/AMD/NVIDIA + hypervisor GPUs) in initramfs for instant native-resolution Plymouth splash
 mkdir -p /etc/initramfs-tools
-for kms_mod in vmwgfx vboxvideo virtio_gpu bochs qxl; do
+for kms_mod in i915 xe amdgpu radeon nouveau vmwgfx vboxvideo virtio_gpu bochs qxl; do
     if ! grep -qx "$kms_mod" /etc/initramfs-tools/modules 2>/dev/null; then
         echo "$kms_mod" >> /etc/initramfs-tools/modules
     fi

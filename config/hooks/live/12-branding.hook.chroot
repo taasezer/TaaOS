@@ -558,39 +558,44 @@ for i in $(seq 1 30); do
     sleep 0.2
 done
 
-# ── Start VM guest display agents (VirtualBox VMSVGA/VBoxVGA, VMware, QEMU/SPICE) ──
-if command -v VBoxDRMClient &>/dev/null; then
-    pgrep -x VBoxDRMClient &>/dev/null || VBoxDRMClient 2>/dev/null &
-fi
-if command -v VBoxClient &>/dev/null; then
-    VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
-    VBoxClient --clipboard 2>/dev/null || true
-    VBoxClient --draganddrop 2>/dev/null || true
-fi
-if command -v vmware-user-suid-wrapper &>/dev/null; then
-    vmware-user-suid-wrapper 2>/dev/null || true
-elif command -v vmtoolsd &>/dev/null; then
-    pgrep -f "vmtoolsd.*vmusr" &>/dev/null || vmtoolsd -n vmusr 2>/dev/null &
-fi
-if command -v spice-vdagent &>/dev/null; then
-    pgrep -x spice-vdagent &>/dev/null || spice-vdagent 2>/dev/null || true
+# ── Hardware-aware VM guest agent startup (only runs if inside a VM; zero overhead on bare metal) ──
+SYS_VENDOR=$(cat /sys/class/dmi/id/sys_vendor /sys/class/dmi/id/product_name 2>/dev/null || true)
+if [ -e /dev/vboxguest ] || echo "$SYS_VENDOR" | grep -qi "VirtualBox"; then
+    if command -v VBoxDRMClient &>/dev/null; then
+        pgrep -x VBoxDRMClient &>/dev/null || VBoxDRMClient 2>/dev/null &
+    fi
+    if command -v VBoxClient &>/dev/null; then
+        VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
+        VBoxClient --clipboard 2>/dev/null || true
+        VBoxClient --draganddrop 2>/dev/null || true
+    fi
+elif echo "$SYS_VENDOR" | grep -qiE "VMware"; then
+    if command -v vmware-user-suid-wrapper &>/dev/null; then
+        vmware-user-suid-wrapper 2>/dev/null || true
+    elif command -v vmtoolsd &>/dev/null; then
+        pgrep -f "vmtoolsd.*vmusr" &>/dev/null || vmtoolsd -n vmusr 2>/dev/null &
+    fi
+elif [ -e /dev/virtio-ports/com.redhat.spice.0 ] || echo "$SYS_VENDOR" | grep -qiE "QEMU|KVM"; then
+    if command -v spice-vdagent &>/dev/null; then
+        pgrep -x spice-vdagent &>/dev/null || spice-vdagent 2>/dev/null || true
+    fi
 fi
 
 get_res() {
-    LC_ALL=C xrandr --current 2>/dev/null | awk '/\*/ {print $1; exit}'
+    LC_ALL=C xrandr --current 2>/dev/null | awk '/\*/ {print $1}' | paste -sd "," -
 }
 
-get_output() {
-    LC_ALL=C xrandr --current 2>/dev/null | awk '/ connected/ {print $1; exit}'
+get_outputs() {
+    LC_ALL=C xrandr --current 2>/dev/null | awk '/ connected/ {print $1}'
 }
 
-get_preferred() {
-    # Full xrandr probe queries kernel DRM connector for updated host window size
+get_preferred_for_output() {
+    local target_out="$1"
     local xout
     xout=$(LC_ALL=C xrandr 2>/dev/null)
     local pref
-    pref=$(echo "$xout" | awk '
-        / connected/ { in_block=1; next }
+    pref=$(echo "$xout" | awk -v out="$target_out" '
+        $1 == out && / connected/ { in_block=1; next }
         /^[A-Za-z0-9]/ { in_block=0 }
         in_block && /^[[:space:]]+[0-9]+x[0-9]+/ && /\+/ { print $1; exit }
     ')
@@ -598,10 +603,14 @@ get_preferred() {
         echo "$pref"
         return
     fi
-    # Fallback if hypervisor has not yet injected a non-800x600 preferred mode
+    # Fallback only if monitor/hypervisor reports no native EDID preferred mode (or 800x600 VESA)
     local candidate
-    for candidate in 1920x1080 1600x900 1440x900 1366x768 1280x800 1280x720; do
-        if echo "$xout" | grep -qE "^[[:space:]]+${candidate}[[:space:]]"; then
+    for candidate in 3840x2160 2560x1600 2560x1440 1920x1200 1920x1080 1600x900 1440x900 1366x768 1280x800 1280x720; do
+        if echo "$xout" | awk -v out="$target_out" '
+            $1 == out && / connected/ { in_block=1; next }
+            /^[A-Za-z0-9]/ { in_block=0 }
+            in_block { print }
+        ' | grep -qE "^[[:space:]]+${candidate}[[:space:]]"; then
             echo "$candidate"
             return
         fi
@@ -633,37 +642,36 @@ restart_ui() {
     fi
 }
 
-OUTPUT=$(get_output)
-if [ -n "$OUTPUT" ]; then
-    PREF=$(get_preferred)
-    if [ -n "$PREF" ]; then
-        xrandr --output "$OUTPUT" --mode "$PREF" 2>/dev/null || xrandr --output "$OUTPUT" --auto 2>/dev/null
-    else
-        xrandr --output "$OUTPUT" --auto 2>/dev/null
-    fi
-    sync_wallpaper
-    echo "[TaaOS Display] Initial resolution set: $(get_res)" >> "$LOG"
-fi
+apply_all_outputs() {
+    local changed=0
+    for out in $(get_outputs); do
+        local pref
+        pref=$(get_preferred_for_output "$out")
+        local cur
+        cur=$(LC_ALL=C xrandr --current 2>/dev/null | awk -v o="$out" '$1 == o && / connected/ {b=1; next} /^[A-Za-z0-9]/{b=0} b && /\*/ {print $1; exit}')
+        if [ -n "$pref" ] && [ "$pref" != "$cur" ]; then
+            echo "[TaaOS Display] Setting output $out to $pref (was: ${cur:-off})" >> "$LOG"
+            xrandr --output "$out" --mode "$pref" 2>/dev/null || xrandr --output "$out" --auto 2>/dev/null
+            changed=1
+        elif [ -z "$cur" ]; then
+            xrandr --output "$out" --auto 2>/dev/null
+            changed=1
+        fi
+    done
+    return $changed
+}
+
+apply_all_outputs || true
+sync_wallpaper
+echo "[TaaOS Display] Initial resolution set: $(get_res)" >> "$LOG"
 
 old_res=$(get_res)
 
 check_display() {
-    OUTPUT=$(get_output)
-    [ -z "$OUTPUT" ] && return
-    preferred_res=$(get_preferred)
+    apply_all_outputs || true
     current_res=$(get_res)
-
-    if [ -n "$preferred_res" ] && [ "$preferred_res" != "$current_res" ]; then
-        echo "[TaaOS Display] Switching to preferred resolution: $preferred_res (was: $current_res)" >> "$LOG"
-        xrandr --output "$OUTPUT" --mode "$preferred_res" 2>/dev/null || xrandr --output "$OUTPUT" --auto 2>/dev/null
-        sleep 0.3
-        verify_res=$(get_res)
-        if [ "$verify_res" != "$old_res" ]; then
-            restart_ui
-            old_res="$verify_res"
-        fi
-    elif [ -n "$current_res" ] && [ "$current_res" != "$old_res" ]; then
-        echo "[TaaOS Display] External resolution change: $old_res -> $current_res" >> "$LOG"
+    if [ -n "$current_res" ] && [ "$current_res" != "$old_res" ]; then
+        echo "[TaaOS Display] Resolution updated: $old_res -> $current_res" >> "$LOG"
         restart_ui
         old_res="$current_res"
     fi
@@ -713,30 +721,26 @@ Comment=Dynamic resolution + VirtualBox display support
 EOF
 cp /etc/skel/.config/autostart/taaos-display-watcher.desktop /etc/xdg/autostart/taaos-display-watcher.desktop
 
-# LightDM display-setup-script so the login screen itself adapts to the screen/window size
+# LightDM display-setup-script so the login screen itself adapts to any physical monitor or VM window
 cat > /usr/local/bin/taaos-lightdm-display << 'EOF'
 #!/bin/bash
 export LC_ALL=C
-if command -v VBoxDRMClient &>/dev/null; then
-    pgrep -x VBoxDRMClient &>/dev/null || VBoxDRMClient 2>/dev/null &
+if [ -e /dev/vboxguest ]; then
+    if command -v VBoxDRMClient &>/dev/null; then
+        pgrep -x VBoxDRMClient &>/dev/null || VBoxDRMClient 2>/dev/null &
+    fi
+    if command -v VBoxClient &>/dev/null; then
+        VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
+    fi
 fi
-if command -v VBoxClient &>/dev/null; then
-    VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
-fi
-OUTPUT=$(xrandr 2>/dev/null | awk '/ connected/ {print $1; exit}')
-if [ -n "$OUTPUT" ]; then
-    PREF=$(xrandr 2>/dev/null | awk '/ connected/{b=1;next} /^[A-Za-z0-9]/{b=0} b && /^[[:space:]]+[0-9]+x[0-9]+/ && /\+/{print $1; exit}')
+for OUTPUT in $(xrandr 2>/dev/null | awk '/ connected/ {print $1}'); do
+    PREF=$(xrandr 2>/dev/null | awk -v o="$OUTPUT" '$1 == o && / connected/{b=1;next} /^[A-Za-z0-9]/{b=0} b && /^[[:space:]]+[0-9]+x[0-9]+/ && /\+/{print $1; exit}')
     if [ -n "$PREF" ] && [ "$PREF" != "800x600" ]; then
         xrandr --output "$OUTPUT" --mode "$PREF" 2>/dev/null || xrandr --output "$OUTPUT" --auto 2>/dev/null
     else
-        for mode in 1920x1080 1600x900 1440x900 1366x768 1280x800 1280x720; do
-            if xrandr 2>/dev/null | grep -qE "^[[:space:]]+${mode}[[:space:]]"; then
-                xrandr --output "$OUTPUT" --mode "$mode" 2>/dev/null && break
-            fi
-        done
         xrandr --output "$OUTPUT" --auto 2>/dev/null || true
     fi
-fi
+done
 exit 0
 EOF
 chmod +x /usr/local/bin/taaos-lightdm-display

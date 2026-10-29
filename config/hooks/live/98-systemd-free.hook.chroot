@@ -142,7 +142,8 @@ done
 cat > /etc/rc.local << 'RCLOCAL'
 #!/bin/sh -e
 ip link set lo up 2>/dev/null || true
-if command -v VBoxDRMClient >/dev/null 2>&1; then
+# Start VBoxDRMClient only if running inside VirtualBox (/dev/vboxguest present)
+if [ -e /dev/vboxguest ] && command -v VBoxDRMClient >/dev/null 2>&1; then
     pgrep -x VBoxDRMClient >/dev/null 2>&1 || VBoxDRMClient 2>/dev/null &
 fi
 exit 0
