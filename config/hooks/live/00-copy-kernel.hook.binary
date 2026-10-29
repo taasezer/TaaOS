@@ -187,7 +187,7 @@ echo "[LIVE-HOOK] Creating EFI GRUB configuration..."
 cat > "${EFI_OUT}/grub.cfg" << 'EOF'
 # TaaOS EFI GRUB Configuration
 set default="0"
-set timeout=10
+set timeout=2
 
 # Search for ISO filesystem
 search --set=root --file /live/vmlinuz
@@ -197,17 +197,18 @@ insmod all_video
 insmod gfxterm
 insmod png
 
-set gfxmode=auto
+set gfxmode=1920x1080,1600x900,1366x768,1280x800,auto
+set gfxpayload=keep
 terminal_output gfxterm
 
 # Menu entries
-menuentry "TaaOS Live (Safe Mode - VMs)" --class taaos --class os {
-    linux /live/vmlinuz boot=live components nomodeset quiet splash
+menuentry "TaaOS Live" --class taaos --class os {
+    linux /live/vmlinuz boot=live components quiet splash
     initrd /live/initrd.img
 }
 
-menuentry "TaaOS Live (Normal)" --class taaos --class os {
-    linux /live/vmlinuz boot=live components quiet splash
+menuentry "TaaOS Live (Safe Mode - nomodeset)" --class taaos --class os {
+    linux /live/vmlinuz boot=live components nomodeset quiet splash
     initrd /live/initrd.img
 }
 

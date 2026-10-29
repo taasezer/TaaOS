@@ -43,6 +43,15 @@ if dpkg -l | grep -qE "^ii\s+(lightdm|task-xfce-desktop|live-boot)"; then
         live-config-systemd- \
         cockpit- \
         cockpit-ws-
+
+    # Install VirtualBox Guest Utilities & X11 Auto-Resize agents (VBoxDRMClient + VBoxClient + VBoxService)
+    echo "[INIT] Installing VirtualBox Guest X11 & DRM Auto-Resize utilities..."
+    echo "deb http://deb.debian.org/debian sid contrib" > /etc/apt/sources.list.d/sid-vbox.list
+    if apt-get update 2>/dev/null; then
+        apt-get install -y --no-install-recommends virtualbox-guest-utils virtualbox-guest-x11 2>/dev/null || true
+    fi
+    rm -f /etc/apt/sources.list.d/sid-vbox.list
+    apt-get update 2>/dev/null || true
 else
     echo "[INIT] Installing Minimal CLI Systemd-Free stack (sysvinit-core + openrc)..."
     apt-get install -y --allow-remove-essential \
@@ -85,28 +94,61 @@ if [ -f /etc/rc.conf ]; then
     fi
 fi
 
-# 4. Configure OpenRC Runlevels (enable essential desktop services, disable heavy daemons at boot)
-echo "[INIT] Configuring OpenRC runlevels for sub-5-second desktop boot..."
+# 4. Configure OpenRC Runlevels (strict whitelist for sub-3-second desktop boot)
+echo "[INIT] Configuring OpenRC runlevels with strict fast-boot whitelist..."
 mkdir -p /etc/runlevels/sysinit /etc/runlevels/boot /etc/runlevels/default
 
-for essential_svc in dbus elogind network-manager lightdm plymouth zramswap earlyoom ufw chrony; do
+ALLOWED_DEFAULT_SVCS="dbus elogind network-manager lightdm plymouth chrony zramswap earlyoom ufw virtualbox-guest-utils open-vm-tools spice-vdagent qemu-guest-agent acpid"
+
+# Remove any non-whitelisted service from /etc/runlevels/default so orphan-sysvinit-scripts cannot slow down boot
+for link in /etc/runlevels/default/*; do
+    [ -e "$link" ] || [ -L "$link" ] || continue
+    svc_name=$(basename "$link")
+    keep=0
+    for allowed in $ALLOWED_DEFAULT_SVCS; do
+        if [ "$svc_name" = "$allowed" ]; then
+            keep=1
+            break
+        fi
+    done
+    if [ "$keep" -eq 0 ]; then
+        rc-update del "$svc_name" default 2>/dev/null || rm -f "$link"
+        echo "  - Pruned non-essential boot service from default: ${svc_name}"
+    fi
+done
+
+# Ensure all allowed core services are enabled in default
+for essential_svc in $ALLOWED_DEFAULT_SVCS; do
     if [ -x "/etc/init.d/${essential_svc}" ]; then
         rc-update add "${essential_svc}" default 2>/dev/null || true
         echo "  + Enabled core service: ${essential_svc}"
     fi
 done
 
-for heavy_svc in \
+# Remove blocking legacy scripts from boot/sysinit runlevels (NetworkManager handles networking asynchronously)
+for boot_prune in \
+    networking ifupdown ifupdown-clean \
     docker containerd libvirtd libvirt-guests virtlogd \
     cups cups-browsed modemmanager ModemManager preload \
     lvm2 lvm2-lvmpolld mdadm mdadm-waitidle smartmontools smartd \
-    rasdaemon fail2ban clamav-daemon clamav-freshclam rsync exim4 avahi-daemon bluetooth; do
-    rc-update del "${heavy_svc}" default 2>/dev/null || true
-    rc-update del "${heavy_svc}" boot 2>/dev/null || true
-    rc-update del "${heavy_svc}" sysinit 2>/dev/null || true
-    update-rc.d -f "${heavy_svc}" remove 2>/dev/null || true
+    rasdaemon fail2ban clamav-daemon clamav-freshclam rsync exim4 avahi-daemon bluetooth saned speech-dispatcher; do
+    rc-update del "${boot_prune}" default 2>/dev/null || true
+    rc-update del "${boot_prune}" boot 2>/dev/null || true
+    rc-update del "${boot_prune}" sysinit 2>/dev/null || true
+    rm -f "/etc/runlevels/default/${boot_prune}" "/etc/runlevels/boot/${boot_prune}" "/etc/runlevels/sysinit/${boot_prune}" 2>/dev/null || true
 done
-echo "[INIT] Heavy background daemons (docker, libvirtd, cups, etc.) set to on-demand only."
+
+# Ensure loopback interface (lo) is always up immediately without waiting for ifupdown
+cat > /etc/rc.local << 'RCLOCAL'
+#!/bin/sh -e
+ip link set lo up 2>/dev/null || true
+if command -v VBoxDRMClient >/dev/null 2>&1; then
+    pgrep -x VBoxDRMClient >/dev/null 2>&1 || VBoxDRMClient 2>/dev/null &
+fi
+exit 0
+RCLOCAL
+chmod +x /etc/rc.local
+echo "[INIT] Strict OpenRC fast-boot runlevel configuration complete."
 
 # 5. Install Smart OpenRC / SysVinit Compatibility Wrapper for `systemctl` and `loginctl`
 echo "[INIT] Installing OpenRC/SysVinit compatibility wrapper (/usr/local/bin/systemctl)..."

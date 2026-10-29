@@ -112,7 +112,7 @@ echo "[OS-CONFIG] Configuring network..."
 # Enable NetworkManager
 systemctl enable NetworkManager.service
 
-# Configure networking
+# Configure networking (loopback only — NetworkManager manages all physical/virtual interfaces asynchronously without blocking boot)
 cat > /etc/network/interfaces << 'EOF'
 # This file describes the network interfaces available on your system
 # and how to activate them. For more information, see interfaces(5).
@@ -122,13 +122,6 @@ source /etc/network/interfaces.d/*
 # The loopback network interface
 auto lo
 iface lo inet loopback
-
-# Allow NetworkManager to manage all interfaces
-allow-hotplug eth0
-iface eth0 inet dhcp
-
-allow-hotplug wlan0
-iface wlan0 inet dhcp
 EOF
 
 # Disable conflicting systemd-networkd and wait-online services for instant boot
@@ -376,17 +369,25 @@ apt-get update 2>/dev/null || true
 # =============================================================================
 echo "[OS-CONFIG] Configuring kernel and boot..."
 
-# Configure GRUB for installed system (Plymouth splash on every boot)
+# Configure GRUB for installed system (Plymouth splash & high-res KMS on every boot)
 cat > /etc/default/grub << 'EOF'
 # TaaOS GRUB Configuration
 GRUB_DEFAULT=0
-GRUB_TIMEOUT=5
+GRUB_TIMEOUT=2
 GRUB_DISTRIBUTOR="TaaOS"
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
 GRUB_CMDLINE_LINUX=""
-GRUB_GFXMODE=auto
+GRUB_GFXMODE=1920x1080,1600x900,1366x768,1280x800,auto
 GRUB_GFXPAYLOAD_LINUX=keep
 EOF
+
+# Include DRM/KMS drivers in initramfs for instant full-screen Plymouth splash
+mkdir -p /etc/initramfs-tools
+for kms_mod in vmwgfx vboxvideo virtio_gpu bochs qxl; do
+    if ! grep -qx "$kms_mod" /etc/initramfs-tools/modules 2>/dev/null; then
+        echo "$kms_mod" >> /etc/initramfs-tools/modules
+    fi
+done
 
 # Ensure initramfs is updated
 update-initramfs -u -k all 2>/dev/null || true
@@ -623,11 +624,11 @@ fi
 cat > /etc/default/grub << 'GRUBDEFAULT'
 # TaaOS GRUB Configuration
 GRUB_DEFAULT=0
-GRUB_TIMEOUT=5
+GRUB_TIMEOUT=2
 GRUB_DISTRIBUTOR="TaaOS"
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
 GRUB_CMDLINE_LINUX=""
-GRUB_GFXMODE=auto
+GRUB_GFXMODE=1920x1080,1600x900,1366x768,1280x800,auto
 GRUB_GFXPAYLOAD_LINUX=keep
 GRUBDEFAULT
 

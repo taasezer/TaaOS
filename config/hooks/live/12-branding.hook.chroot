@@ -558,7 +558,10 @@ for i in $(seq 1 30); do
     sleep 0.2
 done
 
-# ── Start VM guest display agents (VirtualBox VMSVGA uses vmwgfx / vmware-user!) ──
+# ── Start VM guest display agents (VirtualBox VMSVGA/VBoxVGA, VMware, QEMU/SPICE) ──
+if command -v VBoxDRMClient &>/dev/null; then
+    pgrep -x VBoxDRMClient &>/dev/null || VBoxDRMClient 2>/dev/null &
+fi
 if command -v VBoxClient &>/dev/null; then
     VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
     VBoxClient --clipboard 2>/dev/null || true
@@ -567,7 +570,10 @@ fi
 if command -v vmware-user-suid-wrapper &>/dev/null; then
     vmware-user-suid-wrapper 2>/dev/null || true
 elif command -v vmtoolsd &>/dev/null; then
-    vmtoolsd -n vmusr 2>/dev/null &
+    pgrep -f "vmtoolsd.*vmusr" &>/dev/null || vmtoolsd -n vmusr 2>/dev/null &
+fi
+if command -v spice-vdagent &>/dev/null; then
+    pgrep -x spice-vdagent &>/dev/null || spice-vdagent 2>/dev/null || true
 fi
 
 get_res() {
@@ -580,11 +586,27 @@ get_output() {
 
 get_preferred() {
     # Full xrandr probe queries kernel DRM connector for updated host window size
-    LC_ALL=C xrandr 2>/dev/null | awk '
+    local xout
+    xout=$(LC_ALL=C xrandr 2>/dev/null)
+    local pref
+    pref=$(echo "$xout" | awk '
         / connected/ { in_block=1; next }
         /^[A-Za-z0-9]/ { in_block=0 }
         in_block && /^[[:space:]]+[0-9]+x[0-9]+/ && /\+/ { print $1; exit }
-    '
+    ')
+    if [ -n "$pref" ] && [ "$pref" != "800x600" ]; then
+        echo "$pref"
+        return
+    fi
+    # Fallback if hypervisor has not yet injected a non-800x600 preferred mode
+    local candidate
+    for candidate in 1920x1080 1600x900 1440x900 1366x768 1280x800 1280x720; do
+        if echo "$xout" | grep -qE "^[[:space:]]+${candidate}[[:space:]]"; then
+            echo "$candidate"
+            return
+        fi
+    done
+    [ -n "$pref" ] && echo "$pref"
 }
 
 sync_wallpaper() {
@@ -678,7 +700,7 @@ echo "[TaaOS] Display active resolution: $(xrandr --current | awk '/\*/ {print $
 EOF
 chmod +x /usr/local/bin/taaos-display-fix
 
-mkdir -p /etc/skel/.config/autostart
+mkdir -p /etc/skel/.config/autostart /etc/xdg/autostart
 cat > /etc/skel/.config/autostart/taaos-display-watcher.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
@@ -688,6 +710,41 @@ NoDisplay=false
 X-GNOME-Autostart-enabled=true
 Name=TaaOS Display Watcher
 Comment=Dynamic resolution + VirtualBox display support
+EOF
+cp /etc/skel/.config/autostart/taaos-display-watcher.desktop /etc/xdg/autostart/taaos-display-watcher.desktop
+
+# LightDM display-setup-script so the login screen itself adapts to the screen/window size
+cat > /usr/local/bin/taaos-lightdm-display << 'EOF'
+#!/bin/bash
+export LC_ALL=C
+if command -v VBoxDRMClient &>/dev/null; then
+    pgrep -x VBoxDRMClient &>/dev/null || VBoxDRMClient 2>/dev/null &
+fi
+if command -v VBoxClient &>/dev/null; then
+    VBoxClient --vmsvga 2>/dev/null || VBoxClient --display 2>/dev/null || true
+fi
+OUTPUT=$(xrandr 2>/dev/null | awk '/ connected/ {print $1; exit}')
+if [ -n "$OUTPUT" ]; then
+    PREF=$(xrandr 2>/dev/null | awk '/ connected/{b=1;next} /^[A-Za-z0-9]/{b=0} b && /^[[:space:]]+[0-9]+x[0-9]+/ && /\+/{print $1; exit}')
+    if [ -n "$PREF" ] && [ "$PREF" != "800x600" ]; then
+        xrandr --output "$OUTPUT" --mode "$PREF" 2>/dev/null || xrandr --output "$OUTPUT" --auto 2>/dev/null
+    else
+        for mode in 1920x1080 1600x900 1440x900 1366x768 1280x800 1280x720; do
+            if xrandr 2>/dev/null | grep -qE "^[[:space:]]+${mode}[[:space:]]"; then
+                xrandr --output "$OUTPUT" --mode "$mode" 2>/dev/null && break
+            fi
+        done
+        xrandr --output "$OUTPUT" --auto 2>/dev/null || true
+    fi
+fi
+exit 0
+EOF
+chmod +x /usr/local/bin/taaos-lightdm-display
+
+mkdir -p /etc/lightdm/lightdm.conf.d
+cat > /etc/lightdm/lightdm.conf.d/10-taaos-display.conf << 'EOF'
+[Seat:*]
+display-setup-script=/usr/local/bin/taaos-lightdm-display
 EOF
 
 # =============================================================================
